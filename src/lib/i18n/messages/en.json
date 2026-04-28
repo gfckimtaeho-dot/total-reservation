@@ -1,9 +1,32 @@
 {
   "landing": {
-    "title": "Total Reservation",
-    "tagline": "Book anywhere in the Philippines, all in one place",
-    "ctaCustomer": "Start booking",
-    "ctaBusiness": "Register your shop"
+    "topbar": {
+      "login": "Log in"
+    },
+    "hero": {
+      "label": "🇵🇭 Philippines · since 2026",
+      "title": "Reservations, <em>truly</em> one-tap.",
+      "tagline": "Gyms, massage, soon hair salons and golf — every shop in the Philippines, in one place.",
+      "ctaCustomer": "Start booking →",
+      "ctaBusiness": "I run a business"
+    },
+    "categories": {
+      "heading": "Browse categories",
+      "subheading": "Expanding · 4 categories",
+      "soon": "Launching soon",
+      "planned": "Planned",
+      "items": {
+        "gym": "Gym · PT",
+        "massage": "Massage",
+        "salon": "Hair salon",
+        "golf": "Golf · Screen"
+      }
+    },
+    "businessBlock": {
+      "heading": "Running a business?",
+      "subheading": "5 minutes to register. Start receiving bookings.",
+      "cta": "Register your shop →"
+    }
   },
   "auth": {
     "login": "Log in",

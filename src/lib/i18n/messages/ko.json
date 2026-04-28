@@ -1,9 +1,32 @@
 {
   "landing": {
-    "title": "통합 예약",
-    "tagline": "필리핀 어디서나, 한 번에 예약",
-    "ctaCustomer": "예약 시작",
-    "ctaBusiness": "매장 등록"
+    "topbar": {
+      "login": "로그인"
+    },
+    "hero": {
+      "label": "🇵🇭 Philippines · since 2026",
+      "title": "예약, <em>정말로</em> 한 번에.",
+      "tagline": "헬스장, 마사지, 미용실, 골프 — 필리핀의 모든 매장을 한 곳에서.",
+      "ctaCustomer": "지금 예약 시작 →",
+      "ctaBusiness": "매장 운영자입니다"
+    },
+    "categories": {
+      "heading": "카테고리 둘러보기",
+      "subheading": "점차 확장 중 · 4개 분야",
+      "soon": "곧 출시",
+      "planned": "예정",
+      "items": {
+        "gym": "헬스장 · PT",
+        "massage": "마사지",
+        "salon": "미용실",
+        "golf": "골프 · 스크린"
+      }
+    },
+    "businessBlock": {
+      "heading": "매장을 운영하고 계신가요?",
+      "subheading": "5분이면 등록 끝. 예약 받기 시작하세요.",
+      "cta": "매장 등록 →"
+    }
   },
   "auth": {
     "login": "로그인",
