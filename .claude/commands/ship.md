@@ -20,13 +20,16 @@ If on `main` / `master`: warn the user and ask for explicit confirmation before 
 
 ## 1. Detect the test command
 
-Auto-detect based on files in the project root:
+Auto-detect based on files in the repo (project root unless noted). First match wins:
+- Any `*.sln` (typically at root) or any `*.csproj` (anywhere in the repo, often under `src/`) → `dotnet test` (.NET / C#)
 - `package.json` exists → `npm test` (or `pnpm test` / `yarn test` if those lockfiles are present)
 - `pyproject.toml` or `pytest.ini` or `setup.cfg` with pytest config → `pytest`
 - `go.mod` → `go test ./...`
 - `Cargo.toml` → `cargo test`
 - `Gemfile` with rspec → `bundle exec rspec`
 - Otherwise: ask the user what the test command is. Do not guess.
+
+For .NET specifically: prefer running `dotnet test` from the directory containing the `.sln` (it auto-discovers all test projects). If only `.csproj` files exist with no solution, run `dotnet test` from the repo root — it will resolve test projects automatically.
 
 Print the detected command to the user before running it.
 
