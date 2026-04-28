@@ -1,0 +1,23 @@
+{
+  "landing": {
+    "title": "통합 예약",
+    "tagline": "필리핀 어디서나, 한 번에 예약",
+    "ctaCustomer": "예약 시작",
+    "ctaBusiness": "매장 등록"
+  },
+  "auth": {
+    "login": "로그인",
+    "signup": "회원가입",
+    "logout": "로그아웃",
+    "email": "이메일",
+    "password": "비밀번호",
+    "name": "이름"
+  },
+  "common": {
+    "language": "언어",
+    "korean": "한국어",
+    "english": "English",
+    "save": "저장",
+    "cancel": "취소"
+  }
+}

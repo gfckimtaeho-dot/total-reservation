@@ -1,0 +1,23 @@
+{
+  "landing": {
+    "title": "Total Reservation",
+    "tagline": "Book anywhere in the Philippines, all in one place",
+    "ctaCustomer": "Start booking",
+    "ctaBusiness": "Register your shop"
+  },
+  "auth": {
+    "login": "Log in",
+    "signup": "Sign up",
+    "logout": "Log out",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name"
+  },
+  "common": {
+    "language": "Language",
+    "korean": "한국어",
+    "english": "English",
+    "save": "Save",
+    "cancel": "Cancel"
+  }
+}

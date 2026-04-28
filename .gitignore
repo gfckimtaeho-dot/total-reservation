@@ -42,3 +42,5 @@ next-env.d.ts
 
 # Claude Code 로컬 설정 (머신/사용자별이라 공유하지 않음)
 .claude/settings.local.json
+
+/src/generated/prisma

@@ -1,0 +1,41 @@
+// Total Reservation — Prisma schema
+// M0: User + enums only. Business/Reservation/Payment models added in M1+.
+// Connection string lives in .env (DATABASE_URL); loaded via prisma.config.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  BUSINESS_OWNER
+  STAFF
+  ADMIN
+}
+
+enum Locale {
+  ko
+  en
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String?  // null only for OAuth-only accounts (M6)
+  name             String
+  phone            String?
+  role             Role     @default(CUSTOMER)
+  locale           Locale   @default(ko)
+  stripeCustomerId String?  @unique // populated when user adds first card (M5)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
