@@ -135,6 +135,7 @@ export async function registerBusiness(
         data: {
           slug: d.slug,
           name: d.storeName,
+          category: d.category,
           phone: d.storePhone,
           cityId: city.id,
           barangayId: barangay.id,

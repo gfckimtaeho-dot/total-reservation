@@ -38,6 +38,11 @@ enum BusinessStatus {
   BLOCKED
 }
 
+enum BusinessCategory {
+  GYM
+  MASSAGE
+}
+
 enum SubscriptionPlan {
   TRIAL
   MONTHLY
@@ -154,14 +159,15 @@ model Barangay {
 // ─── Tenant Root: Business (가맹점) ────────────────────────
 
 model Business {
-  id           String         @id @default(cuid())
-  slug         String         @unique
+  id           String           @id @default(cuid())
+  slug         String           @unique
   name         String
+  category     BusinessCategory @default(GYM)
   phone        String?
   contactEmail String?
-  hasDeposit   Boolean        @default(false)
+  hasDeposit   Boolean          @default(false)
   gcashQrUrl   String?
-  status       BusinessStatus @default(TRIAL)
+  status       BusinessStatus   @default(TRIAL)
   cityId       String
   barangayId   String
   city         City           @relation(fields: [cityId], references: [id])
