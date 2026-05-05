@@ -210,41 +210,90 @@ function PastelKpi({
 
 function SkyCalendarGrid() {
   return (
-    <div className="mt-5 grid grid-cols-7 gap-1.5 text-center">
-      {WEEKDAYS.map((w) => (
-        <span key={w} className="pb-2 text-[11px] font-medium text-zinc-500">
-          {w}
-        </span>
-      ))}
-      {Array.from({ length: MOCK_MONTH_START_WEEKDAY }).map((_, i) => (
-        <div key={`pad-${i}`} />
-      ))}
-      {MOCK_MONTH.map((d) => {
-        const lvl = shadeLevel(d.total);
-        if (d.isClosed) {
+    <>
+      <div className="mt-5 grid grid-cols-7 gap-1.5 text-center">
+        {WEEKDAYS.map((w) => (
+          <span key={w} className="pb-2 text-[11px] font-medium text-zinc-500">
+            {w}
+          </span>
+        ))}
+        {Array.from({ length: MOCK_MONTH_START_WEEKDAY }).map((_, i) => (
+          <div key={`pad-${i}`} />
+        ))}
+        {MOCK_MONTH.map((d) => {
+          if (d.isClosed) {
+            return (
+              <div
+                key={d.day}
+                className="relative min-h-[68px] rounded-md bg-zinc-200 p-2 text-left"
+              >
+                <div className="text-xs font-medium text-zinc-500">{d.day}</div>
+                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-zinc-500">
+                  휴
+                </div>
+              </div>
+            );
+          }
+          const barTotal = d.pt + d.group;
           return (
-            <div key={d.day} className="relative aspect-square rounded-md bg-white/50 p-1.5 text-left">
-              <div className="text-xs text-zinc-300">{d.day}</div>
-              <div className="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-400">휴</div>
+            <div
+              key={d.day}
+              className={`relative min-h-[68px] rounded-md border border-sky-100 bg-white p-2 text-left ${
+                d.isToday ? "ring-2 ring-sky-700" : ""
+              }`}
+              title={
+                d.total === 0
+                  ? `${d.day}일 — 예약 없음`
+                  : `${d.day}일\nPT ${d.pt}건\n그룹 ${d.group}건\n자유 ${d.free}건\n노쇼 ${d.noShow}건`
+              }
+            >
+              <div className="flex items-start justify-between">
+                <span className="text-xs font-medium text-ink">{d.day}</span>
+                {d.group > 0 && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                )}
+              </div>
+              {d.total > 0 && (
+                <div className="font-heading mt-0.5 text-lg tabular-nums leading-none text-ink">
+                  {d.total}
+                </div>
+              )}
+              {barTotal > 0 && (
+                <div className="absolute inset-x-2 bottom-2 flex h-1 overflow-hidden rounded-full bg-sky-50">
+                  <div
+                    className="bg-sky-700"
+                    style={{ width: `${(d.pt / barTotal) * 100}%` }}
+                    title={`PT ${d.pt}건`}
+                  />
+                  <div
+                    className="bg-rose-500"
+                    style={{ width: `${(d.group / barTotal) * 100}%` }}
+                    title={`그룹 ${d.group}건`}
+                  />
+                </div>
+              )}
             </div>
           );
-        }
-        return (
-          <div
-            key={d.day}
-            className={`relative aspect-square rounded-md p-1.5 text-left ${lvl === 0 ? "bg-white" : SHADE_BG[lvl]} ${d.isToday ? "ring-2 ring-sky-700" : ""}`}
-            title={d.total === 0 ? `${d.day}일 — 예약 없음` : `${d.day}일\nPT ${d.pt}건\n그룹 ${d.group}건\n자유 ${d.free}건\n노쇼 ${d.noShow}건`}
-          >
-            <div className="flex items-start justify-between">
-              <span className={`text-xs font-medium ${SHADE_TEXT[lvl]}`}>{d.day}</span>
-              {d.group > 0 && <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}
-            </div>
-            {d.total > 0 && (
-              <div className={`mt-0.5 text-[11px] tabular-nums ${SHADE_TEXT[lvl]}`}>{d.total}</div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+        })}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-zinc-500">
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-3 rounded-sm bg-sky-700" />
+          PT
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-3 rounded-sm bg-rose-500" />
+          그룹 수업
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+          단체 수업 있음
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-zinc-200" />
+          휴무
+        </span>
+      </div>
+    </>
   );
 }
