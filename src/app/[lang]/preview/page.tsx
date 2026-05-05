@@ -85,7 +85,27 @@ export default async function PreviewIndex({
         ))}
       </ul>
 
-      <p className="mt-10 text-xs text-zinc-500">
+      <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-5">
+        <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
+          추가 시안
+        </span>
+        <Link
+          href={`/${lang}/preview/settings`}
+          className="mt-2 flex flex-col gap-1.5"
+        >
+          <span className="font-heading text-lg tracking-tight text-ink">
+            설정 화면
+          </span>
+          <span className="text-sm text-zinc-600">
+            언어 선택(한국어/English) + 화면 컨셉 선택(Normal·Dark·White). 사이드바 nav "설정" 클릭 시 진입.
+          </span>
+          <span className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-ink/60">
+            /preview/settings →
+          </span>
+        </Link>
+      </div>
+
+      <p className="mt-8 text-xs text-zinc-500">
         * 모든 시안 공통: 매출 카드 제거, 진행중 강조, 동시간대 PT 2명 가시화, 멤버십 만료 임박 패널 포함.
       </p>
     </div>

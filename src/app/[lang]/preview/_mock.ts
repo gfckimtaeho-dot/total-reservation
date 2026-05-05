@@ -148,4 +148,5 @@ export const NAV_ITEMS = [
   { key: "hours", label: "영업일" },
   { key: "services", label: "서비스" },
   { key: "revenue", label: "매출현황" },
+  { key: "settings", label: "설정" },
 ] as const;

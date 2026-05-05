@@ -47,7 +47,6 @@ export default function DashV3() {
           ))}
         </nav>
         <div className="border-t border-white/5 px-3 py-4">
-          <a className="flex items-center rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-white/5">설정</a>
           <a className="flex items-center rounded-md px-3 py-2 text-sm text-zinc-400 hover:bg-white/5">로그아웃</a>
         </div>
       </aside>
