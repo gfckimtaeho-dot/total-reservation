@@ -1,4 +1,4 @@
-// Mock data shared by dashboard preview variants v1~v5.
+// Mock data for dashboard preview variants v1~v5.
 // Lives only under /preview/* routes — never imported from production code.
 
 export type MockReservation = {
@@ -30,22 +30,32 @@ export const MOCK_TODAY = {
   nowMin: 9 * 60 + 30,
 };
 
+// 7건 — 진행중 2건 (09:00 동시간대 PT 2명) + 14:00 PT 2명 + 11:00 그룹수업
 export const MOCK_RESERVATIONS_TODAY: MockReservation[] = [
   { id: "r1", startMin: 7 * 60, endMin: 8 * 60, customer: "김민수", staff: "박코치", service: "PT 60분", serviceType: "PT", status: "COMPLETED" },
   { id: "r2", startMin: 9 * 60, endMin: 10 * 60, customer: "이서연", staff: "정코치", service: "필라테스 60분", serviceType: "PT", status: "IN_PROGRESS" },
-  { id: "r3", startMin: 11 * 60, endMin: 12 * 60, customer: "그룹 요가 (GX)", staff: "한코치", service: "요가 60분", serviceType: "GROUP", capacity: 12, enrolled: 8, status: "CONFIRMED" },
+  { id: "r2b", startMin: 9 * 60, endMin: 10 * 60, customer: "김지수", staff: "박코치", service: "PT 60분", serviceType: "PT", status: "IN_PROGRESS" },
+  { id: "r3", startMin: 11 * 60, endMin: 12 * 60, customer: "그룹 요가", staff: "한코치", service: "요가 60분", serviceType: "GROUP", capacity: 12, enrolled: 8, status: "CONFIRMED" },
   { id: "r4", startMin: 14 * 60, endMin: 15 * 60, customer: "박지훈", staff: "박코치", service: "PT 60분", serviceType: "PT", status: "CONFIRMED" },
-  { id: "r5", startMin: 19 * 60, endMin: 20 * 60, customer: "최유진", staff: "정코치", service: "PT 60분", serviceType: "PT", status: "CONFIRMED" },
+  { id: "r4b", startMin: 14 * 60, endMin: 15 * 60, customer: "최유진", staff: "정코치", service: "PT 60분", serviceType: "PT", status: "CONFIRMED" },
+  { id: "r5", startMin: 19 * 60, endMin: 20 * 60, customer: "안소진", staff: "정코치", service: "PT 60분", serviceType: "PT", status: "CONFIRMED" },
 ];
 
 export const MOCK_KPI = {
-  todayBookings: 5,
+  todayBookings: MOCK_RESERVATIONS_TODAY.length,
+  inProgress: MOCK_RESERVATIONS_TODAY.filter((r) => r.status === "IN_PROGRESS").length,
   activeMembers: 238,
   totalCustomersEver: 315,
-  todayShiftStaff: 6,
-  revenueThisMonth: 8_400_000,
-  revenueDelta: 0.18,
+  todayShiftStaff: 3,
 };
+
+export type MockExpiring = { name: string; until: string; daysLeft: number };
+export const MOCK_EXPIRING: MockExpiring[] = [
+  { name: "이서연", until: "2026-05-08", daysLeft: 3 },
+  { name: "박지훈", until: "2026-05-09", daysLeft: 4 },
+  { name: "최유진", until: "2026-05-11", daysLeft: 6 },
+  { name: "김민수", until: "2026-05-12", daysLeft: 7 },
+];
 
 export type MockDay = {
   day: number;
@@ -58,9 +68,8 @@ export type MockDay = {
   isToday?: boolean;
 };
 
-// 2026년 5월 (수요일 시작 — leadingPad 계산용으로 그냥 1일이 금요일이라 가정)
 export const MOCK_MONTH_LABEL = "2026년 5월";
-export const MOCK_MONTH_START_WEEKDAY = 5; // 0=일 ... 5=금
+export const MOCK_MONTH_START_WEEKDAY = 5; // 1일이 금요일 가정
 export const MOCK_MONTH_DAYS = 31;
 
 export const MOCK_MONTH: MockDay[] = [
@@ -68,7 +77,7 @@ export const MOCK_MONTH: MockDay[] = [
   { day: 2, total: 31, pt: 20, group: 7, free: 4, noShow: 0 },
   { day: 3, total: 45, pt: 28, group: 12, free: 5, noShow: 0 },
   { day: 4, total: 42, pt: 26, group: 12, free: 4, noShow: 1 },
-  { day: 5, total: 5, pt: 4, group: 1, free: 0, noShow: 0, isToday: true },
+  { day: 5, total: 7, pt: 6, group: 1, free: 0, noShow: 0, isToday: true },
   { day: 6, total: 38, pt: 24, group: 10, free: 4, noShow: 0 },
   { day: 7, total: 22, pt: 14, group: 4, free: 4, noShow: 0 },
   { day: 8, total: 35, pt: 22, group: 9, free: 4, noShow: 0 },
@@ -99,7 +108,6 @@ export const MOCK_MONTH: MockDay[] = [
 
 export const MOCK_TOTAL_MONTH_BOOKINGS = MOCK_MONTH.reduce((s, d) => s + d.total, 0);
 
-// shade levels via simple thresholds for mock (real impl uses quartile rank)
 export function shadeLevel(total: number): 0 | 1 | 2 | 3 {
   if (total === 0) return 0;
   if (total < 20) return 1;
@@ -107,17 +115,31 @@ export function shadeLevel(total: number): 0 | 1 | 2 | 3 {
   return 3;
 }
 
-export const SHADE_BG = ["bg-zinc-50", "bg-zinc-100", "bg-zinc-200", "bg-zinc-300"] as const;
-export const SHADE_TEXT = ["text-zinc-300", "text-ink/60", "text-ink/80", "text-ink"] as const;
-
 export function fmtTime(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function fmtPeso(amount: number): string {
-  return `₱${(amount / 1_000_000).toFixed(1)}M`;
+// 같은 시간 시작 reservation을 묶어 반환 — 동시간대 multi-PT 시각화에 사용.
+export function groupByHour(reservations: MockReservation[]): {
+  hour: number;
+  startMin: number;
+  items: MockReservation[];
+}[] {
+  const map = new Map<number, MockReservation[]>();
+  for (const r of reservations) {
+    const key = r.startMin;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(r);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([startMin, items]) => ({
+      hour: Math.floor(startMin / 60),
+      startMin,
+      items,
+    }));
 }
 
 export const NAV_ITEMS = [
