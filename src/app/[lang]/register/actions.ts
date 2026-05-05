@@ -37,6 +37,9 @@ const schema = z
       .regex(SLUG_RE, "영문/숫자/하이픈만 사용 (양 끝 하이픈 X)")
       .refine((s) => !RESERVED_SLUGS.has(s), "예약된 슬러그입니다"),
     storePhone: z.string().min(1, "매장 전화번호를 입력해 주세요"),
+    category: z.enum(["GYM", "MASSAGE"], {
+      message: "업종을 선택해 주세요",
+    }),
     cityId: z.string().min(1, "시를 선택해 주세요"),
     barangayId: z.string().min(1, "동을 선택해 주세요"),
     ownerName: z.string().min(1, "이름을 입력해 주세요"),

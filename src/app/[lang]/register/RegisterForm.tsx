@@ -32,6 +32,7 @@ export function RegisterForm({
     initialState,
   );
   const [cityId, setCityId] = useState("");
+  const [category, setCategory] = useState<"" | "GYM" | "MASSAGE">("");
   const formRef = useRef<HTMLFormElement>(null);
   const barangays = useMemo(
     () => cities.find((c) => c.id === cityId)?.barangays ?? [],
@@ -106,6 +107,39 @@ export function RegisterForm({
             errors={state.errors?.barangayId}
           />
         </div>
+      </section>
+
+      <section>
+        <h2 className="font-heading mb-6 text-2xl tracking-tight text-ink">
+          {t("sectionCategory")}
+        </h2>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Select
+            label={t("category")}
+            name="category"
+            placeholder={t("selectCategory")}
+            value={category}
+            onValueChange={(v) => setCategory(v as "" | "GYM" | "MASSAGE")}
+            options={[
+              { value: "GYM", label: t("categoryGym") },
+              { value: "MASSAGE", label: t("categoryMassage") },
+            ]}
+            required
+            errorMessage={t("errors.category")}
+            errors={state.errors?.category}
+          />
+          <div className="hidden sm:block" />
+        </div>
+        {category === "GYM" && (
+          <p className="mt-4 rounded-md bg-emerald-50 px-4 py-3 text-sm leading-relaxed text-emerald-900 ring-1 ring-emerald-200">
+            {t("gymHint")}
+          </p>
+        )}
+        {category === "MASSAGE" && (
+          <p className="mt-4 rounded-md bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900 ring-1 ring-amber-200">
+            {t("massageHint")}
+          </p>
+        )}
       </section>
 
       <section>
