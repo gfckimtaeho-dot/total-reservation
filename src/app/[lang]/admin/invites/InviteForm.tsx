@@ -1,38 +1,39 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import {
-  createInvite,
-  emailInvite,
-  type CreateInviteState,
-} from "./actions";
+import { createInvite, type CreateInviteState } from "./actions";
 
 const initialState: CreateInviteState = {};
+
+function buildMessage(businessName: string, url: string) {
+  const subject = "예약가즈아 매장 등록 초대";
+  const body = `${businessName} 사장님 안녕하세요.
+
+예약가즈아 매장 등록 링크입니다.
+아래 링크를 7일 안에 클릭해 매장 정보를 입력해 주세요.
+
+${url}`;
+  return { subject, body };
+}
 
 export function InviteForm() {
   const [state, formAction, pending] = useActionState(
     createInvite,
     initialState,
   );
-  const [copied, setCopied] = useState(false);
-  const [emailMsg, setEmailMsg] = useState<string | null>(null);
-  const [emailing, setEmailing] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
-  async function handleCopy(url: string) {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function copy(key: string, text: string) {
+    await navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
   }
 
-  async function handleEmail(tokenId: string) {
-    setEmailing(true);
-    setEmailMsg(null);
-    const fd = new FormData();
-    fd.set("tokenId", tokenId);
-    const r = await emailInvite(fd);
-    setEmailMsg(r.ok ? "메일 발송 완료." : r.message ?? "발송 실패");
-    setEmailing(false);
-  }
+  const businessName = state.created?.businessName ?? "";
+  const url = state.created?.url ?? "";
+  const { subject, body } = state.created
+    ? buildMessage(businessName, url)
+    : { subject: "", body: "" };
 
   return (
     <div className="space-y-8">
@@ -46,7 +47,7 @@ export function InviteForm() {
             errors={state.errors?.expectedBusinessName}
           />
           <Field
-            label="사장 이메일 (발송용)"
+            label="사장 이메일 (메모용)"
             name="expectedOwnerEmail"
             type="email"
             placeholder="owner@example.com"
@@ -72,41 +73,71 @@ export function InviteForm() {
       </form>
 
       {state.created && (
-        <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+        <div className="space-y-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/60">
             발급 완료 · 7일 유효
           </div>
-          <code className="block break-all rounded-md bg-white px-3 py-2 text-sm text-zinc-800 ring-1 ring-zinc-200">
-            {state.created.url}
-          </code>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => handleCopy(state.created!.url)}
-              type="button"
-              className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-800 transition hover:border-ink"
-            >
-              {copied ? "복사됨" : "URL 복사"}
-            </button>
-            {state.created.ownerEmail ? (
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-700">
+              초대 URL
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="flex-1 break-all rounded-md bg-white px-3 py-2 text-sm text-zinc-800 ring-1 ring-zinc-200">
+                {url}
+              </code>
               <button
-                onClick={() => handleEmail(state.created!.id)}
                 type="button"
-                disabled={emailing}
-                className="inline-flex h-9 items-center rounded-md bg-ink px-3 text-xs font-medium text-white transition hover:bg-ink/90 disabled:opacity-60"
+                onClick={() => copy("url", url)}
+                className="inline-flex h-9 shrink-0 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-800 transition hover:border-ink"
               >
-                {emailing
-                  ? "발송 중..."
-                  : `${state.created.ownerEmail}로 메일 발송`}
+                {copied === "url" ? "복사됨" : "URL 복사"}
               </button>
-            ) : (
-              <span className="text-xs text-zinc-500">
-                메일 발송하려면 사장 이메일을 입력하고 다시 발급
-              </span>
-            )}
+            </div>
           </div>
-          {emailMsg && (
-            <div className="text-xs text-zinc-700">{emailMsg}</div>
-          )}
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-700">
+              메시지 제목 (메일·카톡·문자에 그대로 사용)
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                readOnly
+                value={subject}
+                className="flex-1 rounded-md bg-white px-3 py-2 text-sm text-zinc-800 ring-1 ring-zinc-200"
+              />
+              <button
+                type="button"
+                onClick={() => copy("subject", subject)}
+                className="inline-flex h-9 shrink-0 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs text-zinc-800 transition hover:border-ink"
+              >
+                {copied === "subject" ? "복사됨" : "제목 복사"}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-zinc-700">
+              메시지 본문 (사장님께 그대로 전달)
+            </label>
+            <textarea
+              readOnly
+              value={body}
+              rows={7}
+              className="block w-full rounded-md bg-white px-3 py-2 text-sm text-zinc-800 ring-1 ring-zinc-200"
+            />
+            <button
+              type="button"
+              onClick={() => copy("body", body)}
+              className="inline-flex h-9 items-center rounded-md bg-ink px-3 text-xs font-medium text-white transition hover:bg-ink/90"
+            >
+              {copied === "body" ? "복사됨" : "본문 복사"}
+            </button>
+          </div>
+
+          <p className="text-xs text-zinc-500">
+            메일·카톡·문자 어디든 위 본문을 붙여넣어 사장님께 직접 전달하세요. 시스템에서 자동 발송하지 않습니다.
+          </p>
         </div>
       )}
     </div>

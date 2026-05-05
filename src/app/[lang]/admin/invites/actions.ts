@@ -20,7 +20,12 @@ const createSchema = z.object({
 
 export type CreateInviteState = {
   errors?: Record<string, string[] | undefined>;
-  created?: { id: string; url: string; ownerEmail: string | null };
+  created?: {
+    id: string;
+    url: string;
+    ownerEmail: string | null;
+    businessName: string;
+  };
 };
 
 async function baseUrl(): Promise<string> {
@@ -67,6 +72,7 @@ export async function createInvite(
       id: created.id,
       url,
       ownerEmail: created.expectedOwnerEmail,
+      businessName: created.expectedBusinessName ?? "",
     },
   };
 }
