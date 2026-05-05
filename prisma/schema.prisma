@@ -1,6 +1,8 @@
 // Total Reservation — Prisma schema
-// M0: User + enums only. Business/Reservation/Payment models added in M1+.
-// Connection string lives in .env (DATABASE_URL); loaded via prisma.config.ts.
+// M1: gym 가맹점형 SaaS 멀티테넌시. 모든 도메인 row가 gymId(=Business.id) 스코프.
+// admin User만 gymId NULL. (email, gymId) composite unique + admin partial unique는
+// migration.sql에 raw SQL로 보강 (Postgres NULL distinct 동작 우회).
+// 시간 컬럼은 @db.Timestamptz(3) — UTC 저장 명세 부합.
 
 generator client {
   provider = "prisma-client"
@@ -11,13 +13,98 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── Enums ───────────────────────────────────────────────
+// ─── Enums ─────────────────────────────────────────────────
 
 enum Role {
-  CUSTOMER
-  BUSINESS_OWNER
-  STAFF
   ADMIN
+  OWNER
+  MANAGER
+  TRAINER
+  CUSTOMER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  WITHDRAWN
+  ANONYMIZED
+}
+
+enum BusinessStatus {
+  TRIAL
+  ACTIVE
+  GRACE
+  EXPIRED
+  BLOCKED
+}
+
+enum SubscriptionPlan {
+  TRIAL
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
+
+enum ReservationStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+  REJECTED
+}
+
+enum ReservationLogAction {
+  CREATED
+  CONFIRMED
+  CHANGED_BY_CUSTOMER
+  CHANGED_BY_STAFF
+  CANCELLED_BY_CUSTOMER
+  CANCELLED_BY_STAFF
+  REJECTED
+  COMPLETED
+  NO_SHOW
+}
+
+enum MagicLinkPurpose {
+  SIGNUP_ACTIVATION
+  PASSWORD_RESET
+  STAFF_INVITE
+}
+
+enum AccessResult {
+  ALLOWED
+  DENIED
+  EXPIRED
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+}
+
+enum NotificationResult {
+  SUCCESS
+  FAILED
+}
+
+enum NotificationChannelSetting {
+  PUSH
+  EMAIL
+  BOTH
+}
+
+enum TrustEventKind {
+  SIGNUP
+  VISIT_COMPLETED
+  NO_SHOW
+}
+
+enum UserDeletionStatus {
+  PENDING
+  CANCELLED
+  ANONYMIZED
 }
 
 enum Locale {
@@ -25,17 +112,474 @@ enum Locale {
   en
 }
 
-// ─── Models ──────────────────────────────────────────────
+enum Weekday {
+  SUN
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+}
+
+enum TimeUnit {
+  M30
+  M60
+}
+
+// ─── PSGC Location (글로벌 마스터) ────────────────────────
+
+model City {
+  id        String     @id @default(cuid())
+  psgcCode  String     @unique
+  name      String
+  createdAt DateTime   @default(now()) @db.Timestamptz(3)
+
+  barangays Barangay[]
+  businesses Business[]
+}
+
+model Barangay {
+  id        String @id @default(cuid())
+  psgcCode  String @unique
+  name      String
+  cityId    String
+  city      City   @relation(fields: [cityId], references: [id])
+
+  businesses Business[]
+
+  @@index([cityId])
+}
+
+// ─── Tenant Root: Business (가맹점) ────────────────────────
+
+model Business {
+  id           String         @id @default(cuid())
+  slug         String         @unique
+  name         String
+  phone        String?
+  contactEmail String?
+  hasDeposit   Boolean        @default(false)
+  gcashQrUrl   String?
+  status       BusinessStatus @default(TRIAL)
+  cityId       String
+  barangayId   String
+  city         City           @relation(fields: [cityId], references: [id])
+  barangay     Barangay       @relation(fields: [barangayId], references: [id])
+  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @db.Timestamptz(3)
+
+  users               User[]
+  staff               Staff[]
+  services            Service[]
+  hours               BusinessHours[]
+  images              BusinessImage[]
+  memberships         Membership[]
+  packages            Package[]
+  reservations        Reservation[]
+  reservationLogs     ReservationLog[]
+  qrTokens            QrToken[]
+  accessLogs          AccessLog[]
+  trustScores         TrustScore[]
+  trustEvents         TrustEvent[]
+  userDeletions       UserDeletion[]
+  notificationSetting BusinessNotificationSetting?
+  notificationLogs    NotificationLog[]
+  subscription        Subscription?
+  payments            Payment[]
+  magicLinkTokens     MagicLinkToken[]
+  inviteToken         InviteToken?
+
+  @@index([cityId, barangayId])
+  @@index([status])
+}
+
+// ─── User (가맹점 스코프, admin만 gymId NULL) ─────────────
 
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  passwordHash     String?  // null only for OAuth-only accounts (M6)
-  name             String
-  phone            String?
-  role             Role     @default(CUSTOMER)
-  locale           Locale   @default(ko)
-  stripeCustomerId String?  @unique // populated when user adds first card (M5)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id           String     @id @default(cuid())
+  gymId        String?
+  business     Business?  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  email        String
+  passwordHash String?
+  name         String
+  phone        String?
+  role         Role       @default(CUSTOMER)
+  status       UserStatus @default(PENDING)
+  locale       Locale     @default(ko)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+
+  staff               Staff?
+  memberships         Membership[]
+  packages            Package[]
+  reservations        Reservation[]            @relation("CustomerReservations")
+  qrTokens            QrToken[]
+  accessLogs          AccessLog[]
+  trustScores         TrustScore[]
+  trustEvents         TrustEvent[]
+  userDeletion        UserDeletion?
+  notificationSetting UserNotificationSetting?
+  pushSubscriptions   PushSubscription[]
+  notificationLogs    NotificationLog[]
+  magicLinkTokens     MagicLinkToken[]
+  sessions            Session[]
+  accounts            Account[]
+
+  @@unique([email, gymId])
+  @@index([gymId, role])
+  @@index([gymId, status])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  expiresAt  DateTime @db.Timestamptz(3)
+  ipAddress  String?
+  userAgent  String?
+  rememberMe Boolean  @default(false)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Account {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId String
+  accountId  String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+// ─── Tokens ────────────────────────────────────────────────
+
+model MagicLinkToken {
+  id           String           @id @default(cuid())
+  token        String           @unique
+  targetUserId String
+  targetUser   User             @relation(fields: [targetUserId], references: [id], onDelete: Cascade)
+  gymId        String?
+  business     Business?        @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  purpose      MagicLinkPurpose
+  expiresAt    DateTime         @db.Timestamptz(3)
+  usedAt       DateTime?        @db.Timestamptz(3)
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+
+  @@index([targetUserId, purpose])
+  @@index([expiresAt])
+}
+
+model InviteToken {
+  id                   String    @id @default(cuid())
+  token                String    @unique
+  expectedBusinessName String?
+  expectedOwnerEmail   String?
+  expectedOwnerPhone   String?
+  expiresAt            DateTime  @db.Timestamptz(3)
+  usedAt               DateTime? @db.Timestamptz(3)
+  revokedAt            DateTime? @db.Timestamptz(3)
+  createdBusinessId    String?   @unique
+  createdBusiness      Business? @relation(fields: [createdBusinessId], references: [id])
+  createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([expiresAt])
+}
+
+// ─── Staff (가맹점 ↔ User 트레이너·매니저·사장 link) ─────
+
+model Staff {
+  id        String   @id @default(cuid())
+  gymId     String
+  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role
+  photoUrl  String?
+  bio       String?
+  career    String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  reservations Reservation[]
+
+  @@index([gymId, role])
+}
+
+// ─── Service ───────────────────────────────────────────────
+
+model Service {
+  id          String   @id @default(cuid())
+  gymId       String
+  business    Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name        String
+  capacity    Int      @default(1)
+  timeUnit    TimeUnit
+  durationMin Int
+  pricePhp    Int
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  reservations Reservation[]
+  packages     Package[]
+
+  @@index([gymId])
+}
+
+// ─── Business Hours / Images ───────────────────────────────
+
+model BusinessHours {
+  id            String   @id @default(cuid())
+  gymId         String
+  business      Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  weekday       Weekday
+  openMinute    Int
+  closeMinute   Int
+  breakStartMin Int?
+  breakEndMin   Int?
+
+  @@unique([gymId, weekday])
+}
+
+model BusinessImage {
+  id        String   @id @default(cuid())
+  gymId     String
+  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([gymId, position])
+}
+
+// ─── Membership / Package ──────────────────────────────────
+
+model Membership {
+  id        String   @id @default(cuid())
+  gymId     String
+  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  pricePhp  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([gymId, userId])
+  @@index([gymId, endDate])
+}
+
+model Package {
+  id             String   @id @default(cuid())
+  gymId          String
+  business       Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service  @relation(fields: [serviceId], references: [id])
+  totalCount     Int
+  remainingCount Int
+  pricePhp       Int
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([gymId, userId])
+}
+
+// ─── Reservation ───────────────────────────────────────────
+
+model Reservation {
+  id               String            @id @default(cuid())
+  gymId            String
+  business         Business          @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  serviceId        String
+  service          Service           @relation(fields: [serviceId], references: [id])
+  staffId          String
+  staff            Staff             @relation(fields: [staffId], references: [id])
+  customerUserId   String
+  customer         User              @relation("CustomerReservations", fields: [customerUserId], references: [id])
+  startAt          DateTime          @db.Timestamptz(3)
+  endAt            DateTime          @db.Timestamptz(3)
+  status           ReservationStatus @default(PENDING_PAYMENT)
+  depositConfirmed Boolean           @default(false)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+
+  logs ReservationLog[]
+
+  @@index([gymId, status, startAt])
+  @@index([gymId, staffId, startAt])
+  @@index([gymId, customerUserId])
+}
+
+model ReservationLog {
+  id            String               @id @default(cuid())
+  gymId         String
+  business      Business             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  reservationId String
+  reservation   Reservation          @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  action        ReservationLogAction
+  actorUserId   String?
+  occurredAt    DateTime             @default(now()) @db.Timestamptz(3)
+
+  @@index([reservationId])
+  @@index([gymId, occurredAt])
+}
+
+// ─── Access (QR / AccessLog) ───────────────────────────────
+
+model QrToken {
+  id        String    @id @default(cuid())
+  gymId     String
+  business  Business  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  nonce     String
+  issuedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+
+  accessLogs AccessLog[]
+
+  @@index([gymId, userId])
+  @@index([expiresAt])
+}
+
+model AccessLog {
+  id         String       @id @default(cuid())
+  gymId      String
+  business   Business     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qrTokenId  String?
+  qrToken    QrToken?     @relation(fields: [qrTokenId], references: [id])
+  result     AccessResult
+  occurredAt DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([gymId, occurredAt])
+  @@index([gymId, userId, occurredAt])
+}
+
+// ─── Trust ─────────────────────────────────────────────────
+
+model TrustScore {
+  id        String   @id @default(cuid())
+  gymId     String
+  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score     Int      @default(100)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([gymId, userId])
+}
+
+model TrustEvent {
+  id         String         @id @default(cuid())
+  gymId      String
+  business   Business       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       TrustEventKind
+  delta      Int
+  occurredAt DateTime       @default(now()) @db.Timestamptz(3)
+
+  @@index([gymId, userId, occurredAt])
+}
+
+// ─── User Deletion (1달 익명화 cron 대상) ─────────────────
+
+model UserDeletion {
+  id          String             @id @default(cuid())
+  gymId       String
+  business    Business           @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId      String             @unique
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestedAt DateTime           @default(now()) @db.Timestamptz(3)
+  scheduledAt DateTime           @db.Timestamptz(3)
+  status      UserDeletionStatus @default(PENDING)
+
+  @@index([scheduledAt, status])
+}
+
+// ─── Notifications ─────────────────────────────────────────
+
+model BusinessNotificationSetting {
+  id        String                     @id @default(cuid())
+  gymId     String                     @unique
+  business  Business                   @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  channel   NotificationChannelSetting @default(PUSH)
+  updatedAt DateTime                   @updatedAt @db.Timestamptz(3)
+}
+
+model UserNotificationSetting {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushEnabled  Boolean  @default(true)
+  emailEnabled Boolean  @default(true)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dhKey String
+  authKey   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([userId])
+}
+
+model NotificationLog {
+  id              String              @id @default(cuid())
+  gymId           String
+  business        Business            @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  recipientUserId String
+  recipient       User                @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  kind            String
+  channel         NotificationChannel
+  result          NotificationResult
+  fallback        Boolean             @default(false)
+  sentAt          DateTime            @default(now()) @db.Timestamptz(3)
+
+  @@index([gymId, sentAt])
+  @@index([recipientUserId, sentAt])
+}
+
+// ─── Subscription / Payment (가맹점 구독료) ────────────────
+
+model Subscription {
+  id        String           @id @default(cuid())
+  gymId     String           @unique
+  business  Business         @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  plan      SubscriptionPlan @default(TRIAL)
+  startDate DateTime         @db.Timestamptz(3)
+  endDate   DateTime         @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@index([endDate])
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  gymId       String
+  business    Business  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  amountPhp   Int
+  paidAt      DateTime  @db.Timestamptz(3)
+  confirmedAt DateTime? @db.Timestamptz(3)
+  memo        String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([gymId, paidAt])
 }

@@ -1,32 +1,12 @@
 {
   "landing": {
-    "topbar": {
-      "login": "Log in"
-    },
-    "hero": {
-      "label": "🇵🇭 Philippines · since 2026",
-      "title": "Reservations, <em>truly</em> one-tap.",
-      "tagline": "Gyms, massage, soon hair salons and golf — every shop in the Philippines, in one place.",
-      "ctaCustomer": "Start booking →",
-      "ctaBusiness": "I run a business"
-    },
-    "categories": {
-      "heading": "Browse categories",
-      "subheading": "Expanding · 4 categories",
-      "soon": "Launching soon",
-      "planned": "Planned",
-      "items": {
-        "gym": "Gym · PT",
-        "massage": "Massage",
-        "salon": "Hair salon",
-        "golf": "Golf · Screen"
-      }
-    },
-    "businessBlock": {
-      "heading": "Running a business?",
-      "subheading": "5 minutes to register. Start receiving bookings.",
-      "cta": "Register your shop →"
-    }
+    "brand": "Yeyak Gazua",
+    "studioLogin": "Studio sign-in",
+    "adminLogin": "Admin →",
+    "tagline": "INVITE-ONLY",
+    "title": "<em>Yeyak Gazua</em> — gym ops SaaS for the Philippines.",
+    "body": "New studios can only join via an invite link issued by an admin. If you have one, please open that link directly.",
+    "rights": "© 2026 Yeyak Gazua · Philippines"
   },
   "auth": {
     "login": "Log in",
@@ -36,11 +16,141 @@
     "password": "Password",
     "name": "Name"
   },
+  "login": {
+    "unified": {
+      "title": "Sign in",
+      "subtitle": "Email and password — we'll take you to your studio in one step",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "rememberMe": "Stay signed in (90 days)",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "wrong": "Wrong email or password",
+      "pending": "Your email is not yet activated. Please check your activation mail",
+      "withdrawn": "This account is being withdrawn",
+      "back": "← Back home",
+      "errors": {
+        "email": "Please enter a valid email",
+        "password": "Please enter your password"
+      }
+    },
+    "gym": {
+      "title": "Studio sign-in",
+      "subtitle": "Owners, trainers, and members all sign in here",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "rememberMe": "Stay signed in (90 days)",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "wrong": "Wrong email or password",
+      "notMember": "This email is not registered with this studio",
+      "pending": "Your email is not yet activated. Please check your activation mail",
+      "withdrawn": "This account is being withdrawn",
+      "back": "← Back to studio search",
+      "errors": {
+        "email": "Please enter a valid email",
+        "password": "Please enter your password"
+      }
+    }
+  },
   "common": {
     "language": "Language",
     "korean": "한국어",
     "english": "English",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage account, language, and notifications in one place",
+    "back": "← Dashboard",
+    "language": {
+      "heading": "Language",
+      "body": "Choose the language for this studio. Carries over to all following pages.",
+      "current": "Current"
+    },
+    "account": {
+      "heading": "My account",
+      "body": "Update name, phone, password",
+      "soon": "Next milestone"
+    },
+    "notification": {
+      "heading": "Notifications",
+      "body": "Push and email channel settings",
+      "soon": "Next milestone"
+    },
+    "store": {
+      "heading": "Studio notification channel (owners)",
+      "body": "Studio-level push/email channel",
+      "soon": "Next milestone"
+    }
+  },
+  "register": {
+    "topbar": {
+      "alreadyMember": "Already a partner?",
+      "login": "Sign in →"
+    },
+    "header": {
+      "brand": "Yeyak Gazua",
+      "adminLink": "Admin",
+      "langKo": "한국어",
+      "langEn": "English"
+    },
+    "hero": {
+      "label": "INVITE-ONLY",
+      "title": "Register your studio with <em>Yeyak Gazua</em>.",
+      "tagline": "A 20-minute form for owners who arrived via an invite link. You can fill in photos, hours, and services later from the dashboard."
+    },
+    "tokenMissing": {
+      "title": "An invite link is required",
+      "body": "New studios can only join via an invite link issued by an admin. If your URL is malformed or expired, please request a new one.",
+      "back": "← Back home"
+    },
+    "form": {
+      "sectionStore": "Studio details",
+      "sectionOwner": "Owner account",
+      "storeName": "Studio name",
+      "storeNamePlaceholder": "e.g. StrongHealth QC",
+      "slug": "Your booking page address",
+      "slugHint": "Where customers book: yeyak.com/g/<here> · letters/digits/hyphens · separate from any external website",
+      "slugPlaceholder": "stronghealth-qc",
+      "slugStatus": {
+        "checking": "Checking...",
+        "available": "✓ Available",
+        "taken": "✗ Already taken",
+        "format": "✗ Letters / digits / hyphens only (2–40 chars)",
+        "reserved": "✗ Reserved address"
+      },
+      "storePhone": "Studio phone",
+      "storePhonePlaceholder": "+63 ...",
+      "city": "City",
+      "barangay": "Barangay",
+      "selectCity": "Select a city",
+      "selectBarangay": "Select a barangay",
+      "ownerName": "Owner name",
+      "ownerEmail": "Owner email",
+      "ownerPhone": "Owner phone",
+      "phonePlaceholder": "+63 ...",
+      "ownerPassword": "Password",
+      "ownerPasswordConfirm": "Confirm password",
+      "passwordHint": "6 characters minimum",
+      "submit": "Register studio",
+      "submitting": "Registering...",
+      "errors": {
+        "storeName": "Please enter the studio name",
+        "slug": "Please enter your booking page address (letters / digits / hyphens)",
+        "storePhone": "Please enter the studio phone",
+        "city": "Please select a city",
+        "barangay": "Please select a barangay",
+        "ownerName": "Please enter the owner name",
+        "ownerEmail": "Please enter a valid email",
+        "ownerPhone": "Please enter the owner phone",
+        "ownerPassword": "Password must be at least 6 characters",
+        "ownerPasswordConfirm": "Passwords do not match"
+      }
+    },
+    "footer": {
+      "rights": "© 2026 Yeyak Gazua · Philippines"
+    }
   }
 }

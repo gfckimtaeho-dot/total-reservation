@@ -1,32 +1,12 @@
 {
   "landing": {
-    "topbar": {
-      "login": "로그인"
-    },
-    "hero": {
-      "label": "🇵🇭 Philippines · since 2026",
-      "title": "예약, <em>정말로</em> 한 번에.",
-      "tagline": "헬스장, 마사지, 미용실, 골프 — 필리핀의 모든 매장을 한 곳에서.",
-      "ctaCustomer": "지금 예약 시작 →",
-      "ctaBusiness": "매장 운영자입니다"
-    },
-    "categories": {
-      "heading": "카테고리 둘러보기",
-      "subheading": "점차 확장 중 · 4개 분야",
-      "soon": "곧 출시",
-      "planned": "예정",
-      "items": {
-        "gym": "헬스장 · PT",
-        "massage": "마사지",
-        "salon": "미용실",
-        "golf": "골프 · 스크린"
-      }
-    },
-    "businessBlock": {
-      "heading": "매장을 운영하고 계신가요?",
-      "subheading": "5분이면 등록 끝. 예약 받기 시작하세요.",
-      "cta": "매장 등록 →"
-    }
+    "brand": "예약가즈아",
+    "studioLogin": "매장 로그인",
+    "adminLogin": "관리자 →",
+    "tagline": "INVITE-ONLY",
+    "title": "<em>예약가즈아</em> — 필리핀 헬스장 운영 SaaS.",
+    "body": "신규 매장 가입은 관리자가 발급한 invite 링크로만 가능합니다. URL을 받으셨다면 그 링크를 직접 열어 주세요.",
+    "rights": "© 2026 예약가즈아 · Philippines"
   },
   "auth": {
     "login": "로그인",
@@ -36,11 +16,141 @@
     "password": "비밀번호",
     "name": "이름"
   },
+  "login": {
+    "unified": {
+      "title": "로그인",
+      "subtitle": "가입하신 이메일과 비밀번호로 한 번에 매장에 들어갑니다",
+      "emailLabel": "이메일",
+      "passwordLabel": "비밀번호",
+      "rememberMe": "로그인 유지 (90일)",
+      "submit": "로그인",
+      "submitting": "로그인 중...",
+      "wrong": "이메일 또는 비밀번호가 올바르지 않습니다",
+      "pending": "이메일 활성화가 아직 완료되지 않았습니다. 가입 안내 메일을 확인해 주세요",
+      "withdrawn": "탈퇴 처리 중인 계정입니다",
+      "back": "← 첫 화면으로",
+      "errors": {
+        "email": "이메일 형식이 올바르지 않습니다",
+        "password": "비밀번호를 입력해 주세요"
+      }
+    },
+    "gym": {
+      "title": "가맹점 로그인",
+      "subtitle": "사장·트레이너·회원 모두 같은 화면에서 로그인합니다",
+      "emailLabel": "이메일",
+      "passwordLabel": "비밀번호",
+      "rememberMe": "로그인 유지 (90일)",
+      "submit": "로그인",
+      "submitting": "로그인 중...",
+      "wrong": "이메일 또는 비밀번호가 올바르지 않습니다",
+      "notMember": "이 이메일은 이 매장의 회원이 아닙니다",
+      "pending": "이메일 활성화가 아직 완료되지 않았습니다. 가입 안내 메일을 확인해 주세요",
+      "withdrawn": "탈퇴 처리 중인 계정입니다",
+      "back": "← 매장 찾기로",
+      "errors": {
+        "email": "이메일 형식이 올바르지 않습니다",
+        "password": "비밀번호를 입력해 주세요"
+      }
+    }
+  },
   "common": {
     "language": "언어",
     "korean": "한국어",
     "english": "English",
     "save": "저장",
     "cancel": "취소"
+  },
+  "settings": {
+    "title": "설정",
+    "subtitle": "계정·언어·알림 설정을 한 곳에서 관리하세요",
+    "back": "← 대시보드",
+    "language": {
+      "heading": "언어",
+      "body": "이 매장 화면에서 사용할 언어를 선택하세요. 다음 페이지로 이어집니다.",
+      "current": "현재"
+    },
+    "account": {
+      "heading": "내 계정",
+      "body": "이름·전화번호·비밀번호 변경",
+      "soon": "다음 마일스톤"
+    },
+    "notification": {
+      "heading": "알림",
+      "body": "푸시·이메일 채널 설정",
+      "soon": "다음 마일스톤"
+    },
+    "store": {
+      "heading": "매장 알림 채널 (사장만)",
+      "body": "매장 단위로 푸시·이메일 채널 설정",
+      "soon": "다음 마일스톤"
+    }
+  },
+  "register": {
+    "topbar": {
+      "alreadyMember": "이미 가맹점이세요?",
+      "login": "로그인 →"
+    },
+    "header": {
+      "brand": "예약가즈아",
+      "adminLink": "관리자",
+      "langKo": "한국어",
+      "langEn": "English"
+    },
+    "hero": {
+      "label": "INVITE-ONLY",
+      "title": "매장을 <em>예약가즈아</em>에 등록해 주세요.",
+      "tagline": "초대 링크로 진입한 사장님 전용 20분 등록 폼입니다. 매장 사진·영업시간·서비스는 가입 후 대시보드에서 점진적으로 채우시면 됩니다."
+    },
+    "tokenMissing": {
+      "title": "초대 링크가 필요합니다",
+      "body": "신규 매장 가입은 관리자가 발급한 초대 링크로만 가능합니다. URL이 잘못되었거나 만료되었다면 관리자에게 다시 요청해 주세요.",
+      "back": "← 첫 화면으로"
+    },
+    "form": {
+      "sectionStore": "매장 정보",
+      "sectionOwner": "사장 계정",
+      "storeName": "매장명",
+      "storeNamePlaceholder": "예) 스트롱헬스 케손",
+      "slug": "내 매장 예약 페이지 주소",
+      "slugHint": "고객이 예약할 때 들어오는 페이지: yeyak.com/g/<여기> · 영문/숫자/하이픈만 · 매장 외부 홈페이지와 무관",
+      "slugPlaceholder": "stronghealth-qc",
+      "slugStatus": {
+        "checking": "확인 중...",
+        "available": "✓ 사용 가능",
+        "taken": "✗ 이미 사용 중인 주소입니다",
+        "format": "✗ 영문/숫자/하이픈만 사용 (2~40자)",
+        "reserved": "✗ 시스템 예약 주소입니다"
+      },
+      "storePhone": "매장 대표 전화",
+      "storePhonePlaceholder": "+63 ...",
+      "city": "시",
+      "barangay": "동",
+      "selectCity": "시 선택",
+      "selectBarangay": "동 선택",
+      "ownerName": "사장 이름",
+      "ownerEmail": "사장 이메일",
+      "ownerPhone": "사장 전화번호",
+      "phonePlaceholder": "+63 ...",
+      "ownerPassword": "비밀번호",
+      "ownerPasswordConfirm": "비밀번호 확인",
+      "passwordHint": "6자 이상",
+      "submit": "매장 등록 완료",
+      "submitting": "등록 중...",
+      "errors": {
+        "storeName": "매장명을 입력해 주세요",
+        "slug": "예약 페이지 주소를 입력해 주세요 (영문/숫자/하이픈)",
+        "storePhone": "매장 전화번호를 입력해 주세요",
+        "city": "시를 선택해 주세요",
+        "barangay": "동을 선택해 주세요",
+        "ownerName": "사장 이름을 입력해 주세요",
+        "ownerEmail": "이메일 형식이 올바르지 않습니다",
+        "ownerPhone": "전화번호를 입력해 주세요",
+        "ownerPassword": "비밀번호를 6자 이상 입력해 주세요",
+        "ownerPasswordConfirm": "비밀번호가 일치하지 않습니다"
+      }
+    },
+    "footer": {
+      "rights": "© 2026 예약가즈아 · Philippines"
+    }
   }
 }

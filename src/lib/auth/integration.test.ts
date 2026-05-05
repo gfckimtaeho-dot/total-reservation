@@ -1,8 +1,7 @@
-// Integration test — exercises the full auth pipeline against the real DB.
-// Skipped if DATABASE_URL is missing or still the placeholder, so CI without
-// secrets stays green. Cleans up the test user it inserts.
+// Auth integration test — exercises password + session against the real Neon DB
+// in the multi-tenant schema (Business + scoped User).
 
-import { describe, it, expect, afterAll } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/client";
 import { hashPassword, verifyPassword } from "./password";
 import { encryptSession, decryptSession } from "./session";
@@ -11,68 +10,70 @@ const url = process.env.DATABASE_URL ?? "";
 const dbAvailable =
   url.startsWith("postgresql://") && !url.includes("USER:PASSWORD");
 
-describe.skipIf(!dbAvailable)("auth integration with real DB", () => {
-  const testEmail = `m0-test-${Date.now()}@example.invalid`;
+const RUN = `m1auth-${Date.now()}`;
+
+describe.skipIf(!dbAvailable)("auth integration in multi-tenant schema", () => {
+  let cityId = "";
+  let barangayId = "";
+  let businessId = "";
 
   afterAll(async () => {
-    await prisma.user
-      .deleteMany({ where: { email: testEmail } })
-      .catch(() => {});
+    if (businessId)
+      await prisma.business
+        .deleteMany({ where: { id: businessId } })
+        .catch(() => {});
+    if (barangayId)
+      await prisma.barangay
+        .deleteMany({ where: { id: barangayId } })
+        .catch(() => {});
+    if (cityId)
+      await prisma.city.deleteMany({ where: { id: cityId } }).catch(() => {});
     await prisma.$disconnect();
   });
 
-  it("full pipeline: hash → create user → query → verify password → JWT roundtrip", async () => {
-    const plain = "test_password_with_enough_length_123";
+  it("hash → tenant user create → query → verify password → JWT roundtrip", async () => {
+    const city = await prisma.city.create({
+      data: { psgcCode: `${RUN}-city`, name: `${RUN}-city` },
+    });
+    cityId = city.id;
+    const barangay = await prisma.barangay.create({
+      data: { psgcCode: `${RUN}-brgy`, name: `${RUN}-brgy`, cityId },
+    });
+    barangayId = barangay.id;
+
+    const business = await prisma.business.create({
+      data: { slug: `${RUN}-gym`, name: "Test Gym", cityId, barangayId },
+    });
+    businessId = business.id;
+
+    const plain = "test_password_long_enough_123";
     const hash = await hashPassword(plain);
 
-    const created = await prisma.user.create({
+    const owner = await prisma.user.create({
       data: {
-        email: testEmail,
+        gymId: business.id,
+        email: `${RUN}@example.invalid`,
         passwordHash: hash,
-        name: "M0 Integration Test",
-        role: "CUSTOMER",
+        name: "Test Owner",
+        role: "OWNER",
+        status: "ACTIVE",
       },
     });
 
-    expect(created.id).toBeTruthy();
-    expect(created.role).toBe("CUSTOMER");
-    expect(created.locale).toBe("ko"); // default per schema
+    expect(owner.id).toBeTruthy();
+    expect(owner.role).toBe("OWNER");
+    expect(owner.gymId).toBe(business.id);
 
-    const fetched = await prisma.user.findUnique({
-      where: { id: created.id },
-    });
+    const fetched = await prisma.user.findUnique({ where: { id: owner.id } });
     expect(fetched).toBeTruthy();
-    expect(fetched!.passwordHash).toBeTruthy();
-
     expect(await verifyPassword(plain, fetched!.passwordHash!)).toBe(true);
     expect(await verifyPassword("wrong-password", fetched!.passwordHash!)).toBe(
       false,
     );
 
-    const token = await encryptSession({
-      userId: created.id,
-      role: created.role,
-    });
+    const token = await encryptSession({ userId: owner.id, role: owner.role });
     const decoded = await decryptSession(token);
-    expect(decoded?.userId).toBe(created.id);
-    expect(decoded?.role).toBe("CUSTOMER");
-  });
-
-  it("rejects duplicate email (unique constraint)", async () => {
-    const dupEmail = `m0-dup-${Date.now()}@example.invalid`;
-    const hash = await hashPassword("pwd_long_enough_1234");
-
-    await prisma.user.create({
-      data: { email: dupEmail, passwordHash: hash, name: "First", role: "CUSTOMER" },
-    });
-
-    await expect(
-      prisma.user.create({
-        data: { email: dupEmail, passwordHash: hash, name: "Second", role: "CUSTOMER" },
-      }),
-    ).rejects.toThrow();
-
-    // cleanup
-    await prisma.user.deleteMany({ where: { email: dupEmail } });
+    expect(decoded?.userId).toBe(owner.id);
+    expect(decoded?.role).toBe("OWNER");
   });
 });

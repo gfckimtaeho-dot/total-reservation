@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { encryptSession, decryptSession } from "./session";
 
 beforeAll(() => {
-  // Test secret — long enough for HS256 but obviously not real.
   process.env.AUTH_SECRET =
     "totally-not-a-real-secret-but-long-enough-for-tests-to-pass-padding";
 });
@@ -13,20 +12,24 @@ describe("session JWT roundtrip", () => {
     const token = await encryptSession(payload);
 
     expect(typeof token).toBe("string");
-    expect(token.split(".")).toHaveLength(3); // header.payload.signature
+    expect(token.split(".")).toHaveLength(3);
 
     const decoded = await decryptSession(token);
     expect(decoded).toEqual(payload);
   });
 
-  it("preserves role across encrypt/decrypt", async () => {
-    const payload = {
-      userId: "owner_xyz",
-      role: "BUSINESS_OWNER" as const,
-    };
+  it("preserves multi-tenant role across encrypt/decrypt", async () => {
+    const payload = { userId: "owner_xyz", role: "OWNER" as const };
     const token = await encryptSession(payload);
     const decoded = await decryptSession(token);
-    expect(decoded?.role).toBe("BUSINESS_OWNER");
+    expect(decoded?.role).toBe("OWNER");
+  });
+
+  it("preserves admin role (no gymId)", async () => {
+    const payload = { userId: "admin_1", role: "ADMIN" as const };
+    const token = await encryptSession(payload);
+    const decoded = await decryptSession(token);
+    expect(decoded?.role).toBe("ADMIN");
   });
 
   it("returns null for an invalid token", async () => {
