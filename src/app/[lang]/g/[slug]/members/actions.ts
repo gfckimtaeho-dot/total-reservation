@@ -74,6 +74,16 @@ export async function createMember(
     return { errors: { phone: ["이미 등록된 핸드폰 번호입니다"] } };
   }
 
+  if (email) {
+    const existingEmail = await prisma.user.findFirst({
+      where: { gymId, email },
+      select: { id: true },
+    });
+    if (existingEmail) {
+      return { errors: { email: ["이미 등록된 이메일입니다"] } };
+    }
+  }
+
   const created = await prisma.user.create({
     data: {
       gymId,

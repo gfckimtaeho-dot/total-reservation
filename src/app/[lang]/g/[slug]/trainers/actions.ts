@@ -86,12 +86,22 @@ export async function createTrainer(
   const auth = await requireGymStaff(d.slug);
   const gymId = auth.business!.id;
 
-  const existing = await prisma.user.findFirst({
+  const existingPhone = await prisma.user.findFirst({
     where: { gymId, phone: d.phone },
     select: { id: true },
   });
-  if (existing) {
+  if (existingPhone) {
     return { errors: { phone: ["이미 등록된 핸드폰 번호입니다"] } };
+  }
+
+  if (d.email) {
+    const existingEmail = await prisma.user.findFirst({
+      where: { gymId, email: d.email },
+      select: { id: true },
+    });
+    if (existingEmail) {
+      return { errors: { email: ["이미 등록된 이메일입니다"] } };
+    }
   }
 
   let result: { staffId: string };
