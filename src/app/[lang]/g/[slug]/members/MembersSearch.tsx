@@ -1,44 +1,64 @@
-import { getTranslations } from "next-intl/server";
+"use client";
+
+import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Tone = "normal" | "black" | "white";
+type Gender = "all" | "MALE" | "FEMALE";
 
 const TONE = {
   normal: {
     wrap: "bg-white ring-1 ring-amber-200/60",
     label: "text-ink/70",
-    field: "border-amber-200/60 bg-white text-ink focus:border-ink focus:ring-ink/20",
-    radioActive: "bg-band/40 text-ink ring-1 ring-ink",
-    radioInactive: "bg-white text-zinc-600 ring-1 ring-amber-200/60 hover:ring-ink/40",
+    field:
+      "border-amber-200/60 bg-white text-ink focus:border-ink focus:ring-ink/20",
     submit: "bg-ink text-white hover:bg-ink/90",
     reset: "border-amber-200/60 bg-white text-zinc-600 hover:border-ink",
-    checkActive: "border-ink bg-band/40 text-ink",
-    checkInactive: "border-amber-200/60 bg-white text-zinc-600 hover:border-ink/40",
   },
   black: {
     wrap: "bg-zinc-900 ring-1 ring-white/10",
     label: "text-zinc-300",
-    field: "border-white/10 bg-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-lime-300 focus:ring-lime-300/20",
-    radioActive: "bg-lime-300/20 text-lime-300 ring-1 ring-lime-300",
-    radioInactive: "bg-zinc-800 text-zinc-400 ring-1 ring-white/10 hover:ring-lime-300/40",
+    field:
+      "border-white/10 bg-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-lime-300 focus:ring-lime-300/20",
     submit: "bg-lime-300 text-zinc-950 hover:bg-lime-200",
     reset: "border-white/10 bg-zinc-800 text-zinc-300 hover:border-lime-300",
-    checkActive: "border-lime-300 bg-lime-300/10 text-lime-300",
-    checkInactive: "border-white/10 bg-zinc-800 text-zinc-400 hover:border-lime-300/40",
   },
   white: {
     wrap: "bg-white ring-1 ring-zinc-200",
     label: "text-ink/70",
-    field: "border-zinc-300 bg-white text-ink focus:border-ink focus:ring-ink/20",
-    radioActive: "bg-sky-100 text-sky-900 ring-1 ring-sky-700",
-    radioInactive: "bg-white text-zinc-600 ring-1 ring-zinc-200 hover:ring-ink/40",
+    field:
+      "border-zinc-300 bg-white text-ink focus:border-ink focus:ring-ink/20",
     submit: "bg-ink text-white hover:bg-ink/90",
     reset: "border-zinc-300 bg-white text-zinc-600 hover:border-ink",
-    checkActive: "border-sky-700 bg-sky-100 text-sky-900",
-    checkInactive: "border-zinc-300 bg-white text-zinc-600 hover:border-ink/40",
   },
 } as const;
 
-export async function MembersSearch({
+const RADIO_ACTIVE = {
+  normal: "bg-band/40 text-ink ring-1 ring-ink",
+  black: "bg-lime-300/20 text-lime-300 ring-1 ring-lime-300",
+  white: "bg-sky-100 text-sky-900 ring-1 ring-sky-700",
+} as const;
+
+const RADIO_INACTIVE = {
+  normal: "bg-white text-zinc-600 ring-1 ring-amber-200/60 hover:ring-ink/40",
+  black:
+    "bg-zinc-800 text-zinc-400 ring-1 ring-white/10 hover:ring-lime-300/40",
+  white: "bg-white text-zinc-600 ring-1 ring-zinc-200 hover:ring-ink/40",
+} as const;
+
+const CHECK_ACTIVE = {
+  normal: "border-ink bg-band/40 text-ink",
+  black: "border-lime-300 bg-lime-300/10 text-lime-300",
+  white: "border-sky-700 bg-sky-100 text-sky-900",
+} as const;
+
+const CHECK_INACTIVE = {
+  normal: "border-amber-200/60 bg-white text-zinc-600 hover:border-ink/40",
+  black: "border-white/10 bg-zinc-800 text-zinc-400 hover:border-lime-300/40",
+  white: "border-zinc-300 bg-white text-zinc-600 hover:border-ink/40",
+} as const;
+
+export function MembersSearch({
   tone,
   q,
   gender,
@@ -46,16 +66,19 @@ export async function MembersSearch({
 }: {
   tone: Tone;
   q: string;
-  gender: "all" | "MALE" | "FEMALE";
+  gender: Gender;
   expiringSoon: boolean;
 }) {
-  const t = await getTranslations("members");
+  const t = useTranslations("members");
   const tk = TONE[tone];
-  const genders = [
+  const [selectedGender, setSelectedGender] = useState<Gender>(gender);
+  const [checkSoon, setCheckSoon] = useState<boolean>(expiringSoon);
+
+  const genders: { key: Gender; label: string }[] = [
     { key: "all", label: t("genderAll") },
     { key: "MALE", label: t("genderMale") },
     { key: "FEMALE", label: t("genderFemale") },
-  ] as const;
+  ];
 
   return (
     <form
@@ -84,32 +107,41 @@ export async function MembersSearch({
           {t("searchGenderLabel")}
         </span>
         <div className="flex gap-1">
-          {genders.map((g) => (
-            <label
-              key={g.key}
-              className={`cursor-pointer rounded-md px-3 py-1.5 text-sm transition has-[:checked]:${tk.radioActive} ${tk.radioInactive}`}
-            >
-              <input
-                type="radio"
-                name="gender"
-                value={g.key}
-                defaultChecked={g.key === gender}
-                className="sr-only"
-              />
-              {g.label}
-            </label>
-          ))}
+          {genders.map((g) => {
+            const isOn = selectedGender === g.key;
+            return (
+              <label
+                key={g.key}
+                className={`cursor-pointer rounded-md px-3 py-1.5 text-sm transition ${
+                  isOn ? RADIO_ACTIVE[tone] : RADIO_INACTIVE[tone]
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="gender"
+                  value={g.key}
+                  checked={isOn}
+                  onChange={() => setSelectedGender(g.key)}
+                  className="sr-only"
+                />
+                {g.label}
+              </label>
+            );
+          })}
         </div>
       </div>
 
       <label
-        className={`flex h-9 cursor-pointer items-center gap-2 self-end rounded-md border px-3 text-sm transition has-[:checked]:${tk.checkActive} ${tk.checkInactive}`}
+        className={`flex h-9 cursor-pointer items-center gap-2 self-end rounded-md border px-3 text-sm transition ${
+          checkSoon ? CHECK_ACTIVE[tone] : CHECK_INACTIVE[tone]
+        }`}
       >
         <input
           type="checkbox"
           name="expiringSoon"
           value="1"
-          defaultChecked={expiringSoon}
+          checked={checkSoon}
+          onChange={(e) => setCheckSoon(e.target.checked)}
           className="h-4 w-4 accent-ink"
         />
         {t("searchExpiringSoon")}
