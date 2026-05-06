@@ -13,9 +13,9 @@ const THEMES: {
 }[] = [
   {
     key: "normal",
-    label: "Normal (Mint)",
-    description: "흰 메인 + 라임 사이드바. 산뜻하고 차분함.",
-    swatch: "bg-band",
+    label: "Normal (Paper)",
+    description: "amber 종이 배경 + 라임 사이드바. 따뜻하고 눈이 편함.",
+    swatch: "bg-amber-100",
   },
   {
     key: "black",

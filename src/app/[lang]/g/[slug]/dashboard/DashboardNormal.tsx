@@ -26,7 +26,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
   const buckets = groupByHour(MOCK_RESERVATIONS_TODAY);
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-amber-50/50">
       <aside className="hidden w-60 shrink-0 flex-col bg-band lg:flex">
         <div className="border-b border-ink/10 px-6 py-6">
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/70">
@@ -53,7 +53,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
       </aside>
 
       <main className="flex-1 overflow-x-hidden">
-        <header className="flex items-center justify-between border-b border-zinc-100 px-8 py-5">
+        <header className="flex items-center justify-between border-b border-amber-200/60 px-8 py-5">
           <div>
             <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
               DASHBOARD
@@ -62,7 +62,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
               {MOCK_TODAY.display}
             </h1>
           </div>
-          <span className="rounded-full bg-zinc-100 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-600">
+          <span className="rounded-full bg-amber-100/80 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-amber-900/70">
             샘플 데이터
           </span>
         </header>
@@ -85,15 +85,15 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
             sub="명"
           />
 
-          <section className="col-span-12 rounded-2xl border border-zinc-200 bg-white p-6 xl:col-span-5">
+          <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-6 xl:col-span-5">
             <SectionHead eyebrow="TIMELINE" title="오늘의 일정" />
-            <ol className="mt-5 space-y-4">
+            <ol className="mt-5 divide-y divide-amber-100">
               {buckets.map((b) => (
                 <li
                   key={b.startMin}
-                  className="grid grid-cols-[60px_1fr] gap-4"
+                  className="grid grid-cols-[60px_1fr] gap-4 py-3 first:pt-0 last:pb-0"
                 >
-                  <div className="pt-2 text-sm font-medium tabular-nums text-zinc-500">
+                  <div className="pt-2 text-sm font-medium tabular-nums text-ink/70 border-r border-amber-100 pr-3">
                     {fmtTime(b.startMin)}
                   </div>
                   <div
@@ -110,12 +110,12 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
                           key={r.id}
                           className={`relative rounded-xl border-l-4 p-3 ${
                             isActive
-                              ? "border-l-ink bg-band shadow-sm"
+                              ? "border-l-ink bg-band"
                               : isPast
-                                ? "border-l-zinc-200 bg-zinc-50/60 opacity-60"
+                                ? "border-l-amber-200 bg-amber-50/40 opacity-60"
                                 : isGroup
-                                  ? "border-l-emerald-400 bg-emerald-50/50"
-                                  : "border border-zinc-100 border-l-zinc-300 bg-white"
+                                  ? "border-l-emerald-500 bg-emerald-50/70"
+                                  : "border border-amber-200/60 border-l-zinc-300 bg-white"
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
@@ -145,7 +145,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
             </ol>
           </section>
 
-          <section className="col-span-12 rounded-2xl border border-zinc-200 bg-white p-6 xl:col-span-7">
+          <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-6 xl:col-span-7">
             <div className="flex items-baseline justify-between">
               <SectionHead
                 eyebrow="CALENDAR"
@@ -158,7 +158,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
             <CalendarGrid />
           </section>
 
-          <section className="col-span-12 rounded-2xl bg-band/40 p-6">
+          <section className="col-span-12 rounded-2xl bg-amber-100/60 p-6 ring-1 ring-amber-200/60">
             <SectionHead
               eyebrow="MEMBERSHIP · 7일 내 만료"
               title="갱신 권유 대상"
@@ -167,7 +167,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
               {MOCK_EXPIRING.map((m) => (
                 <li
                   key={m.name}
-                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 ring-1 ring-ink/10"
+                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 ring-1 ring-amber-200/60"
                 >
                   <span className="font-medium text-ink">{m.name}</span>
                   <span className="text-xs text-zinc-600">D-{m.daysLeft}</span>
@@ -177,7 +177,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
           </section>
         </div>
 
-        <footer className="border-t border-zinc-100 bg-white px-8 py-5 text-xs text-zinc-500">
+        <footer className="border-t border-amber-200/60 bg-white/50 px-8 py-5 text-xs text-zinc-500">
           예약가즈아 · /g/{slug} ·{" "}
           <Link
             href={`/${lang}/g/${slug}/settings`}
@@ -216,7 +216,7 @@ function KpiCard({
   badge?: string;
 }) {
   return (
-    <div className="col-span-12 rounded-2xl border border-zinc-200 bg-white p-5 sm:col-span-6 lg:col-span-4">
+    <div className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-5 sm:col-span-6 lg:col-span-4">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink/60">
           {label}
@@ -242,7 +242,10 @@ function CalendarGrid() {
     <>
       <div className="mt-5 grid grid-cols-7 gap-1.5 text-center">
         {WEEKDAYS.map((w) => (
-          <span key={w} className="pb-2 text-[11px] font-medium text-zinc-400">
+          <span
+            key={w}
+            className="rounded-t-md bg-band/40 py-2 pb-2 text-[11px] font-medium text-ink/70"
+          >
             {w}
           </span>
         ))}
@@ -254,10 +257,10 @@ function CalendarGrid() {
             return (
               <div
                 key={d.day}
-                className="relative min-h-[68px] rounded-md bg-zinc-200 p-2 text-left"
+                className="relative min-h-[68px] rounded-md bg-amber-200/60 p-2 text-left text-amber-900/70"
               >
-                <div className="text-xs font-medium text-zinc-500">{d.day}</div>
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-zinc-500">
+                <div className="text-xs font-medium">{d.day}</div>
+                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
                   휴
                 </div>
               </div>
@@ -267,8 +270,8 @@ function CalendarGrid() {
           return (
             <div
               key={d.day}
-              className={`relative min-h-[68px] rounded-md border border-zinc-100 bg-white p-2 text-left ${
-                d.isToday ? "ring-2 ring-ink" : ""
+              className={`relative min-h-[68px] rounded-md border border-amber-200/60 p-2 text-left ${
+                d.isToday ? "bg-white ring-2 ring-ink" : "bg-amber-50/30"
               }`}
               title={
                 d.total === 0
@@ -288,7 +291,7 @@ function CalendarGrid() {
                 </div>
               )}
               {barTotal > 0 && (
-                <div className="absolute inset-x-2 bottom-2 flex h-1 overflow-hidden rounded-full bg-zinc-100">
+                <div className="absolute inset-x-2 bottom-2 flex h-1 overflow-hidden rounded-full bg-amber-100">
                   <div
                     className="bg-ink"
                     style={{ width: `${(d.pt / barTotal) * 100}%` }}
@@ -319,7 +322,7 @@ function CalendarGrid() {
           단체 수업 있음
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-zinc-200" />
+          <span className="h-2.5 w-2.5 rounded-sm bg-amber-200/60" />
           휴무
         </span>
       </div>
