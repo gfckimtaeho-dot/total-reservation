@@ -211,7 +211,7 @@
     "colExpiry": "멤버십 만료일",
     "colRemaining": "잔여 수업권",
     "colActions": "액션",
-    "ageUnit": "{age}세",
+    "ageUnit": "{age}",
     "remainingUnit": "{count}회",
     "expiringPill": "D-7 이내",
     "pendingPill": "초대대기",
