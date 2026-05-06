@@ -311,10 +311,18 @@ export function TrainerForm({
         </div>
       </section>
 
-      {/* Error message */}
-      {state.message && (
+      {/* Error summary — submit 근처에서 위쪽 필드 에러까지 한 번에 요약 */}
+      {(state.message ||
+        (state.errors && Object.keys(state.errors).length > 0)) && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {state.message}
+          {state.message && <div className="font-medium">{state.message}</div>}
+          {state.errors && Object.keys(state.errors).length > 0 && (
+            <ul className={`list-disc space-y-0.5 pl-5 ${state.message ? "mt-1.5" : ""}`}>
+              {Object.entries(state.errors).flatMap(([key, msgs]) =>
+                (msgs ?? []).map((m, i) => <li key={`${key}-${i}`}>{m}</li>),
+              )}
+            </ul>
+          )}
         </div>
       )}
 
