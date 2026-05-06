@@ -71,7 +71,7 @@ export async function MembersNormal({
               )}
             </h1>
           </div>
-          <MemberAddDialog slug={slug} tone="normal" />
+          <MemberAddDialog slug={slug} tone="normal" lang={lang} />
         </header>
 
         <div className="p-6">

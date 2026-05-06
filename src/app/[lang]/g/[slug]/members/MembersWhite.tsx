@@ -66,7 +66,7 @@ export async function MembersWhite({
               )}
             </h1>
           </div>
-          <MemberAddDialog slug={slug} tone="white" />
+          <MemberAddDialog slug={slug} tone="white" lang={lang} />
         </header>
 
         <div className="p-6">

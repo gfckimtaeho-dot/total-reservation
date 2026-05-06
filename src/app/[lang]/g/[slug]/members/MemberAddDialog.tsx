@@ -44,9 +44,11 @@ const TONE_TOKENS = {
 export function MemberAddDialog({
   slug,
   tone,
+  lang,
 }: {
   slug: string;
   tone: Tone;
+  lang: string;
 }) {
   const t = useTranslations("memberAdd");
   const [open, setOpen] = useState(false);
@@ -151,6 +153,7 @@ export function MemberAddDialog({
                 label={t("dob")}
                 name="dob"
                 type="date"
+                lang={lang}
                 errors={state.errors?.dob}
               />
 
@@ -216,6 +219,7 @@ function Field({
   required,
   errors,
   hint,
+  lang,
 }: {
   tk: (typeof TONE_TOKENS)[Tone];
   tone: Tone;
@@ -226,6 +230,7 @@ function Field({
   required?: boolean;
   errors?: string[];
   hint?: string;
+  lang?: string;
 }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -239,6 +244,7 @@ function Field({
         type={type}
         name={name}
         placeholder={placeholder}
+        lang={lang}
         aria-invalid={Boolean(errors)}
         className={`h-11 rounded-md border ${tk.fieldBorder} px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.fieldFocus}`}
       />

@@ -66,7 +66,7 @@ export async function MembersBlack({
               )}
             </h1>
           </div>
-          <MemberAddDialog slug={slug} tone="black" />
+          <MemberAddDialog slug={slug} tone="black" lang={lang} />
         </header>
 
         <div className="p-6">
