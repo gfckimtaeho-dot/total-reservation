@@ -43,6 +43,11 @@ enum BusinessCategory {
   MASSAGE
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
 enum SubscriptionPlan {
   TRIAL
   MONTHLY
@@ -206,10 +211,14 @@ model User {
   id           String     @id @default(cuid())
   gymId        String?
   business     Business?  @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  email        String
+  email        String?
   passwordHash String?
   name         String
   phone        String?
+  gender       Gender?
+  dob          DateTime?  @db.Date
+  note         String?
+  emergencyContactPhone String?
   role         Role       @default(CUSTOMER)
   status       UserStatus @default(PENDING)
   locale       Locale     @default(ko)

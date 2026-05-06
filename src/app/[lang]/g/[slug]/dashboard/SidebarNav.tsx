@@ -10,7 +10,11 @@ type Item = {
 
 function items(lang: string, slug: string): Item[] {
   return [
-    { key: "members", label: "회원관리", href: null },
+    {
+      key: "members",
+      label: "회원관리",
+      href: `/${lang}/g/${slug}/members`,
+    },
     { key: "trainers", label: "트레이너 관리", href: null },
     { key: "hours", label: "영업일", href: null },
     { key: "services", label: "서비스", href: null },
@@ -49,7 +53,7 @@ export function SidebarNav({
 }: {
   lang: string;
   slug: string;
-  activeKey: "dashboard" | "settings";
+  activeKey: "dashboard" | "settings" | "members";
   tone: SidebarTone;
 }) {
   const t = TONE[tone];
@@ -69,7 +73,8 @@ export function SidebarNav({
       </Link>
       {list.map((n) => {
         const isActive =
-          activeKey === "settings" && n.key === "settings";
+          (activeKey === "settings" && n.key === "settings") ||
+          (activeKey === "members" && n.key === "members");
         if (!n.href) {
           return (
             <span

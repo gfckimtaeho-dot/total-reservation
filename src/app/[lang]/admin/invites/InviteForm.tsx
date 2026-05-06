@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { createInvite, type CreateInviteState } from "./actions";
+import { useActionState, useState, useTransition } from "react";
+import { createInvite, emailInvite, type CreateInviteState } from "./actions";
 
 const initialState: CreateInviteState = {};
 
@@ -22,11 +22,34 @@ export function InviteForm() {
     initialState,
   );
   const [copied, setCopied] = useState<string | null>(null);
+  const [sendStatus, setSendStatus] = useState<
+    "idle" | "sending" | "ok" | "error"
+  >("idle");
+  const [sendMessage, setSendMessage] = useState<string>("");
+  const [sendPending, startSend] = useTransition();
 
   async function copy(key: string, text: string) {
     await navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
+  }
+
+  function sendEmail() {
+    if (!state.created) return;
+    setSendStatus("sending");
+    setSendMessage("");
+    startSend(async () => {
+      const fd = new FormData();
+      fd.append("tokenId", state.created!.id);
+      const res = await emailInvite(fd);
+      if (res.ok) {
+        setSendStatus("ok");
+        setSendMessage(`발송 완료 → ${state.created!.ownerEmail}`);
+      } else {
+        setSendStatus("error");
+        setSendMessage(res.message ?? "발송 실패");
+      }
+    });
   }
 
   const businessName = state.created?.businessName ?? "";
@@ -135,9 +158,43 @@ export function InviteForm() {
             </button>
           </div>
 
-          <p className="text-xs text-zinc-500">
-            메일·카톡·문자 어디든 위 본문을 붙여넣어 사장님께 직접 전달하세요. 시스템에서 자동 발송하지 않습니다.
-          </p>
+          <div className="space-y-2 border-t border-zinc-200 pt-5">
+            <label className="text-xs font-medium text-zinc-700">
+              자동 메일 발송 ({state.created.ownerEmail})
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={sendEmail}
+                disabled={
+                  sendPending ||
+                  sendStatus === "ok" ||
+                  !state.created.ownerEmail
+                }
+                className="inline-flex h-9 items-center rounded-md bg-ink px-4 text-xs font-medium text-white transition hover:bg-ink/90 disabled:opacity-60"
+              >
+                {sendPending
+                  ? "발송 중..."
+                  : sendStatus === "ok"
+                    ? "✓ 발송됨"
+                    : "메일 자동 발송"}
+              </button>
+              {sendMessage && (
+                <span
+                  className={`text-xs ${
+                    sendStatus === "ok"
+                      ? "text-emerald-700"
+                      : "text-rose-600"
+                  }`}
+                >
+                  {sendMessage}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-zinc-500">
+              위 본문을 직접 카톡·문자로 보내거나, 이메일 자동 발송 버튼으로 한 번에 전달.
+            </p>
+          </div>
         </div>
       )}
     </div>

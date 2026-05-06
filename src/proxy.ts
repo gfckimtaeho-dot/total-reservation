@@ -23,7 +23,8 @@ import { decryptSession, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 const intlMiddleware = createIntlMiddleware(routing);
 
 const ADMIN_GUARDED = /^\/[a-z]{2}\/admin(?!\/login)(\/|$)/;
-const GYM_STAFF_GUARDED = /^\/[a-z]{2}\/g\/([^/]+)\/dashboard(\/|$)/;
+const GYM_STAFF_GUARDED =
+  /^\/[a-z]{2}\/g\/([^/]+)\/(dashboard|members|settings)(\/|$)/;
 const GYM_USER_GUARDED = /^\/[a-z]{2}\/g\/([^/]+)\/me(\/|$)/;
 
 function localeFromPath(pathname: string): string {

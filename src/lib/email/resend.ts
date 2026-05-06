@@ -89,6 +89,49 @@ export async function sendWelcomeEmail(opts: {
   }
 }
 
+export async function sendCustomerActivationEmail(opts: {
+  to: string;
+  memberName: string;
+  storeName: string;
+  activateUrl: string;
+}): Promise<SendResult> {
+  const subject = `${opts.storeName} — 예약가즈아 회원 등록 안내`;
+  const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px">
+    <p style="font-size:16px">${opts.memberName} 님, 안녕하세요.</p>
+    <p style="font-size:16px"><strong>${opts.storeName}</strong>의 회원으로 등록되셨습니다. 아래 버튼을 눌러 비밀번호를 설정하시면 회원증·예약 화면에 접속할 수 있습니다.</p>
+    <p style="margin:24px 0">
+      <a href="${opts.activateUrl}" style="display:inline-block;background:#1A1A1A;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">설치 / 비밀번호 설정 →</a>
+    </p>
+    <p style="font-size:12px;color:#666">버튼이 작동하지 않으면 이 URL을 복사해 주세요:<br/><a href="${opts.activateUrl}">${opts.activateUrl}</a></p>
+    <p style="font-size:12px;color:#666;margin-top:24px">📌 폰 브라우저에서 열고 메뉴의 "홈 화면에 추가"를 누르면 앱처럼 사용할 수 있습니다. 링크는 7일간 유효합니다.</p>
+  </div>`;
+  const text = `${opts.memberName} 님,\n\n${opts.storeName}의 회원으로 등록되셨습니다.\n비밀번호 설정: ${opts.activateUrl}\n(7일 유효)`;
+
+  const transport = makeTransport();
+  if (!transport) {
+    console.log(
+      `[email/fallback] activation email skipped (GMAIL creds missing) to ${opts.to}`,
+    );
+    console.log(`[email/fallback] activate: ${opts.activateUrl}`);
+    return { ok: false, fallback: true };
+  }
+
+  try {
+    const info = await transport.sendMail({
+      from: `${FROM_NAME} <${user}>`,
+      to: opts.to,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, id: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[email] SMTP error (activation):", message);
+    return { ok: false, fallback: false, error: message };
+  }
+}
+
 export async function sendInviteEmail(opts: {
   to: string;
   inviteUrl: string;
