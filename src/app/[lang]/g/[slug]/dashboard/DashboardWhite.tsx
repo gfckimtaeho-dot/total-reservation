@@ -8,7 +8,6 @@ import {
   MOCK_MONTH_LABEL,
   MOCK_MONTH_START_WEEKDAY,
   MOCK_RESERVATIONS_TODAY,
-  MOCK_TODAY,
   MOCK_TOTAL_MONTH_BOOKINGS,
   fmtTime,
   groupByHour,
@@ -29,6 +28,24 @@ export async function DashboardWhite({ lang, slug, businessName }: Props) {
   const tn = await getTranslations("nav");
   const buckets = groupByHour(MOCK_RESERVATIONS_TODAY);
   const weekdays = lang === "en" ? WEEKDAYS_EN : WEEKDAYS;
+  const today = new Date();
+  const todayDisplay = new Intl.DateTimeFormat(
+    lang === "en" ? "en-US" : "ko-KR",
+    {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      weekday: "long",
+    },
+  ).format(today);
+  const todayDay = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Manila",
+      day: "numeric",
+    }).format(today),
+    10,
+  );
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -64,7 +81,7 @@ export async function DashboardWhite({ lang, slug, businessName }: Props) {
               {t("eyebrow")}
             </span>
             <h1 className="font-heading text-xl tracking-tight text-ink">
-              {MOCK_TODAY.display}
+              {todayDisplay}
             </h1>
           </div>
           <span className="rounded-full bg-zinc-100 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-600">
@@ -169,7 +186,7 @@ export async function DashboardWhite({ lang, slug, businessName }: Props) {
                 {t("totalBookings", { count: MOCK_TOTAL_MONTH_BOOKINGS })}
               </span>
             </div>
-            <SkyCalendarGrid t={t} weekdays={weekdays} />
+            <SkyCalendarGrid t={t} weekdays={weekdays} todayDay={todayDay} />
           </section>
 
           <section className="col-span-12 rounded-2xl bg-rose-50 p-6 ring-1 ring-rose-200/50">
@@ -273,9 +290,11 @@ function PastelKpi({
 function SkyCalendarGrid({
   t,
   weekdays,
+  todayDay,
 }: {
   t: (k: string, v?: Record<string, string | number>) => string;
   weekdays: readonly string[];
+  todayDay: number;
 }) {
   return (
     <>
@@ -303,11 +322,12 @@ function SkyCalendarGrid({
             );
           }
           const barTotal = d.pt + d.group;
+          const isToday = d.day === todayDay;
           return (
             <div
               key={d.day}
               className={`relative min-h-[68px] rounded-md border border-sky-100 bg-white p-2 text-left ${
-                d.isToday ? "ring-2 ring-sky-700" : ""
+                isToday ? "ring-2 ring-sky-700" : ""
               }`}
             >
               <div className="flex items-start justify-between">
