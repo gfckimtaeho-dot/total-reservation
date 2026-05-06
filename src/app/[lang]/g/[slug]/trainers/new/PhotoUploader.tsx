@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { uploadTrainerPhoto } from "../actions";
+import { upload } from "@vercel/blob/client";
 
 const SLOT_COUNT = 5;
+const MAX_BYTES = 10 * 1024 * 1024; // 10MB
 
 export function PhotoUploader({
   slug,
@@ -22,7 +23,6 @@ export function PhotoUploader({
     Array(SLOT_COUNT).fill(null),
   );
   const [pendingIdx, setPendingIdx] = useState<number | null>(null);
-  const [, startTransition] = useTransition();
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   function pickFile(idx: number) {
@@ -35,26 +35,38 @@ export function PhotoUploader({
       next[idx] = null;
       return next;
     });
+
+    if (file.size > MAX_BYTES) {
+      setErrors((e) => {
+        const next = [...e];
+        next[idx] = `파일이 너무 큽니다 (최대 10MB)`;
+        return next;
+      });
+      return;
+    }
+
     setPendingIdx(idx);
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.append("slug", slug);
-      fd.append("position", String(idx));
-      fd.append("file", file);
-      const res = await uploadTrainerPhoto(fd);
-      if (res.ok) {
-        const next = [...urls];
-        next[idx] = res.url;
-        onChange(next.filter(Boolean));
-      } else {
-        setErrors((e) => {
-          const next = [...e];
-          next[idx] = res.message;
-          return next;
-        });
-      }
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const pathname = `staff/${slug}/${idx}-${Date.now()}.${ext}`;
+      const blob = await upload(pathname, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload/staff",
+      });
+      const next = [...urls];
+      next[idx] = blob.url;
+      onChange(next.filter(Boolean));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "업로드 실패";
+      setErrors((e) => {
+        const next = [...e];
+        next[idx] = message;
+        return next;
+      });
+    } finally {
       setPendingIdx(null);
-    });
+    }
   }
 
   function removeAt(idx: number) {
@@ -70,8 +82,7 @@ export function PhotoUploader({
       : tone === "white"
         ? "border-zinc-300 bg-white hover:border-ink/40"
         : "border-amber-200/60 bg-white hover:border-ink/40";
-  const labelText =
-    tone === "black" ? "text-zinc-400" : "text-zinc-600";
+  const labelText = tone === "black" ? "text-zinc-400" : "text-zinc-600";
 
   return (
     <div>
@@ -85,7 +96,9 @@ export function PhotoUploader({
                 isPrimary ? "sm:col-span-2 sm:row-span-2" : ""
               }`}
             >
-              <span className={`text-[10px] uppercase tracking-[0.18em] ${labelText}`}>
+              <span
+                className={`text-[10px] uppercase tracking-[0.18em] ${labelText}`}
+              >
                 {isPrimary
                   ? t("photoPrimary")
                   : t("photoAdditional", { n: i })}
@@ -103,7 +116,9 @@ export function PhotoUploader({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span className={`flex h-full w-full items-center justify-center text-xs ${labelText}`}>
+                  <span
+                    className={`flex h-full w-full items-center justify-center text-xs ${labelText}`}
+                  >
                     {pendingIdx === i ? t("photoUploading") : t("photoUpload")}
                   </span>
                 )}

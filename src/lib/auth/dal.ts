@@ -48,3 +48,10 @@ export async function requireGymCustomer(slug: string) {
   }
   return user;
 }
+
+// Non-throwing variant for API routes (redirect()를 못 쓰는 컨텍스트).
+export async function isGymStaff(slug: string): Promise<boolean> {
+  const user = await verifySession();
+  if (!user || !user.business || user.business.slug !== slug) return false;
+  return ["OWNER", "MANAGER", "TRAINER"].includes(user.role);
+}
