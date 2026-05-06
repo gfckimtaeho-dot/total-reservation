@@ -1,29 +1,23 @@
+"use client";
+
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export type SidebarTone = "normal" | "black" | "white";
 
 type Item = {
-  key: string;
-  label: string;
+  key: "members" | "trainers" | "hours" | "services" | "revenue" | "settings";
   href: string | null;
 };
 
 function items(lang: string, slug: string): Item[] {
   return [
-    {
-      key: "members",
-      label: "회원관리",
-      href: `/${lang}/g/${slug}/members`,
-    },
-    { key: "trainers", label: "트레이너 관리", href: null },
-    { key: "hours", label: "영업일", href: null },
-    { key: "services", label: "서비스", href: null },
-    { key: "revenue", label: "매출현황", href: null },
-    {
-      key: "settings",
-      label: "설정",
-      href: `/${lang}/g/${slug}/settings`,
-    },
+    { key: "members", href: `/${lang}/g/${slug}/members` },
+    { key: "trainers", href: null },
+    { key: "hours", href: null },
+    { key: "services", href: null },
+    { key: "revenue", href: null },
+    { key: "settings", href: `/${lang}/g/${slug}/settings` },
   ];
 }
 
@@ -56,7 +50,8 @@ export function SidebarNav({
   activeKey: "dashboard" | "settings" | "members";
   tone: SidebarTone;
 }) {
-  const t = TONE[tone];
+  const t = useTranslations("nav");
+  const tk = TONE[tone];
   const list = items(lang, slug);
 
   return (
@@ -65,11 +60,11 @@ export function SidebarNav({
         href={`/${lang}/g/${slug}/dashboard`}
         className={`flex items-center rounded-md px-3 py-2 text-sm transition ${
           activeKey === "dashboard"
-            ? `${t.activeDash} font-medium`
-            : t.inactive
+            ? `${tk.activeDash} font-medium`
+            : tk.inactive
         }`}
       >
-        대시보드
+        {t("dashboard")}
       </Link>
       {list.map((n) => {
         const isActive =
@@ -79,13 +74,13 @@ export function SidebarNav({
           return (
             <span
               key={n.key}
-              className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${t.inactive} cursor-default`}
+              className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${tk.inactive} cursor-default`}
             >
-              <span>{n.label}</span>
+              <span>{t(n.key)}</span>
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${t.soonBadge}`}
+                className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${tk.soonBadge}`}
               >
-                soon
+                {t("soon")}
               </span>
             </span>
           );
@@ -95,10 +90,10 @@ export function SidebarNav({
             key={n.key}
             href={n.href}
             className={`flex items-center rounded-md px-3 py-2 text-sm transition ${
-              isActive ? `${t.activeDash} font-medium` : t.inactive
+              isActive ? `${tk.activeDash} font-medium` : tk.inactive
             }`}
           >
-            {n.label}
+            {t(n.key)}
           </Link>
         );
       })}

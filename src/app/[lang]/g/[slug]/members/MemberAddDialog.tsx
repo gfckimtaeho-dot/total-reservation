@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createMember, type CreateMemberState } from "./actions";
 
 const initialState: CreateMemberState = {};
@@ -47,12 +48,13 @@ export function MemberAddDialog({
   slug: string;
   tone: Tone;
 }) {
+  const t = useTranslations("memberAdd");
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
     createMember,
     initialState,
   );
-  const t = TONE_TOKENS[tone];
+  const tk = TONE_TOKENS[tone];
 
   useEffect(() => {
     if (state.success) {
@@ -65,32 +67,32 @@ export function MemberAddDialog({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`inline-flex h-10 items-center rounded-md px-4 text-sm font-medium transition ${t.primaryBtn}`}
+        className={`inline-flex h-10 items-center rounded-md px-4 text-sm font-medium transition ${tk.primaryBtn}`}
       >
-        + 회원 추가
+        + {t("title")}
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className={`absolute inset-0 ${t.overlay}`}
+            className={`absolute inset-0 ${tk.overlay}`}
             onClick={() => setOpen(false)}
           />
           <div
-            className={`relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 ${t.panel}`}
+            className={`relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 ${tk.panel}`}
           >
             <h2 className="font-heading text-xl tracking-tight">
               <span className={tone === "black" ? "text-white" : "text-ink"}>
-                회원 추가
+                {t("title")}
               </span>
             </h2>
             <form action={formAction} className="mt-5 space-y-4">
               <input type="hidden" name="slug" value={slug} />
 
               <Field
-                t={t}
+                tk={tk}
                 tone={tone}
-                label="이름"
+                label={t("name")}
                 name="name"
                 required
                 errors={state.errors?.name}
@@ -100,13 +102,13 @@ export function MemberAddDialog({
                 <span
                   className={`text-sm font-medium ${tone === "black" ? "text-zinc-200" : "text-zinc-800"}`}
                 >
-                  성별 <span className="text-rose-500">*</span>
+                  {t("gender")} <span className="text-rose-500">*</span>
                 </span>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {(["MALE", "FEMALE"] as const).map((g, i) => (
                     <label
                       key={g}
-                      className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition has-[:checked]:${t.radioActive} ${t.radioInactive}`}
+                      className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition has-[:checked]:${tk.radioActive} ${tk.radioInactive}`}
                     >
                       <input
                         type="radio"
@@ -115,49 +117,49 @@ export function MemberAddDialog({
                         defaultChecked={i === 0}
                         className="h-4 w-4 accent-ink"
                       />
-                      {g === "MALE" ? "남" : "여"}
+                      {g === "MALE" ? t("genderMale") : t("genderFemale")}
                     </label>
                   ))}
                 </div>
               </div>
 
               <Field
-                t={t}
+                tk={tk}
                 tone={tone}
-                label="핸드폰 번호"
+                label={t("phone")}
                 name="phone"
                 required
-                placeholder="+63 ..."
+                placeholder={t("phonePlaceholder")}
                 errors={state.errors?.phone}
-                hint="매장 내 회원 식별자 (중복 불가)"
+                hint={t("phoneHint")}
               />
 
               <Field
-                t={t}
+                tk={tk}
                 tone={tone}
-                label="이메일 (옵셔널)"
+                label={t("email")}
                 name="email"
                 type="email"
-                placeholder="없으면 비워두세요"
+                placeholder={t("emailPlaceholder")}
                 errors={state.errors?.email}
-                hint="이메일이 있으면 설치 URL을 자동 발송할 수 있습니다"
+                hint={t("emailHint")}
               />
 
               <Field
-                t={t}
+                tk={tk}
                 tone={tone}
-                label="생년월일 (옵셔널)"
+                label={t("dob")}
                 name="dob"
                 type="date"
                 errors={state.errors?.dob}
               />
 
               <Field
-                t={t}
+                tk={tk}
                 tone={tone}
-                label="비상연락처 (옵셔널)"
+                label={t("emergency")}
                 name="emergencyContactPhone"
-                placeholder="가족·보호자 번호"
+                placeholder={t("emergencyPlaceholder")}
                 errors={state.errors?.emergencyContactPhone}
               />
 
@@ -165,13 +167,13 @@ export function MemberAddDialog({
                 <span
                   className={`text-sm font-medium ${tone === "black" ? "text-zinc-200" : "text-zinc-800"}`}
                 >
-                  메모 / 특이사항 (옵셔널)
+                  {t("note")}
                 </span>
                 <textarea
                   name="note"
                   rows={3}
-                  placeholder="허리 디스크, 임산부, 알러지 등 — 트레이너·테라피스트가 봐야 할 정보"
-                  className={`rounded-md border ${t.fieldBorder} px-3 py-2 text-sm transition focus:outline-none focus:ring-2 ${t.fieldFocus}`}
+                  placeholder={t("notePlaceholder")}
+                  className={`rounded-md border ${tk.fieldBorder} px-3 py-2 text-sm transition focus:outline-none focus:ring-2 ${tk.fieldFocus}`}
                 />
                 {state.errors?.note && (
                   <span className="text-xs text-rose-500">
@@ -184,16 +186,16 @@ export function MemberAddDialog({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className={`h-10 rounded-md px-4 text-sm transition ${t.cancelBtn}`}
+                  className={`h-10 rounded-md px-4 text-sm transition ${tk.cancelBtn}`}
                 >
-                  취소
+                  {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={pending}
-                  className={`h-10 rounded-md px-5 text-sm font-medium transition disabled:opacity-60 ${t.primaryBtn}`}
+                  className={`h-10 rounded-md px-5 text-sm font-medium transition disabled:opacity-60 ${tk.primaryBtn}`}
                 >
-                  {pending ? "등록 중..." : "회원 추가"}
+                  {pending ? t("submitting") : t("submit")}
                 </button>
               </div>
             </form>
@@ -205,7 +207,7 @@ export function MemberAddDialog({
 }
 
 function Field({
-  t,
+  tk,
   tone,
   label,
   name,
@@ -215,7 +217,7 @@ function Field({
   errors,
   hint,
 }: {
-  t: (typeof TONE_TOKENS)[Tone];
+  tk: (typeof TONE_TOKENS)[Tone];
   tone: Tone;
   label: string;
   name: string;
@@ -238,7 +240,7 @@ function Field({
         name={name}
         placeholder={placeholder}
         aria-invalid={Boolean(errors)}
-        className={`h-11 rounded-md border ${t.fieldBorder} px-3 text-sm transition focus:outline-none focus:ring-2 ${t.fieldFocus}`}
+        className={`h-11 rounded-md border ${tk.fieldBorder} px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.fieldFocus}`}
       />
       {hint && !errors && (
         <span

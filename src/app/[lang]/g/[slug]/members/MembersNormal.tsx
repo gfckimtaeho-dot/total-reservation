@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import { SidebarNav } from "../dashboard/SidebarNav";
 import { MemberAddDialog } from "./MemberAddDialog";
@@ -15,7 +16,7 @@ type Props = {
   expiringSoon: boolean;
 };
 
-export function MembersNormal({
+export async function MembersNormal({
   lang,
   slug,
   businessName,
@@ -24,6 +25,8 @@ export function MembersNormal({
   gender,
   expiringSoon,
 }: Props) {
+  const t = await getTranslations("members");
+  const tn = await getTranslations("nav");
   const filtered = Boolean(q) || gender !== "all" || expiringSoon;
 
   return (
@@ -31,7 +34,7 @@ export function MembersNormal({
       <aside className="hidden w-60 shrink-0 flex-col bg-band lg:flex">
         <div className="border-b border-ink/10 px-6 py-6">
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/70">
-            STUDIO
+            {tn("studio")}
           </span>
           <div className="mt-1 font-heading text-lg tracking-tight text-ink">
             {businessName}
@@ -47,7 +50,7 @@ export function MembersNormal({
         <div className="border-t border-ink/10 px-3 py-4">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-ink/80 hover:bg-white/40">
-              로그아웃
+              {tn("logout")}
             </button>
           </form>
         </div>
@@ -57,13 +60,13 @@ export function MembersNormal({
         <header className="flex items-center justify-between border-b border-amber-200/60 px-8 py-5">
           <div>
             <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-              MEMBERS
+              {t("eyebrow")}
             </span>
             <h1 className="font-heading text-xl tracking-tight text-ink">
-              회원관리 · {members.length}명
+              {t("titleCount", { count: members.length })}
               {filtered && (
                 <span className="ml-2 text-sm font-normal text-zinc-500">
-                  (필터됨)
+                  {t("filtered")}
                 </span>
               )}
             </h1>
@@ -80,17 +83,17 @@ export function MembersNormal({
           />
           <div className="overflow-hidden rounded-2xl border border-amber-200/60 bg-white">
             {members.length === 0 ? (
-              <EmptyState filtered={filtered} />
+              <EmptyState filtered={filtered} t={t} />
             ) : (
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-amber-200/60 bg-amber-50/40">
-                    <Th>회원이름</Th>
-                    <Th>나이</Th>
-                    <Th>전화번호</Th>
-                    <Th>멤버십 만료일</Th>
-                    <Th>잔여 수업권</Th>
-                    <Th>액션</Th>
+                    <Th>{t("colName")}</Th>
+                    <Th>{t("colAge")}</Th>
+                    <Th>{t("colPhone")}</Th>
+                    <Th>{t("colExpiry")}</Th>
+                    <Th>{t("colRemaining")}</Th>
+                    <Th>{t("colActions")}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -114,7 +117,7 @@ export function MembersNormal({
             href={`/${lang}/g/${slug}/dashboard`}
             className="hover:text-ink"
           >
-            ← 대시보드로
+            {t("footerLink")}
           </Link>
         </footer>
       </main>
@@ -130,27 +133,20 @@ function Th({ children }: { children: React.ReactNode }) {
   );
 }
 
-function EmptyState({ filtered }: { filtered: boolean }) {
+function EmptyState({
+  filtered,
+  t,
+}: {
+  filtered: boolean;
+  t: (k: string) => string;
+}) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
       <div className="font-heading text-2xl tracking-tight text-ink">
-        {filtered ? "조건에 맞는 회원이 없어요" : "아직 등록된 회원이 없어요"}
+        {filtered ? t("emptyNoMatch") : t("emptyNoMembers")}
       </div>
       <p className="max-w-md text-center text-sm text-zinc-600">
-        {filtered ? (
-          <>
-            검색 조건을 바꾸거나{" "}
-            <a href="?" className="underline hover:text-ink">
-              초기화
-            </a>{" "}
-            해 보세요.
-          </>
-        ) : (
-          <>
-            오른쪽 위 <span className="font-medium text-ink">+ 회원 추가</span>{" "}
-            버튼을 눌러 첫 회원을 등록하세요.
-          </>
-        )}
+        {filtered ? t("emptyAdjustHint") : t("emptyAddHint")}
       </p>
     </div>
   );

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db/client";
 import { ActivateForm } from "./ActivateForm";
 
@@ -12,6 +13,7 @@ export default async function ActivatePage({
 }) {
   const { lang, slug } = await params;
   const { token } = await searchParams;
+  const t = await getTranslations("activate");
 
   const business = await prisma.business.findUnique({
     where: { slug },
@@ -28,11 +30,11 @@ export default async function ActivatePage({
 
   const tokenInvalid = !link || link.usedAt || link.expiresAt < new Date();
   const reason = !link
-    ? "링크가 잘못됐거나 매장이 존재하지 않습니다"
+    ? t("invalidNotFound")
     : link.usedAt
-      ? "이미 사용된 링크입니다 — 사장님께 새 링크를 요청해 주세요"
+      ? t("invalidUsed")
       : link.expiresAt < new Date()
-        ? "링크가 만료됐습니다 (7일 유효) — 사장님께 새 링크를 요청해 주세요"
+        ? t("invalidExpired")
         : null;
 
   return (
@@ -46,7 +48,7 @@ export default async function ActivatePage({
             예약가즈아
           </Link>
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-            /g/{business.slug}
+            {t("studioLabel", { slug: business.slug })}
           </span>
         </div>
       </header>
@@ -58,18 +60,18 @@ export default async function ActivatePage({
           </span>
           <h1 className="font-heading text-3xl leading-tight tracking-tight text-ink sm:text-4xl">
             {tokenInvalid ? (
-              "링크 확인이 필요합니다"
+              t("invalidTitle")
             ) : (
-              <>
-                <span className="italic">환영합니다,</span>{" "}
-                {link?.targetUser.name} 님.
-              </>
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: t("welcome", { name: link!.targetUser.name }),
+                }}
+              />
             )}
           </h1>
           {!tokenInvalid && (
             <p className="text-sm leading-relaxed text-ink/70">
-              비밀번호를 설정하시면 회원증·예약 화면에 바로 접속됩니다. 다음
-              번부터는 핸드폰 번호와 이 비밀번호로 로그인하세요.
+              {t("welcomeBody")}
             </p>
           )}
         </div>
@@ -80,7 +82,7 @@ export default async function ActivatePage({
           {tokenInvalid ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6">
               <h2 className="font-heading text-lg tracking-tight text-rose-900">
-                링크가 유효하지 않습니다
+                {t("errorBoxTitle")}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-rose-800">
                 {reason}
@@ -89,7 +91,7 @@ export default async function ActivatePage({
                 href={`/${lang}/g/${slug}/login`}
                 className="mt-4 inline-block text-sm font-medium text-ink underline"
               >
-                로그인 페이지로 →
+                {t("loginLink")}
               </Link>
             </div>
           ) : (

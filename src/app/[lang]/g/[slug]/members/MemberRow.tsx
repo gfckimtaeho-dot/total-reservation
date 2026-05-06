@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import {
   copyActivationUrl,
   deleteMember,
@@ -66,9 +67,9 @@ export type MemberView = {
   age: number | null;
   note: string | null;
   status: "PENDING" | "ACTIVE" | "WITHDRAWN" | "ANONYMIZED";
-  nextExpiry: string | null;        // YYYY-MM-DD or null
-  expiringSoon: boolean;            // <= 7 days
-  remainingSessions: string;        // "12.5" / "0.0" — Decimal string
+  nextExpiry: string | null;
+  expiringSoon: boolean;
+  remainingSessions: string;
 };
 
 export function MemberRow({
@@ -80,7 +81,8 @@ export function MemberRow({
   member: MemberView;
   tone: Tone;
 }) {
-  const t = TONE_TOKENS[tone];
+  const t = useTranslations("members");
+  const tk = TONE_TOKENS[tone];
   const [feedback, setFeedback] = useState<{
     kind: "ok" | "err";
     message: string;
@@ -101,7 +103,8 @@ export function MemberRow({
       fd.append("slug", slug);
       fd.append("memberId", member.id);
       const res = await sendActivationEmail(fd);
-      if (res.ok) showFeedback("ok", `이메일 발송 → ${member.email}`);
+      if (res.ok)
+        showFeedback("ok", t("rowSendOk", { email: member.email ?? "" }));
       else showFeedback("err", res.message);
     });
   }
@@ -116,7 +119,7 @@ export function MemberRow({
         await navigator.clipboard.writeText(res.url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        showFeedback("ok", "URL 복사됨 — 카톡·SMS로 전달");
+        showFeedback("ok", t("rowCopyOk"));
       } else {
         showFeedback("err", res.message);
       }
@@ -124,7 +127,7 @@ export function MemberRow({
   }
 
   function onDelete() {
-    if (!confirm(`${member.name} 회원을 정말 삭제하시겠어요?`)) return;
+    if (!confirm(t("rowDeleteConfirm", { name: member.name }))) return;
     startTransition(async () => {
       const fd = new FormData();
       fd.append("slug", slug);
@@ -134,65 +137,67 @@ export function MemberRow({
   }
 
   return (
-    <tr className={`border-b ${t.rowBorder} ${t.rowHover}`}>
+    <tr className={`border-b ${tk.rowBorder} ${tk.rowHover}`}>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
-          <span className={`font-medium ${t.text}`}>{member.name}</span>
+          <span className={`font-medium ${tk.text}`}>{member.name}</span>
           {member.note && (
             <span
               title={`⚠ ${member.note}`}
-              className={`cursor-help text-xs ${t.noteIcon}`}
+              className={`cursor-help text-xs ${tk.noteIcon}`}
             >
               ⚠
             </span>
           )}
           {!isActive && (
             <span
-              className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${t.pillPending}`}
+              className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${tk.pillPending}`}
             >
-              초대대기
+              {t("pendingPill")}
             </span>
           )}
         </div>
         {member.note && (
-          <div className={`mt-0.5 line-clamp-1 text-xs ${t.subtext}`}>
+          <div className={`mt-0.5 line-clamp-1 text-xs ${tk.subtext}`}>
             {member.note}
           </div>
         )}
       </td>
-      <td className={`px-4 py-3 text-sm tabular-nums ${t.text}`}>
-        {member.age != null ? `${member.age}세` : "-"}
+      <td className={`px-4 py-3 text-sm tabular-nums ${tk.text}`}>
+        {member.age != null ? t("ageUnit", { age: member.age }) : "-"}
       </td>
-      <td className={`px-4 py-3 text-sm tabular-nums ${t.text}`}>
+      <td className={`px-4 py-3 text-sm tabular-nums ${tk.text}`}>
         {member.phone ?? "-"}
       </td>
       <td className="px-4 py-3 text-sm">
         {member.nextExpiry ? (
           <span
             className={`inline-flex items-center gap-1.5 ${
-              member.expiringSoon ? "" : t.text
+              member.expiringSoon ? "" : tk.text
             }`}
           >
-            <span className={`tabular-nums ${t.text}`}>
+            <span className={`tabular-nums ${tk.text}`}>
               {member.nextExpiry}
             </span>
             {member.expiringSoon && (
               <span
-                className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${t.pillExpiring}`}
+                className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${tk.pillExpiring}`}
               >
-                D-7 이내
+                {t("expiringPill")}
               </span>
             )}
           </span>
         ) : (
-          <span className={t.subtext}>-</span>
+          <span className={tk.subtext}>-</span>
         )}
       </td>
-      <td className={`px-4 py-3 text-sm tabular-nums ${t.text}`}>
+      <td className={`px-4 py-3 text-sm tabular-nums ${tk.text}`}>
         {member.remainingSessions !== "0.0" ? (
-          <span className="font-medium">{member.remainingSessions}회</span>
+          <span className="font-medium">
+            {t("remainingUnit", { count: member.remainingSessions })}
+          </span>
         ) : (
-          <span className={t.subtext}>-</span>
+          <span className={tk.subtext}>-</span>
         )}
       </td>
       <td className="px-4 py-3">
@@ -205,20 +210,20 @@ export function MemberRow({
                 disabled={pending || !member.email}
                 title={
                   member.email
-                    ? "Gmail로 활성화 URL 자동 발송"
-                    : "이메일 없음 — URL 복사로 전달"
+                    ? t("rowSendTooltip")
+                    : t("rowSendTooltipNoEmail")
                 }
-                className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${t.btnPrimary}`}
+                className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${tk.btnPrimary}`}
               >
-                {pending && member.email ? "발송 중..." : "메일 발송"}
+                {pending && member.email ? t("rowSending") : t("rowSendEmail")}
               </button>
               <button
                 type="button"
                 onClick={onCopyUrl}
                 disabled={pending}
-                className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${t.btn}`}
+                className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btn}`}
               >
-                {copied ? "✓ 복사됨" : "URL 복사"}
+                {copied ? t("rowCopied") : t("rowCopyUrl")}
               </button>
             </>
           )}
@@ -226,15 +231,15 @@ export function MemberRow({
             type="button"
             onClick={onDelete}
             disabled={pending}
-            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${t.btnDanger}`}
+            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btnDanger}`}
           >
-            삭제
+            {t("rowDelete")}
           </button>
         </div>
         {feedback && (
           <div
             className={`mt-1.5 text-[11px] ${
-              feedback.kind === "ok" ? t.successText : t.errorText
+              feedback.kind === "ok" ? tk.successText : tk.errorText
             }`}
           >
             {feedback.message}

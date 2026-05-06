@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import {
   MOCK_EXPIRING,
@@ -15,6 +16,7 @@ import {
 import { SidebarNav } from "./SidebarNav";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 type Props = {
   lang: string;
@@ -22,15 +24,18 @@ type Props = {
   businessName: string;
 };
 
-export function DashboardNormal({ lang, slug, businessName }: Props) {
+export async function DashboardNormal({ lang, slug, businessName }: Props) {
+  const t = await getTranslations("dashboard");
+  const tn = await getTranslations("nav");
   const buckets = groupByHour(MOCK_RESERVATIONS_TODAY);
+  const weekdays = lang === "en" ? WEEKDAYS_EN : WEEKDAYS;
 
   return (
     <div className="flex min-h-screen bg-amber-50/50">
       <aside className="hidden w-60 shrink-0 flex-col bg-band lg:flex">
         <div className="border-b border-ink/10 px-6 py-6">
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/70">
-            STUDIO
+            {tn("studio")}
           </span>
           <div className="mt-1 font-heading text-lg tracking-tight text-ink">
             {businessName}
@@ -46,7 +51,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
         <div className="border-t border-ink/10 px-3 py-4">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-ink/80 hover:bg-white/40">
-              로그아웃
+              {tn("logout")}
             </button>
           </form>
         </div>
@@ -56,37 +61,40 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
         <header className="flex items-center justify-between border-b border-amber-200/60 px-8 py-5">
           <div>
             <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-              DASHBOARD
+              {t("eyebrow")}
             </span>
             <h1 className="font-heading text-xl tracking-tight text-ink">
               {MOCK_TODAY.display}
             </h1>
           </div>
           <span className="rounded-full bg-amber-100/80 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-amber-900/70">
-            샘플 데이터
+            {t("sampleData")}
           </span>
         </header>
 
         <div className="grid grid-cols-12 gap-4 p-6">
           <KpiCard
-            label="오늘 예약"
+            label={t("kpiTodayBookings")}
             value={MOCK_KPI.todayBookings}
-            sub="건"
-            badge={`진행중 ${MOCK_KPI.inProgress}`}
+            sub={t("unitCount")}
+            badge={t("inProgress", { count: MOCK_KPI.inProgress })}
           />
           <KpiCard
-            label="활성 회원"
+            label={t("kpiActiveMembers")}
             value={`${MOCK_KPI.activeMembers}/${MOCK_KPI.totalCustomersEver}`}
-            sub="명"
+            sub={t("unitPeople")}
           />
           <KpiCard
-            label="오늘 근무"
+            label={t("kpiTodayStaff")}
             value={MOCK_KPI.todayShiftStaff}
-            sub="명"
+            sub={t("unitPeople")}
           />
 
           <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-6 xl:col-span-5">
-            <SectionHead eyebrow="TIMELINE" title="오늘의 일정" />
+            <SectionHead
+              eyebrow={t("timelineEyebrow")}
+              title={t("timelineTitle")}
+            />
             <ol className="mt-5 divide-y divide-amber-100">
               {buckets.map((b) => (
                 <li
@@ -124,12 +132,15 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
                             </span>
                             {isActive && (
                               <span className="rounded-full bg-ink px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-white">
-                                진행중
+                                {t("live")}
                               </span>
                             )}
                             {isGroup && (
                               <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-white">
-                                그룹 {r.enrolled}/{r.capacity}
+                                {t("groupBadge", {
+                                  enrolled: r.enrolled ?? 0,
+                                  capacity: r.capacity ?? 0,
+                                })}
                               </span>
                             )}
                           </div>
@@ -148,20 +159,20 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
           <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-6 xl:col-span-7">
             <div className="flex items-baseline justify-between">
               <SectionHead
-                eyebrow="CALENDAR"
-                title={`${MOCK_MONTH_LABEL} 예약 현황`}
+                eyebrow={t("calendarEyebrow")}
+                title={t("calendarTitle", { month: MOCK_MONTH_LABEL })}
               />
               <span className="text-xs text-zinc-500">
-                총 {MOCK_TOTAL_MONTH_BOOKINGS}건
+                {t("totalBookings", { count: MOCK_TOTAL_MONTH_BOOKINGS })}
               </span>
             </div>
-            <CalendarGrid />
+            <CalendarGrid t={t} weekdays={weekdays} />
           </section>
 
           <section className="col-span-12 rounded-2xl bg-amber-100/60 p-6 ring-1 ring-amber-200/60">
             <SectionHead
-              eyebrow="MEMBERSHIP · 7일 내 만료"
-              title="갱신 권유 대상"
+              eyebrow={t("membershipEyebrow")}
+              title={t("membershipTitle")}
             />
             <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {MOCK_EXPIRING.map((m) => (
@@ -170,7 +181,9 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
                   className="flex items-center justify-between rounded-lg bg-white px-4 py-3 ring-1 ring-amber-200/60"
                 >
                   <span className="font-medium text-ink">{m.name}</span>
-                  <span className="text-xs text-zinc-600">D-{m.daysLeft}</span>
+                  <span className="text-xs text-zinc-600">
+                    {t("daysLeft", { days: m.daysLeft })}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -183,7 +196,7 @@ export function DashboardNormal({ lang, slug, businessName }: Props) {
             href={`/${lang}/g/${slug}/settings`}
             className="hover:text-ink"
           >
-            설정에서 화면 컨셉 변경
+            {t("themeLink")}
           </Link>
         </footer>
       </main>
@@ -237,11 +250,17 @@ function KpiCard({
   );
 }
 
-function CalendarGrid() {
+function CalendarGrid({
+  t,
+  weekdays,
+}: {
+  t: (k: string, v?: Record<string, string | number>) => string;
+  weekdays: readonly string[];
+}) {
   return (
     <>
       <div className="mt-5 grid grid-cols-7 gap-1.5 text-center">
-        {WEEKDAYS.map((w) => (
+        {weekdays.map((w) => (
           <span
             key={w}
             className="rounded-t-md bg-band/40 py-2 pb-2 text-[11px] font-medium text-ink/70"
@@ -261,7 +280,7 @@ function CalendarGrid() {
               >
                 <div className="text-xs font-medium">{d.day}</div>
                 <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
-                  휴
+                  {t("closed")}
                 </div>
               </div>
             );
@@ -273,11 +292,6 @@ function CalendarGrid() {
               className={`relative min-h-[68px] rounded-md border border-amber-200/60 p-2 text-left ${
                 d.isToday ? "bg-white ring-2 ring-ink" : "bg-amber-50/30"
               }`}
-              title={
-                d.total === 0
-                  ? `${d.day}일 — 예약 없음`
-                  : `${d.day}일\nPT ${d.pt}건\n그룹 ${d.group}건\n자유 ${d.free}건\n노쇼 ${d.noShow}건`
-              }
             >
               <div className="flex items-start justify-between">
                 <span className="text-xs font-medium text-ink">{d.day}</span>
@@ -295,12 +309,10 @@ function CalendarGrid() {
                   <div
                     className="bg-ink"
                     style={{ width: `${(d.pt / barTotal) * 100}%` }}
-                    title={`PT ${d.pt}건`}
                   />
                   <div
                     className="bg-emerald-500"
                     style={{ width: `${(d.group / barTotal) * 100}%` }}
-                    title={`그룹 ${d.group}건`}
                   />
                 </div>
               )}
@@ -311,19 +323,19 @@ function CalendarGrid() {
       <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-zinc-500">
         <span className="flex items-center gap-1.5">
           <span className="h-1.5 w-3 rounded-sm bg-ink" />
-          PT
+          {t("legendPt")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-1.5 w-3 rounded-sm bg-emerald-500" />
-          그룹 수업
+          {t("legendGroup")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-          단체 수업 있음
+          {t("legendHasGroup")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-sm bg-amber-200/60" />
-          휴무
+          {t("legendClosed")}
         </span>
       </div>
     </>

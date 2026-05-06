@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 type Tone = "normal" | "black" | "white";
 
 const TONE = {
@@ -36,13 +38,7 @@ const TONE = {
   },
 } as const;
 
-const GENDERS = [
-  { key: "all", label: "전체" },
-  { key: "MALE", label: "남" },
-  { key: "FEMALE", label: "여" },
-] as const;
-
-export function MembersSearch({
+export async function MembersSearch({
   tone,
   q,
   gender,
@@ -53,34 +49,45 @@ export function MembersSearch({
   gender: "all" | "MALE" | "FEMALE";
   expiringSoon: boolean;
 }) {
-  const t = TONE[tone];
+  const t = await getTranslations("members");
+  const tk = TONE[tone];
+  const genders = [
+    { key: "all", label: t("genderAll") },
+    { key: "MALE", label: t("genderMale") },
+    { key: "FEMALE", label: t("genderFemale") },
+  ] as const;
+
   return (
     <form
       method="get"
-      className={`mb-4 flex flex-wrap items-end gap-4 rounded-2xl px-5 py-4 ${t.wrap}`}
+      className={`mb-4 flex flex-wrap items-end gap-4 rounded-2xl px-5 py-4 ${tk.wrap}`}
     >
       <label className="flex flex-col gap-1.5">
-        <span className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${t.label}`}>
-          이름 검색
+        <span
+          className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${tk.label}`}
+        >
+          {t("searchNameLabel")}
         </span>
         <input
           type="text"
           name="q"
           defaultValue={q}
-          placeholder="회원 이름"
-          className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${t.field}`}
+          placeholder={t("searchNamePlaceholder")}
+          className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
         />
       </label>
 
       <div className="flex flex-col gap-1.5">
-        <span className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${t.label}`}>
-          성별
+        <span
+          className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${tk.label}`}
+        >
+          {t("searchGenderLabel")}
         </span>
         <div className="flex gap-1">
-          {GENDERS.map((g) => (
+          {genders.map((g) => (
             <label
               key={g.key}
-              className={`cursor-pointer rounded-md px-3 py-1.5 text-sm transition has-[:checked]:${t.radioActive} ${t.radioInactive}`}
+              className={`cursor-pointer rounded-md px-3 py-1.5 text-sm transition has-[:checked]:${tk.radioActive} ${tk.radioInactive}`}
             >
               <input
                 type="radio"
@@ -96,7 +103,7 @@ export function MembersSearch({
       </div>
 
       <label
-        className={`flex h-9 cursor-pointer items-center gap-2 self-end rounded-md border px-3 text-sm transition has-[:checked]:${t.checkActive} ${t.checkInactive}`}
+        className={`flex h-9 cursor-pointer items-center gap-2 self-end rounded-md border px-3 text-sm transition has-[:checked]:${tk.checkActive} ${tk.checkInactive}`}
       >
         <input
           type="checkbox"
@@ -105,21 +112,21 @@ export function MembersSearch({
           defaultChecked={expiringSoon}
           className="h-4 w-4 accent-ink"
         />
-        만료 1주일 내
+        {t("searchExpiringSoon")}
       </label>
 
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          className={`h-9 rounded-md px-4 text-sm font-medium transition ${t.submit}`}
+          className={`h-9 rounded-md px-4 text-sm font-medium transition ${tk.submit}`}
         >
-          검색
+          {t("searchSubmit")}
         </button>
         <a
           href="?"
-          className={`inline-flex h-9 items-center rounded-md border px-3 text-sm transition ${t.reset}`}
+          className={`inline-flex h-9 items-center rounded-md border px-3 text-sm transition ${tk.reset}`}
         >
-          초기화
+          {t("searchReset")}
         </a>
       </div>
     </form>

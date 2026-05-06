@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import { requireGymCustomer } from "@/lib/auth/dal";
 
@@ -9,6 +10,7 @@ export default async function CustomerHomePage({
   const { lang, slug } = await params;
   const user = await requireGymCustomer(slug);
   const business = user.business!;
+  const t = await getTranslations("me");
 
   return (
     <div className="flex min-h-screen flex-col bg-amber-50/40">
@@ -19,12 +21,12 @@ export default async function CustomerHomePage({
               {business.name}
             </span>
             <div className="font-heading text-lg tracking-tight text-ink">
-              내 회원증
+              {t("header")}
             </div>
           </div>
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="text-sm text-zinc-600 hover:text-ink">
-              로그아웃
+              {t("logout")}
             </button>
           </form>
         </div>
@@ -33,13 +35,16 @@ export default async function CustomerHomePage({
       <section className="bg-band">
         <div className="mx-auto flex max-w-3xl flex-col gap-3 px-6 py-12">
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/70">
-            MEMBER · {business.name}
+            {t("memberEyebrow", { storeName: business.name })}
           </span>
-          <h1 className="font-heading text-3xl leading-tight tracking-tight text-ink sm:text-4xl">
-            <span className="italic">환영합니다,</span> {user.name} 님.
-          </h1>
+          <h1
+            className="font-heading text-3xl leading-tight tracking-tight text-ink sm:text-4xl"
+            dangerouslySetInnerHTML={{
+              __html: t("welcome", { name: user.name }),
+            }}
+          />
           <p className="text-sm leading-relaxed text-ink/70">
-            {business.name}의 회원으로 등록되셨습니다. 예약·회원증·QR 출입은 다음 마일스톤에서 활성화됩니다.
+            {t("body", { storeName: business.name })}
           </p>
         </div>
       </section>
@@ -48,32 +53,31 @@ export default async function CustomerHomePage({
         <div className="mx-auto w-full max-w-3xl space-y-4 px-6 py-12">
           <div className="rounded-2xl border border-amber-200/60 bg-white p-6">
             <h2 className="font-heading text-xl tracking-tight text-ink">
-              내 정보
+              {t("myInfo")}
             </h2>
             <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              <Row label="이름" value={user.name} />
+              <Row label={t("labelName")} value={user.name} />
               <Row
-                label="성별"
+                label={t("labelGender")}
                 value={
                   user.gender === "MALE"
-                    ? "남"
+                    ? t("genderMale")
                     : user.gender === "FEMALE"
-                      ? "여"
+                      ? t("genderFemale")
                       : "-"
                 }
               />
-              <Row label="핸드폰" value={user.phone ?? "-"} />
-              <Row label="이메일" value={user.email ?? "-"} />
+              <Row label={t("labelPhone")} value={user.phone ?? "-"} />
+              <Row label={t("labelEmail")} value={user.email ?? "-"} />
             </dl>
           </div>
 
           <div className="rounded-2xl bg-band/40 p-6 ring-1 ring-amber-200/60">
             <h3 className="font-heading text-lg tracking-tight text-ink">
-              📌 폰 홈 화면에 추가하세요
+              {t("pwaCardTitle")}
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-              브라우저 메뉴 → "홈 화면에 추가"를 누르면 앱처럼 한 번 클릭으로
-              들어옵니다. iPhone(Safari): 공유 버튼 → 홈 화면에 추가. Android(Chrome): 메뉴 → 홈 화면에 추가.
+              {t("pwaCardBody")}
             </p>
           </div>
         </div>
