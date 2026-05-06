@@ -281,29 +281,38 @@ export async function copyTrainerActivationUrl(
   return { ok: true, url };
 }
 
-export async function deleteTrainer(formData: FormData) {
+export async function deleteTrainer(
+  formData: FormData,
+): Promise<{ ok: boolean; message?: string }> {
   const slug = String(formData.get("slug") ?? "");
   const staffId = String(formData.get("staffId") ?? "");
-  const auth = await requireGymStaff(slug);
-  const gymId = auth.business!.id;
+  try {
+    const auth = await requireGymStaff(slug);
+    const gymId = auth.business!.id;
 
-  const staff = await prisma.staff.findFirst({
-    where: { id: staffId, gymId },
-    include: {
-      user: { select: { id: true } },
-      images: { select: { url: true } },
-    },
-  });
-  if (!staff) return;
+    const staff = await prisma.staff.findFirst({
+      where: { id: staffId, gymId },
+      include: {
+        user: { select: { id: true } },
+        images: { select: { url: true } },
+      },
+    });
+    if (!staff) return { ok: false, message: "트레이너를 찾을 수 없습니다" };
 
-  // Blob 사진 정리 (best-effort)
-  await Promise.all(staff.images.map((i) => deleteStaffImageUrl(i.url)));
+    // Blob 사진 정리 (best-effort)
+    await Promise.all(staff.images.map((i) => deleteStaffImageUrl(i.url)));
 
-  // User 삭제 → cascade로 Staff·StaffImage·StaffLeave·Sessions 모두 정리
-  await prisma.user.delete({ where: { id: staff.user.id } });
+    // User 삭제 → cascade로 Staff·StaffImage·StaffLeave·Sessions 모두 정리
+    await prisma.user.delete({ where: { id: staff.user.id } });
 
-  revalidatePath(`/ko/g/${slug}/trainers`);
-  revalidatePath(`/en/g/${slug}/trainers`);
+    revalidatePath(`/ko/g/${slug}/trainers`);
+    revalidatePath(`/en/g/${slug}/trainers`);
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[deleteTrainer] failed:", message, err);
+    return { ok: false, message: `삭제 실패: ${message}` };
+  }
 }
 
 // ────────────────────────────────────────────────────────────

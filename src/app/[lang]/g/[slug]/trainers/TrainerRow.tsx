@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   copyTrainerActivationUrl,
@@ -21,10 +22,10 @@ const TONE = {
     pillTrainer: "bg-band/60 text-ink",
     pillManager: "bg-amber-100 text-amber-900/80",
     statusWorking: "bg-emerald-100 text-emerald-800",
-    statusOff: "bg-zinc-200 text-zinc-700",
+    statusOff: "bg-rose-100 text-rose-800",
     statusLeave: "bg-rose-100 text-rose-700",
     weekdayOn: "bg-emerald-500 text-white",
-    weekdayOff: "bg-zinc-200 text-zinc-500",
+    weekdayOff: "bg-rose-200 text-rose-800",
     btn: "border border-amber-200/60 bg-white text-ink hover:border-ink",
     btnPrimary: "bg-ink text-white hover:bg-ink/90",
     btnDanger: "border border-rose-300 bg-white text-rose-600 hover:bg-rose-50",
@@ -40,10 +41,10 @@ const TONE = {
     pillTrainer: "bg-lime-300/20 text-lime-300",
     pillManager: "bg-amber-300/20 text-amber-300",
     statusWorking: "bg-lime-300/20 text-lime-300",
-    statusOff: "bg-white/10 text-zinc-400",
+    statusOff: "bg-rose-500/20 text-rose-300",
     statusLeave: "bg-rose-500/20 text-rose-300",
     weekdayOn: "bg-lime-300 text-zinc-950",
-    weekdayOff: "bg-zinc-700 text-zinc-500",
+    weekdayOff: "bg-rose-500/30 text-rose-200",
     btn: "border border-white/10 bg-zinc-800 text-zinc-200 hover:border-lime-300",
     btnPrimary: "bg-lime-300 text-zinc-950 hover:bg-lime-200",
     btnDanger:
@@ -60,10 +61,10 @@ const TONE = {
     pillTrainer: "bg-sky-100 text-sky-900",
     pillManager: "bg-amber-100 text-amber-800",
     statusWorking: "bg-emerald-100 text-emerald-800",
-    statusOff: "bg-zinc-200 text-zinc-700",
+    statusOff: "bg-rose-100 text-rose-800",
     statusLeave: "bg-rose-100 text-rose-700",
     weekdayOn: "bg-sky-700 text-white",
-    weekdayOff: "bg-zinc-200 text-zinc-500",
+    weekdayOff: "bg-rose-200 text-rose-800",
     btn: "border border-zinc-300 bg-white text-zinc-700 hover:border-ink",
     btnPrimary: "bg-ink text-white hover:bg-ink/90",
     btnDanger: "border border-rose-300 bg-white text-rose-600 hover:bg-rose-50",
@@ -110,6 +111,7 @@ export function TrainerRow({
   tone: Tone;
 }) {
   const t = useTranslations("trainers");
+  const router = useRouter();
   const tk = TONE[tone];
   const [feedback, setFeedback] = useState<{
     kind: "ok" | "err";
@@ -157,10 +159,20 @@ export function TrainerRow({
   function onDelete() {
     if (!confirm(t("rowDeleteConfirm", { name: trainer.name }))) return;
     startTransition(async () => {
-      const fd = new FormData();
-      fd.append("slug", slug);
-      fd.append("staffId", trainer.staffId);
-      await deleteTrainer(fd);
+      try {
+        const fd = new FormData();
+        fd.append("slug", slug);
+        fd.append("staffId", trainer.staffId);
+        const res = await deleteTrainer(fd);
+        if (res && !res.ok) {
+          showFeedback("err", res.message ?? "삭제 실패");
+          return;
+        }
+        router.refresh();
+      } catch (err) {
+        const m = err instanceof Error ? err.message : "삭제 실패";
+        showFeedback("err", m);
+      }
     });
   }
 
@@ -185,7 +197,10 @@ export function TrainerRow({
         : tk.statusLeave;
 
   return (
-    <tr className={`border-b ${tk.rowBorder} ${tk.rowHover}`}>
+    <tr
+      className={`cursor-pointer border-b ${tk.rowBorder} ${tk.rowHover}`}
+      onClick={() => router.push(`/${lang}/g/${slug}/trainers/${trainer.staffId}`)}
+    >
       <td className="px-4 py-3 text-center">
         {trainer.primaryPhotoUrl ? (
           <img
@@ -251,7 +266,7 @@ export function TrainerRow({
       <td className={`px-4 py-3 text-right text-sm tabular-nums ${tk.text}`}>
         {trainer.phone ?? "-"}
       </td>
-      <td className="px-4 py-3 text-left">
+      <td className="px-4 py-3 text-left" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"

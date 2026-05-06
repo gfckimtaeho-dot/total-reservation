@@ -84,8 +84,22 @@ export function TrainerForm({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [specs, setSpecs] = useState<Set<Specialty>>(new Set());
   const [otherOn, setOtherOn] = useState(false);
+  const [customSpecialty, setCustomSpecialty] = useState("");
   const [offDays, setOffDays] = useState<Set<Weekday>>(new Set());
   const [role, setRole] = useState<"TRAINER" | "MANAGER">("TRAINER");
+  // Controlled text fields — auto-reset 방지 (등록 실패 시 입력값 보존).
+  const [fields, setFields] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    emergencyContactPhone: "",
+    bio: "",
+    career: "",
+    note: "",
+  });
+  function set<K extends keyof typeof fields>(k: K, v: string) {
+    setFields((p) => ({ ...p, [k]: v }));
+  }
   const [state, formAction, pending] = useActionState(
     createTrainer,
     initialState,
@@ -148,6 +162,8 @@ export function TrainerForm({
             name="name"
             required
             errors={state.errors?.name}
+            value={fields.name}
+            onChange={(v) => set("name", v)}
           />
           <div className="flex flex-col gap-1.5">
             <span className={`text-sm font-medium ${tk.text}`}>
@@ -181,6 +197,8 @@ export function TrainerForm({
             placeholder={t("phonePlaceholder")}
             errors={state.errors?.phone}
             hint={t("phoneHint")}
+            value={fields.phone}
+            onChange={(v) => set("phone", v)}
           />
           <DobPicker
             name="dob"
@@ -196,12 +214,16 @@ export function TrainerForm({
             placeholder={t("emailPlaceholder")}
             errors={state.errors?.email}
             hint={t("emailHint")}
+            value={fields.email}
+            onChange={(v) => set("email", v)}
           />
           <Field
             tk={tk}
             label={t("emergency")}
             name="emergencyContactPhone"
             placeholder={t("emergencyPlaceholder")}
+            value={fields.emergencyContactPhone}
+            onChange={(v) => set("emergencyContactPhone", v)}
           />
         </div>
       </section>
@@ -240,8 +262,10 @@ export function TrainerForm({
             tk={tk}
             specs={specs}
             otherOn={otherOn}
+            customSpecialty={customSpecialty}
             onToggleSpec={toggleSpec}
             onToggleOther={() => setOtherOn((v) => !v)}
+            onChangeCustom={setCustomSpecialty}
           />
         </div>
       </section>
@@ -256,6 +280,8 @@ export function TrainerForm({
             name="bio"
             placeholder={t("bioPlaceholder")}
             rows={5}
+            value={fields.bio}
+            onChange={(v) => set("bio", v)}
           />
           <TextArea
             tk={tk}
@@ -263,6 +289,8 @@ export function TrainerForm({
             name="career"
             placeholder={t("careerPlaceholder")}
             rows={5}
+            value={fields.career}
+            onChange={(v) => set("career", v)}
           />
         </div>
       </section>
@@ -307,6 +335,8 @@ export function TrainerForm({
             name="note"
             placeholder={t("notePlaceholder")}
             rows={3}
+            value={fields.note}
+            onChange={(v) => set("note", v)}
           />
         </div>
       </section>
@@ -389,6 +419,8 @@ function Field({
   required,
   errors,
   hint,
+  value,
+  onChange,
 }: {
   tk: (typeof TONE)[Tone];
   label: string;
@@ -398,6 +430,8 @@ function Field({
   required?: boolean;
   errors?: string[];
   hint?: string;
+  value: string;
+  onChange: (v: string) => void;
 }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -409,6 +443,8 @@ function Field({
         type={type}
         name={name}
         placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         aria-invalid={Boolean(errors)}
         className={`h-11 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
       />
@@ -428,12 +464,16 @@ function TextArea({
   name,
   placeholder,
   rows = 3,
+  value,
+  onChange,
 }: {
   tk: (typeof TONE)[Tone];
   label: string;
   name: string;
   placeholder?: string;
   rows?: number;
+  value: string;
+  onChange: (v: string) => void;
 }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -442,6 +482,8 @@ function TextArea({
         name={name}
         rows={rows}
         placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className={`rounded-md border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
       />
     </label>
@@ -453,15 +495,19 @@ function SpecialtyPicker({
   tk,
   specs,
   otherOn,
+  customSpecialty,
   onToggleSpec,
   onToggleOther,
+  onChangeCustom,
 }: {
   t: (k: string) => string;
   tk: (typeof TONE)[Tone];
   specs: Set<Specialty>;
   otherOn: boolean;
+  customSpecialty: string;
   onToggleSpec: (s: Specialty) => void;
   onToggleOther: () => void;
+  onChangeCustom: (v: string) => void;
 }) {
   const ts = useTranslations("trainers");
   return (
@@ -506,6 +552,8 @@ function SpecialtyPicker({
           type="text"
           name="customSpecialty"
           placeholder={t("specialtyOtherPlaceholder")}
+          value={customSpecialty}
+          onChange={(e) => onChangeCustom(e.target.value)}
           className={`mt-2 h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
         />
       )}
