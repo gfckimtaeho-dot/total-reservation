@@ -17,11 +17,13 @@ const TONE_TOKENS = {
     subtext: "text-zinc-600",
     pillPending: "bg-amber-100 text-amber-900/80",
     pillActive: "bg-band/60 text-ink",
+    pillExpiring: "bg-rose-100 text-rose-700",
     btn: "border border-amber-200/60 bg-white text-ink hover:border-ink",
     btnPrimary: "bg-ink text-white hover:bg-ink/90",
     btnDanger: "border border-rose-300 bg-white text-rose-600 hover:bg-rose-50",
     successText: "text-emerald-700",
     errorText: "text-rose-600",
+    noteIcon: "text-rose-600",
   },
   black: {
     rowBorder: "border-white/10",
@@ -30,11 +32,13 @@ const TONE_TOKENS = {
     subtext: "text-zinc-400",
     pillPending: "bg-amber-300/20 text-amber-300",
     pillActive: "bg-lime-300/20 text-lime-300",
+    pillExpiring: "bg-rose-500/20 text-rose-300",
     btn: "border border-white/10 bg-zinc-800 text-zinc-200 hover:border-lime-300",
     btnPrimary: "bg-lime-300 text-zinc-950 hover:bg-lime-200",
     btnDanger: "border border-rose-500/40 bg-zinc-800 text-rose-300 hover:bg-rose-500/10",
     successText: "text-lime-300",
     errorText: "text-rose-400",
+    noteIcon: "text-rose-300",
   },
   white: {
     rowBorder: "border-zinc-200",
@@ -43,20 +47,14 @@ const TONE_TOKENS = {
     subtext: "text-zinc-600",
     pillPending: "bg-amber-100 text-amber-800",
     pillActive: "bg-sky-100 text-sky-900",
+    pillExpiring: "bg-rose-100 text-rose-700",
     btn: "border border-zinc-300 bg-white text-zinc-700 hover:border-ink",
     btnPrimary: "bg-ink text-white hover:bg-ink/90",
     btnDanger: "border border-rose-300 bg-white text-rose-600 hover:bg-rose-50",
     successText: "text-emerald-700",
     errorText: "text-rose-600",
+    noteIcon: "text-rose-600",
   },
-} as const;
-
-const GENDER_LABEL = { MALE: "남", FEMALE: "여" } as const;
-const STATUS_LABEL = {
-  PENDING: "초대 대기",
-  ACTIVE: "활성",
-  WITHDRAWN: "탈퇴",
-  ANONYMIZED: "익명화",
 } as const;
 
 export type MemberView = {
@@ -65,11 +63,12 @@ export type MemberView = {
   gender: "MALE" | "FEMALE" | null;
   phone: string | null;
   email: string | null;
-  dob: string | null;
+  age: number | null;
   note: string | null;
-  emergencyContactPhone: string | null;
   status: "PENDING" | "ACTIVE" | "WITHDRAWN" | "ANONYMIZED";
-  createdAt: string;
+  nextExpiry: string | null;        // YYYY-MM-DD or null
+  expiringSoon: boolean;            // <= 7 days
+  remainingSessions: string;        // "12.5" / "0.0" — Decimal string
 };
 
 export function MemberRow({
@@ -102,7 +101,7 @@ export function MemberRow({
       fd.append("slug", slug);
       fd.append("memberId", member.id);
       const res = await sendActivationEmail(fd);
-      if (res.ok) showFeedback("ok", `이메일 발송 완료 → ${member.email}`);
+      if (res.ok) showFeedback("ok", `이메일 발송 → ${member.email}`);
       else showFeedback("err", res.message);
     });
   }
@@ -117,7 +116,7 @@ export function MemberRow({
         await navigator.clipboard.writeText(res.url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-        showFeedback("ok", "URL 복사됨 — 카톡·SMS로 보내세요");
+        showFeedback("ok", "URL 복사됨 — 카톡·SMS로 전달");
       } else {
         showFeedback("err", res.message);
       }
@@ -137,30 +136,64 @@ export function MemberRow({
   return (
     <tr className={`border-b ${t.rowBorder} ${t.rowHover}`}>
       <td className="px-4 py-3">
-        <div className={`font-medium ${t.text}`}>{member.name}</div>
+        <div className="flex items-center gap-1.5">
+          <span className={`font-medium ${t.text}`}>{member.name}</span>
+          {member.note && (
+            <span
+              title={`⚠ ${member.note}`}
+              className={`cursor-help text-xs ${t.noteIcon}`}
+            >
+              ⚠
+            </span>
+          )}
+          {!isActive && (
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${t.pillPending}`}
+            >
+              초대대기
+            </span>
+          )}
+        </div>
         {member.note && (
           <div className={`mt-0.5 line-clamp-1 text-xs ${t.subtext}`}>
-            ⚠ {member.note}
+            {member.note}
           </div>
         )}
       </td>
-      <td className={`px-4 py-3 text-sm ${t.text}`}>
-        {member.gender ? GENDER_LABEL[member.gender] : "-"}
+      <td className={`px-4 py-3 text-sm tabular-nums ${t.text}`}>
+        {member.age != null ? `${member.age}세` : "-"}
       </td>
       <td className={`px-4 py-3 text-sm tabular-nums ${t.text}`}>
         {member.phone ?? "-"}
       </td>
-      <td className={`px-4 py-3 text-sm ${t.subtext}`}>
-        {member.email ?? <span className="italic">없음</span>}
+      <td className="px-4 py-3 text-sm">
+        {member.nextExpiry ? (
+          <span
+            className={`inline-flex items-center gap-1.5 ${
+              member.expiringSoon ? "" : t.text
+            }`}
+          >
+            <span className={`tabular-nums ${t.text}`}>
+              {member.nextExpiry}
+            </span>
+            {member.expiringSoon && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${t.pillExpiring}`}
+              >
+                D-7 이내
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className={t.subtext}>-</span>
+        )}
       </td>
-      <td className="px-4 py-3">
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] ${
-            isActive ? t.pillActive : t.pillPending
-          }`}
-        >
-          {STATUS_LABEL[member.status]}
-        </span>
+      <td className={`px-4 py-3 text-sm tabular-nums ${t.text}`}>
+        {member.remainingSessions !== "0.0" ? (
+          <span className="font-medium">{member.remainingSessions}회</span>
+        ) : (
+          <span className={t.subtext}>-</span>
+        )}
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -173,7 +206,7 @@ export function MemberRow({
                 title={
                   member.email
                     ? "Gmail로 활성화 URL 자동 발송"
-                    : "이메일이 없는 회원은 URL 복사로 전달"
+                    : "이메일 없음 — URL 복사로 전달"
                 }
                 className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${t.btnPrimary}`}
               >

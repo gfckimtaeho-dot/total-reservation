@@ -3,15 +3,29 @@ import { logout } from "@/lib/auth/actions";
 import { SidebarNav } from "../dashboard/SidebarNav";
 import { MemberAddDialog } from "./MemberAddDialog";
 import { MemberRow, type MemberView } from "./MemberRow";
+import { MembersSearch } from "./MembersSearch";
 
 type Props = {
   lang: string;
   slug: string;
   businessName: string;
   members: MemberView[];
+  q: string;
+  gender: "all" | "MALE" | "FEMALE";
+  expiringSoon: boolean;
 };
 
-export function MembersNormal({ lang, slug, businessName, members }: Props) {
+export function MembersNormal({
+  lang,
+  slug,
+  businessName,
+  members,
+  q,
+  gender,
+  expiringSoon,
+}: Props) {
+  const filtered = Boolean(q) || gender !== "all" || expiringSoon;
+
   return (
     <div className="flex min-h-screen bg-amber-50/50">
       <aside className="hidden w-60 shrink-0 flex-col bg-band lg:flex">
@@ -47,30 +61,46 @@ export function MembersNormal({ lang, slug, businessName, members }: Props) {
             </span>
             <h1 className="font-heading text-xl tracking-tight text-ink">
               회원관리 · {members.length}명
+              {filtered && (
+                <span className="ml-2 text-sm font-normal text-zinc-500">
+                  (필터됨)
+                </span>
+              )}
             </h1>
           </div>
           <MemberAddDialog slug={slug} tone="normal" />
         </header>
 
         <div className="p-6">
+          <MembersSearch
+            tone="normal"
+            q={q}
+            gender={gender}
+            expiringSoon={expiringSoon}
+          />
           <div className="overflow-hidden rounded-2xl border border-amber-200/60 bg-white">
             {members.length === 0 ? (
-              <EmptyState />
+              <EmptyState filtered={filtered} />
             ) : (
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-amber-200/60 bg-amber-50/40">
-                    <Th>이름 / 메모</Th>
-                    <Th>성별</Th>
-                    <Th>핸드폰</Th>
-                    <Th>이메일</Th>
-                    <Th>상태</Th>
+                    <Th>회원이름</Th>
+                    <Th>나이</Th>
+                    <Th>전화번호</Th>
+                    <Th>멤버십 만료일</Th>
+                    <Th>잔여 수업권</Th>
                     <Th>액션</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {members.map((m) => (
-                    <MemberRow key={m.id} slug={slug} member={m} tone="normal" />
+                    <MemberRow
+                      key={m.id}
+                      slug={slug}
+                      member={m}
+                      tone="normal"
+                    />
                   ))}
                 </tbody>
               </table>
@@ -100,16 +130,27 @@ function Th({ children }: { children: React.ReactNode }) {
   );
 }
 
-function EmptyState() {
+function EmptyState({ filtered }: { filtered: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
       <div className="font-heading text-2xl tracking-tight text-ink">
-        아직 등록된 회원이 없어요
+        {filtered ? "조건에 맞는 회원이 없어요" : "아직 등록된 회원이 없어요"}
       </div>
       <p className="max-w-md text-center text-sm text-zinc-600">
-        오른쪽 위 <span className="font-medium text-ink">+ 회원 추가</span>{" "}
-        버튼을 눌러 첫 회원을 등록하세요. 등록 후 이메일이 있으면 한 번 클릭으로
-        설치 URL을 발송할 수 있습니다.
+        {filtered ? (
+          <>
+            검색 조건을 바꾸거나{" "}
+            <a href="?" className="underline hover:text-ink">
+              초기화
+            </a>{" "}
+            해 보세요.
+          </>
+        ) : (
+          <>
+            오른쪽 위 <span className="font-medium text-ink">+ 회원 추가</span>{" "}
+            버튼을 눌러 첫 회원을 등록하세요.
+          </>
+        )}
       </p>
     </div>
   );

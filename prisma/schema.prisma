@@ -340,6 +340,7 @@ model Service {
   timeUnit    TimeUnit
   durationMin Int
   pricePhp    Int
+  deductCount Decimal  @default(1.0) @db.Decimal(3, 1)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
@@ -400,8 +401,8 @@ model Package {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceId      String
   service        Service  @relation(fields: [serviceId], references: [id])
-  totalCount     Int
-  remainingCount Int
+  totalCount     Decimal  @db.Decimal(5, 1)
+  remainingCount Decimal  @db.Decimal(5, 1)
   pricePhp       Int
   createdAt      DateTime @default(now()) @db.Timestamptz(3)
 
