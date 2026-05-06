@@ -137,17 +137,6 @@ export function MemberAddDialog({
                 hint={t("phoneHint")}
               />
 
-              <Field
-                tk={tk}
-                tone={tone}
-                label={t("email")}
-                name="email"
-                type="email"
-                placeholder={t("emailPlaceholder")}
-                errors={state.errors?.email}
-                hint={t("emailHint")}
-              />
-
               <DobPicker
                 name="dob"
                 lang={lang}
@@ -159,6 +148,17 @@ export function MemberAddDialog({
                   {state.errors.dob.join(", ")}
                 </span>
               )}
+
+              <Field
+                tk={tk}
+                tone={tone}
+                label={t("email")}
+                name="email"
+                type="email"
+                placeholder={t("emailPlaceholder")}
+                errors={state.errors?.email}
+                hint={t("emailHint")}
+              />
 
               <Field
                 tk={tk}
