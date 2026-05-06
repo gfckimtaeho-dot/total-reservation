@@ -38,6 +38,7 @@ const createSchema = z.object({
 
 export type CreateTrainerState = {
   errors?: Record<string, string[] | undefined>;
+  message?: string;
   success?: { id: string };
 };
 
@@ -93,49 +94,56 @@ export async function createTrainer(
     return { errors: { phone: ["이미 등록된 핸드폰 번호입니다"] } };
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const user = await tx.user.create({
-      data: {
-        gymId,
-        name: d.name,
-        gender: d.gender,
-        phone: d.phone,
-        email: d.email ? d.email : null,
-        dob: d.dob ? new Date(d.dob) : null,
-        emergencyContactPhone: d.emergencyContactPhone || null,
-        note: d.note || null,
-        role: d.role,
-        status: "PENDING",
-      },
-      select: { id: true },
-    });
-
-    const staff = await tx.staff.create({
-      data: {
-        gymId,
-        userId: user.id,
-        role: d.role,
-        bio: d.bio || null,
-        career: d.career || null,
-        specialties: d.specialties,
-        customSpecialty: d.customSpecialty || null,
-        weeklyOffDays: d.weeklyOffDays,
-        photoUrl: d.imageUrls[0] ?? null,
-      },
-      select: { id: true },
-    });
-
-    if (d.imageUrls.length > 0) {
-      await tx.staffImage.createMany({
-        data: d.imageUrls.map((url, position) => ({
-          staffId: staff.id,
-          url,
-          position,
-        })),
+  let result: { staffId: string };
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          gymId,
+          name: d.name,
+          gender: d.gender,
+          phone: d.phone,
+          email: d.email ? d.email : null,
+          dob: d.dob ? new Date(d.dob) : null,
+          emergencyContactPhone: d.emergencyContactPhone || null,
+          note: d.note || null,
+          role: d.role,
+          status: "PENDING",
+        },
+        select: { id: true },
       });
-    }
-    return { staffId: staff.id };
-  });
+
+      const staff = await tx.staff.create({
+        data: {
+          gymId,
+          userId: user.id,
+          role: d.role,
+          bio: d.bio || null,
+          career: d.career || null,
+          specialties: d.specialties,
+          customSpecialty: d.customSpecialty || null,
+          weeklyOffDays: d.weeklyOffDays,
+          photoUrl: d.imageUrls[0] ?? null,
+        },
+        select: { id: true },
+      });
+
+      if (d.imageUrls.length > 0) {
+        await tx.staffImage.createMany({
+          data: d.imageUrls.map((url, position) => ({
+            staffId: staff.id,
+            url,
+            position,
+          })),
+        });
+      }
+      return { staffId: staff.id };
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[createTrainer] transaction failed:", message, err);
+    return { message: `등록 실패: ${message}` };
+  }
 
   revalidatePath(`/ko/g/${d.slug}/trainers`);
   revalidatePath(`/en/g/${d.slug}/trainers`);
