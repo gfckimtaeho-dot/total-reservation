@@ -113,7 +113,7 @@ export function PhotoUploader({
                   <img
                     src={url}
                     alt=""
-                    className="h-full w-full object-cover"
+                    className="h-full w-full bg-zinc-50 object-contain"
                   />
                 ) : (
                   <span
