@@ -9,7 +9,10 @@ export default defineConfig({
     path: "prisma/migrations",
     seed: "tsx prisma/seed.ts",
   },
+  // Migrations use DIRECT_URL (raw Postgres connection) since DDL through
+  // pgbouncer transaction pool can break. Runtime queries (src/lib/db/client.ts)
+  // use DATABASE_URL (pooler) for fast warm latency.
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
