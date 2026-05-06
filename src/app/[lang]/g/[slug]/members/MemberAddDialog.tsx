@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { createMember, type CreateMemberState } from "./actions";
+import { DobPicker } from "./DobPicker";
 
 const initialState: CreateMemberState = {};
 
@@ -147,15 +148,17 @@ export function MemberAddDialog({
                 hint={t("emailHint")}
               />
 
-              <Field
-                tk={tk}
-                tone={tone}
-                label={t("dob")}
+              <DobPicker
                 name="dob"
-                type="date"
                 lang={lang}
-                errors={state.errors?.dob}
+                label={t("dob")}
+                tone={tone}
               />
+              {state.errors?.dob && (
+                <span className="text-xs text-rose-500">
+                  {state.errors.dob.join(", ")}
+                </span>
+              )}
 
               <Field
                 tk={tk}

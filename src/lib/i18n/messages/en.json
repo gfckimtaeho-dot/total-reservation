@@ -253,6 +253,7 @@
     "emailPlaceholder": "Leave blank if none",
     "emailHint": "If email is set, the install URL can be auto-sent",
     "dob": "Date of birth (optional)",
+    "dobPlaceholder": "Select date",
     "emergency": "Emergency contact (optional)",
     "emergencyPlaceholder": "Family / guardian phone",
     "note": "Note / special remarks (optional)",

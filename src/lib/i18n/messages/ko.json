@@ -253,6 +253,7 @@
     "emailPlaceholder": "없으면 비워두세요",
     "emailHint": "이메일이 있으면 설치 URL을 자동 발송할 수 있습니다",
     "dob": "생년월일 (옵셔널)",
+    "dobPlaceholder": "날짜 선택",
     "emergency": "비상연락처 (옵셔널)",
     "emergencyPlaceholder": "가족·보호자 번호",
     "note": "메모 / 특이사항 (옵셔널)",
