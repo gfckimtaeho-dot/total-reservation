@@ -117,7 +117,7 @@ export async function MembersBlack({
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-lime-300/80">
+    <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-lime-300/80">
       {children}
     </th>
   );

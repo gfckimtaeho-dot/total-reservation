@@ -127,7 +127,7 @@ export async function MembersNormal({
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/60">
+    <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/60">
       {children}
     </th>
   );

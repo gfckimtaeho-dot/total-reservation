@@ -138,7 +138,7 @@ export function MemberRow({
 
   return (
     <tr className={`border-b ${tk.rowBorder} ${tk.rowHover}`}>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-left">
         <div className="flex items-center gap-1.5">
           <span className={`font-medium ${tk.text}`}>{member.name}</span>
           {member.note && (
@@ -163,13 +163,13 @@ export function MemberRow({
           </div>
         )}
       </td>
-      <td className={`px-4 py-3 text-sm tabular-nums ${tk.text}`}>
+      <td className={`px-4 py-3 text-right text-sm tabular-nums ${tk.text}`}>
         {member.age != null ? t("ageUnit", { age: member.age }) : "-"}
       </td>
-      <td className={`px-4 py-3 text-sm tabular-nums ${tk.text}`}>
+      <td className={`px-4 py-3 text-right text-sm tabular-nums ${tk.text}`}>
         {member.phone ?? "-"}
       </td>
-      <td className="px-4 py-3 text-sm">
+      <td className="px-4 py-3 text-center text-sm">
         {member.nextExpiry ? (
           <span
             className={`inline-flex items-center gap-1.5 ${
@@ -191,7 +191,7 @@ export function MemberRow({
           <span className={tk.subtext}>-</span>
         )}
       </td>
-      <td className={`px-4 py-3 text-sm tabular-nums ${tk.text}`}>
+      <td className={`px-4 py-3 text-right text-sm tabular-nums ${tk.text}`}>
         {member.remainingSessions !== "0.0" ? (
           <span className="font-medium">
             {t("remainingUnit", { count: member.remainingSessions })}
@@ -200,7 +200,7 @@ export function MemberRow({
           <span className={tk.subtext}>-</span>
         )}
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-left">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"

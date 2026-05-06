@@ -86,6 +86,11 @@ export default async function GymMembersPage({
     },
   });
 
+  const remainingFmt = new Intl.NumberFormat(
+    lang === "en" ? "en-US" : "ko-KR",
+    { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+  );
+
   const members: MemberView[] = rows.map((r) => {
     const latestExpiry = r.memberships[0]?.endDate ?? null;
     const expSoon =
@@ -109,7 +114,7 @@ export default async function GymMembersPage({
         ? latestExpiry.toISOString().slice(0, 10)
         : null,
       expiringSoon: expSoon,
-      remainingSessions: remaining.toFixed(1),
+      remainingSessions: remainingFmt.format(remaining),
     };
   });
 
