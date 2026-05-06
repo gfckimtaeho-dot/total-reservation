@@ -1,0 +1,143 @@
+"use client";
+
+import { useRef, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
+import { uploadTrainerPhoto } from "../actions";
+
+const SLOT_COUNT = 5;
+
+export function PhotoUploader({
+  slug,
+  urls,
+  onChange,
+  tone,
+}: {
+  slug: string;
+  urls: string[];
+  onChange: (urls: string[]) => void;
+  tone: "normal" | "black" | "white";
+}) {
+  const t = useTranslations("trainerAdd");
+  const [errors, setErrors] = useState<(string | null)[]>(
+    Array(SLOT_COUNT).fill(null),
+  );
+  const [pendingIdx, setPendingIdx] = useState<number | null>(null);
+  const [, startTransition] = useTransition();
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  function pickFile(idx: number) {
+    inputRefs.current[idx]?.click();
+  }
+
+  async function handleFile(idx: number, file: File) {
+    setErrors((e) => {
+      const next = [...e];
+      next[idx] = null;
+      return next;
+    });
+    setPendingIdx(idx);
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.append("slug", slug);
+      fd.append("position", String(idx));
+      fd.append("file", file);
+      const res = await uploadTrainerPhoto(fd);
+      if (res.ok) {
+        const next = [...urls];
+        next[idx] = res.url;
+        onChange(next.filter(Boolean));
+      } else {
+        setErrors((e) => {
+          const next = [...e];
+          next[idx] = res.message;
+          return next;
+        });
+      }
+      setPendingIdx(null);
+    });
+  }
+
+  function removeAt(idx: number) {
+    const next = urls.filter((_, i) => i !== idx);
+    onChange(next);
+  }
+
+  const slots = Array.from({ length: SLOT_COUNT }, (_, i) => urls[i] ?? null);
+
+  const slotBase =
+    tone === "black"
+      ? "border-white/10 bg-zinc-800 hover:border-lime-300/40"
+      : tone === "white"
+        ? "border-zinc-300 bg-white hover:border-ink/40"
+        : "border-amber-200/60 bg-white hover:border-ink/40";
+  const labelText =
+    tone === "black" ? "text-zinc-400" : "text-zinc-600";
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+        {slots.map((url, i) => {
+          const isPrimary = i === 0;
+          return (
+            <div
+              key={i}
+              className={`flex flex-col items-center gap-2 ${
+                isPrimary ? "sm:col-span-2 sm:row-span-2" : ""
+              }`}
+            >
+              <span className={`text-[10px] uppercase tracking-[0.18em] ${labelText}`}>
+                {isPrimary
+                  ? t("photoPrimary")
+                  : t("photoAdditional", { n: i })}
+              </span>
+              <button
+                type="button"
+                onClick={() => pickFile(i)}
+                disabled={pendingIdx === i}
+                className={`relative aspect-square w-full overflow-hidden rounded-xl border-2 border-dashed transition disabled:opacity-50 ${slotBase}`}
+              >
+                {url ? (
+                  <img
+                    src={url}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className={`flex h-full w-full items-center justify-center text-xs ${labelText}`}>
+                    {pendingIdx === i ? t("photoUploading") : t("photoUpload")}
+                  </span>
+                )}
+              </button>
+              <input
+                ref={(el) => {
+                  inputRefs.current[i] = el;
+                }}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleFile(i, f);
+                  e.target.value = "";
+                }}
+              />
+              {url && (
+                <button
+                  type="button"
+                  onClick={() => removeAt(i)}
+                  className="text-[11px] text-rose-600 hover:underline"
+                >
+                  {t("photoRemove")}
+                </button>
+              )}
+              {errors[i] && (
+                <span className="text-[11px] text-rose-600">{errors[i]}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <input type="hidden" name="imageUrls" value={JSON.stringify(urls)} />
+    </div>
+  );
+}

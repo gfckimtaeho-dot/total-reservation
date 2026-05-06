@@ -48,6 +48,13 @@ enum Gender {
   FEMALE
 }
 
+enum Specialty {
+  HEALTH
+  YOGA
+  PILATES
+  DANCE
+}
+
 enum SubscriptionPlan {
   TRIAL
   MONTHLY
@@ -182,6 +189,7 @@ model Business {
 
   users               User[]
   staff               Staff[]
+  staffLeaves         StaffLeave[]
   services            Service[]
   hours               BusinessHours[]
   images              BusinessImage[]
@@ -312,21 +320,52 @@ model InviteToken {
 // ─── Staff (가맹점 ↔ User 트레이너·매니저·사장 link) ─────
 
 model Staff {
-  id        String   @id @default(cuid())
-  gymId     String
-  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role
-  photoUrl  String?
-  bio       String?
-  career    String?
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  id              String      @id @default(cuid())
+  gymId           String
+  business        Business    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId          String      @unique
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role            Role
+  photoUrl        String?
+  bio             String?
+  career          String?
+  specialties     Specialty[] @default([])
+  customSpecialty String?
+  weeklyOffDays   Weekday[]   @default([])
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
 
   reservations Reservation[]
+  images       StaffImage[]
+  leaves       StaffLeave[]
 
   @@index([gymId, role])
+}
+
+model StaffImage {
+  id        String   @id @default(cuid())
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([staffId, position])
+}
+
+model StaffLeave {
+  id        String   @id @default(cuid())
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  gymId     String
+  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  reason    String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([staffId])
+  @@index([gymId, endDate])
 }
 
 // ─── Service ───────────────────────────────────────────────

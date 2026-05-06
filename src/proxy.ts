@@ -24,7 +24,7 @@ const intlMiddleware = createIntlMiddleware(routing);
 
 const ADMIN_GUARDED = /^\/[a-z]{2}\/admin(?!\/login)(\/|$)/;
 const GYM_STAFF_GUARDED =
-  /^\/[a-z]{2}\/g\/([^/]+)\/(dashboard|members|settings)(\/|$)/;
+  /^\/[a-z]{2}\/g\/([^/]+)\/(dashboard|members|trainers|settings)(\/|$)/;
 const GYM_USER_GUARDED = /^\/[a-z]{2}\/g\/([^/]+)\/me(\/|$)/;
 
 function localeFromPath(pathname: string): string {
