@@ -202,31 +202,27 @@ export function MemberRow({
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          {!isActive && (
-            <>
-              <button
-                type="button"
-                onClick={onSendEmail}
-                disabled={pending || !member.email}
-                title={
-                  member.email
-                    ? t("rowSendTooltip")
-                    : t("rowSendTooltipNoEmail")
-                }
-                className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${tk.btnPrimary}`}
-              >
-                {pending && member.email ? t("rowSending") : t("rowSendEmail")}
-              </button>
-              <button
-                type="button"
-                onClick={onCopyUrl}
-                disabled={pending}
-                className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btn}`}
-              >
-                {copied ? t("rowCopied") : t("rowCopyUrl")}
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={onSendEmail}
+            disabled={pending || !member.email}
+            title={
+              member.email
+                ? t("rowSendTooltip")
+                : t("rowSendTooltipNoEmail")
+            }
+            className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${tk.btnPrimary}`}
+          >
+            {pending && member.email ? t("rowSending") : t("rowSendEmail")}
+          </button>
+          <button
+            type="button"
+            onClick={onCopyUrl}
+            disabled={pending}
+            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btn}`}
+          >
+            {copied ? t("rowCopied") : t("rowCopyUrl")}
+          </button>
           <button
             type="button"
             onClick={onDelete}
