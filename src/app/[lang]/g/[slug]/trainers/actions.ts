@@ -3,11 +3,20 @@
 import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { sendStaffActivationEmail } from "@/lib/email/resend";
 import { uploadStaffImage, deleteStaffImageUrl } from "@/lib/storage/blob";
+
+const ROLE_KEY = {
+  OWNER: "roleOwner",
+  MANAGER: "roleManager",
+  TRAINER: "roleTrainer",
+  CUSTOMER: "roleCustomer",
+  ADMIN: "roleManager", // unlikely in gym scope, fallback
+} as const;
 
 const SEVEN_DAYS_MS = 1000 * 60 * 60 * 24 * 7;
 
@@ -86,21 +95,41 @@ export async function createTrainer(
   const auth = await requireGymStaff(d.slug);
   const gymId = auth.business!.id;
 
+  const te = await getTranslations("errors");
+
   const existingPhone = await prisma.user.findFirst({
     where: { gymId, phone: d.phone },
-    select: { id: true },
+    select: { id: true, role: true, name: true },
   });
   if (existingPhone) {
-    return { errors: { phone: ["이미 등록된 핸드폰 번호입니다"] } };
+    return {
+      errors: {
+        phone: [
+          te("phoneTakenBy", {
+            role: te(ROLE_KEY[existingPhone.role]),
+            name: existingPhone.name,
+          }),
+        ],
+      },
+    };
   }
 
   if (d.email) {
     const existingEmail = await prisma.user.findFirst({
       where: { gymId, email: d.email },
-      select: { id: true },
+      select: { id: true, role: true, name: true },
     });
     if (existingEmail) {
-      return { errors: { email: ["이미 등록된 이메일입니다"] } };
+      return {
+        errors: {
+          email: [
+            te("emailTakenBy", {
+              role: te(ROLE_KEY[existingEmail.role]),
+              name: existingEmail.name,
+            }),
+          ],
+        },
+      };
     }
   }
 

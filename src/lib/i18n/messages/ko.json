@@ -279,6 +279,14 @@
     "submitting": "활성화 중...",
     "pwaTip": "📌 폰 브라우저 메뉴에서 \"홈 화면에 추가\"를 누르면 앱처럼 사용할 수 있습니다."
   },
+  "errors": {
+    "phoneTakenBy": "이 핸드폰은 이미 {role}({name})이 사용 중입니다",
+    "emailTakenBy": "이 이메일은 이미 {role}({name})이 사용 중입니다",
+    "roleOwner": "사장",
+    "roleManager": "매니저",
+    "roleTrainer": "트레이너",
+    "roleCustomer": "회원"
+  },
   "trainers": {
     "eyebrow": "TRAINERS",
     "titleCount": "트레이너 관리 · {count}명",
