@@ -196,6 +196,14 @@
       "spin": "스피닝",
       "dance": "댄스"
     },
+    "accessEyebrow": "ACCESS",
+    "accessTitle": "출입 현황",
+    "accessYesterday": "어제",
+    "accessRole": {
+      "MEMBER": "회원",
+      "TRAINER": "트레이너",
+      "OWNER": "사장"
+    },
     "membershipEyebrow": "MEMBERSHIP · 7일 내 만료",
     "membershipTitle": "갱신 권유 대상",
     "daysLeft": "D-{days}",

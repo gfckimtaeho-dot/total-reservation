@@ -146,6 +146,29 @@ export function getManilaMonthInfo(now: Date = new Date()): {
   return { year, month, daysInMonth, firstWeekday, todayDay };
 }
 
+// 출입 현황 — 누가 언제 게이트를 통과했는지 (실제 단말 연동 전 샘플)
+export type MockAccessEntry = {
+  id: string;
+  name: string;
+  role: "MEMBER" | "TRAINER" | "OWNER";
+  hour: number;
+  min: number;
+  daysAgo: number; // 0=오늘, 1=어제
+};
+
+export const MOCK_ACCESS_LOG: MockAccessEntry[] = [
+  { id: "a1", name: "김민수", role: "MEMBER", hour: 14, min: 12, daysAgo: 0 },
+  { id: "a2", name: "박코치", role: "TRAINER", hour: 13, min: 45, daysAgo: 0 },
+  { id: "a3", name: "이서연", role: "MEMBER", hour: 11, min: 32, daysAgo: 0 },
+  { id: "a4", name: "최유진", role: "MEMBER", hour: 10, min: 58, daysAgo: 0 },
+  { id: "a5", name: "정코치", role: "TRAINER", hour: 8, min: 30, daysAgo: 0 },
+  { id: "a6", name: "박지훈", role: "MEMBER", hour: 7, min: 15, daysAgo: 0 },
+  { id: "a7", name: "안소진", role: "MEMBER", hour: 21, min: 5, daysAgo: 1 },
+  { id: "a8", name: "한코치", role: "TRAINER", hour: 19, min: 30, daysAgo: 1 },
+  { id: "a9", name: "김지수", role: "MEMBER", hour: 18, min: 12, daysAgo: 1 },
+  { id: "a10", name: "사장", role: "OWNER", hour: 7, min: 0, daysAgo: 1 },
+];
+
 // "2026년 5월" / "May 2026" — Intl이 lang 기반으로 알아서 처리
 export function formatManilaMonthLabel(now: Date, lang: string): string {
   return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {

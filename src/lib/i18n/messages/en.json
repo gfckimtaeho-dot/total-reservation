@@ -196,6 +196,14 @@
       "spin": "Spin",
       "dance": "Dance"
     },
+    "accessEyebrow": "ACCESS",
+    "accessTitle": "Access log",
+    "accessYesterday": "Yesterday",
+    "accessRole": {
+      "MEMBER": "Member",
+      "TRAINER": "Trainer",
+      "OWNER": "Owner"
+    },
     "membershipEyebrow": "MEMBERSHIP · expiring within 7 days",
     "membershipTitle": "Renewal candidates",
     "daysLeft": "D-{days}",
