@@ -6,6 +6,45 @@ import { upload } from "@vercel/blob/client";
 
 const SLOT_COUNT = 5;
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB
+const COMPRESS_THRESHOLD = 500 * 1024; // 500KB 미만이면 그대로 업로드
+const COMPRESS_MAX_DIM = 1920; // 긴 변 기준 리사이즈
+const COMPRESS_QUALITY = 0.85; // JPEG 품질
+
+// 모바일 카메라 원본(5~10MB)을 1~2MB 이하로 줄여서 업로드 속도 ↑
+async function compressImage(file: File): Promise<File> {
+  if (file.size < COMPRESS_THRESHOLD) return file;
+  if (typeof createImageBitmap !== "function") return file;
+
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file; // HEIC 등 brow가 디코딩 못 하는 포맷은 원본 그대로
+  }
+
+  const ratio = Math.min(
+    COMPRESS_MAX_DIM / bitmap.width,
+    COMPRESS_MAX_DIM / bitmap.height,
+    1,
+  );
+  const targetW = Math.round(bitmap.width * ratio);
+  const targetH = Math.round(bitmap.height * ratio);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.drawImage(bitmap, 0, 0, targetW, targetH);
+  bitmap.close?.();
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", COMPRESS_QUALITY),
+  );
+  if (!blob || blob.size >= file.size) return file;
+  const name = file.name.replace(/\.[^.]+$/, ".jpg") || "photo.jpg";
+  return new File([blob], name, { type: "image/jpeg" });
+}
 
 export function PhotoUploader({
   slug,
@@ -47,9 +86,13 @@ export function PhotoUploader({
 
     setPendingIdx(idx);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const compressed = await compressImage(file);
+      const ext =
+        compressed.type === "image/jpeg"
+          ? "jpg"
+          : (compressed.name.split(".").pop()?.toLowerCase() ?? "jpg");
       const pathname = `staff/${slug}/${idx}-${Date.now()}.${ext}`;
-      const blob = await upload(pathname, file, {
+      const blob = await upload(pathname, compressed, {
         access: "public",
         handleUploadUrl: "/api/upload/staff",
       });
@@ -152,7 +195,6 @@ export function PhotoUploader({
           );
         })}
       </div>
-      <input type="hidden" name="imageUrls" value={JSON.stringify(urls)} />
     </div>
   );
 }

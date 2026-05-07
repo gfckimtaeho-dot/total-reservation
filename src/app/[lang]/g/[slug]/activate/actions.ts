@@ -50,7 +50,10 @@ export async function activateAccount(
   if (!link) return { message: "잘못된 링크입니다" };
   if (link.usedAt) return { message: "이미 사용된 링크입니다" };
   if (link.expiresAt < new Date()) return { message: "만료된 링크입니다" };
-  if (link.purpose !== "SIGNUP_ACTIVATION")
+  if (
+    link.purpose !== "SIGNUP_ACTIVATION" &&
+    link.purpose !== "STAFF_INVITE"
+  )
     return { message: "잘못된 링크 종류입니다" };
   if (!link.business || link.business.slug !== slug) {
     return { message: "매장 정보 불일치" };
@@ -69,5 +72,11 @@ export async function activateAccount(
   ]);
 
   await issueSession(link.targetUser.id, link.targetUser.role, false);
-  redirect(`/ko/g/${slug}/me`);
+  // 역할별 진입점 분기: 사장/매니저/트레이너는 dashboard, 회원은 회원증
+  const role = link.targetUser.role;
+  const target =
+    role === "OWNER" || role === "MANAGER" || role === "TRAINER"
+      ? `/ko/g/${slug}/dashboard`
+      : `/ko/g/${slug}/me`;
+  redirect(target);
 }
