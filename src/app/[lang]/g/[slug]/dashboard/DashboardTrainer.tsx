@@ -12,6 +12,10 @@ import {
   groupByHour,
   type MockReservation,
 } from "../../../preview/_mock";
+import {
+  AddReservationButton,
+  ScrollToScheduleOnDayChange,
+} from "./TrainerScheduleClient";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -152,30 +156,37 @@ export async function DashboardTrainer({
           <h2 className="font-heading text-base tracking-tight text-white">
             {t("trainerQrTitle")}
           </h2>
-          <div className="mt-3 rounded-xl bg-white p-3">
+          <div className="mt-3 rounded-xl bg-white p-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qrDataUrl}
               alt="Access QR"
-              className="block h-56 w-56"
+              className="block h-36 w-36"
             />
           </div>
-          <p className="mt-3 text-center text-[11px] leading-relaxed text-zinc-500">
+          <p className="mt-3 whitespace-pre-line text-center text-[11px] leading-relaxed text-zinc-500">
             {t("trainerQrHint")}
           </p>
         </section>
 
         {/* 일정 — 제목+카운트 한 줄에 합쳐서 (KPI 별도 섹션 제거) */}
-        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-          <div className="flex items-baseline justify-between gap-3">
+        <section
+          id="schedule"
+          className="scroll-mt-4 rounded-2xl border border-white/10 bg-zinc-900 p-5"
+        >
+          <ScrollToScheduleOnDayChange />
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-heading text-base tracking-tight text-white">
               {safeSelectedDay === monthInfo.todayDay
                 ? t("timelineTitle")
                 : t("timelineTitleForDate", { date: selectedDateLabel })}
             </h2>
-            <span className="shrink-0 rounded-full bg-lime-300/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-lime-300 ring-1 ring-lime-300/40">
-              {t("trainerScheduleCount", { count: reservations.length })}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-lime-300/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-lime-300 ring-1 ring-lime-300/40">
+                {t("trainerScheduleCount", { count: reservations.length })}
+              </span>
+              {!isTrainerOff(safeSelectedDay) && <AddReservationButton />}
+            </div>
           </div>
           {buckets.length === 0 ? (
             <p className="mt-4 text-sm text-zinc-500">
@@ -269,6 +280,7 @@ export async function DashboardTrainer({
                   <Link
                     key={day}
                     href={`/${lang}/g/${slug}/dashboard?day=${day}`}
+                    scroll={false}
                     className={`${baseCell} bg-zinc-700/70 hover:bg-zinc-600 ${
                       isSelected ? "ring-2 ring-lime-300" : ""
                     }`}
@@ -294,6 +306,7 @@ export async function DashboardTrainer({
                 <Link
                   key={day}
                   href={`/${lang}/g/${slug}/dashboard?day=${day}`}
+                  scroll={false}
                   className={`${baseCell} ${bg} ${ring} hover:bg-zinc-700`}
                 >
                   <div
