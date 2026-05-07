@@ -82,8 +82,8 @@ export async function DashboardTrainer({
       </header>
 
       <main className="flex-1 space-y-4 p-4">
-        {/* QR — 항시 노출, 1탭 출입 */}
-        <section className="flex flex-col items-center rounded-2xl border border-white/5 bg-zinc-900 p-5">
+        {/* QR — 핸드폰에서만 (테블릿/PC는 게이트에 들고가지 않으니 숨김) */}
+        <section className="flex flex-col items-center rounded-2xl border border-white/5 bg-zinc-900 p-5 md:hidden">
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
             {t("trainerQrEyebrow")}
           </span>
@@ -100,6 +100,19 @@ export async function DashboardTrainer({
           </div>
           <p className="mt-3 text-center text-[11px] leading-relaxed text-zinc-500">
             {t("trainerQrHint")}
+          </p>
+        </section>
+
+        {/* 테블릿/PC 안내 — QR이 핸드폰에서만 노출됨을 알림 */}
+        <section className="hidden rounded-2xl border border-white/5 bg-zinc-900 p-5 md:block">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
+            {t("trainerQrEyebrow")}
+          </span>
+          <h2 className="mt-1 font-heading text-base tracking-tight text-white">
+            {t("trainerQrTitle")}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+            {t("trainerQrPhoneOnly")}
           </p>
         </section>
 
