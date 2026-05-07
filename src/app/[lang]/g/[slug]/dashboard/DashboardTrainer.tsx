@@ -3,30 +3,12 @@ import QRCode from "qrcode";
 import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import {
-  MOCK_CLOSED_DAYS,
-  MOCK_GROUP_CLASSES_BY_DAY,
-  MOCK_RESERVATIONS_TODAY,
-  fmtTime,
   formatManilaMonthLabel,
   getManilaMonthInfo,
-  groupByHour,
-  type MockReservation,
 } from "../../../preview/_mock";
-import { AddReservationButton } from "./TrainerScheduleClient";
+import { TrainerCalendarSchedule } from "./TrainerCalendarSchedule";
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
-const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-const WEEKDAY_BY_INDEX = [
-  "SUN",
-  "MON",
-  "TUE",
-  "WED",
-  "THU",
-  "FRI",
-  "SAT",
-] as const;
-
-type Weekday = (typeof WEEKDAY_BY_INDEX)[number];
+type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
 type Props = {
   lang: string;
@@ -37,27 +19,6 @@ type Props = {
   selectedDay: number;
   weeklyOffDays: Weekday[];
 };
-
-// 비-오늘 날짜에 단체수업이 있을 때 합성. 실제 schema 연동 전 데모용.
-function synthesizeReservations(
-  day: number,
-  trainerName: string,
-  translateClass: (key: string) => string,
-): MockReservation[] {
-  const keys = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
-  return keys.map((key, i) => ({
-    id: `${day}-${key}-${i}`,
-    startMin: (10 + i * 2) * 60,
-    endMin: (11 + i * 2) * 60,
-    customer: translateClass(key),
-    staff: trainerName,
-    service: translateClass(key),
-    serviceType: "GROUP",
-    capacity: 12,
-    enrolled: 6 + (day % 5),
-    status: "CONFIRMED",
-  }));
-}
 
 export async function DashboardTrainer({
   lang,
@@ -70,7 +31,6 @@ export async function DashboardTrainer({
 }: Props) {
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
-  const weekdays = lang === "en" ? WEEKDAYS_EN : WEEKDAYS;
   const today = new Date();
   const todayDisplay = new Intl.DateTimeFormat(
     lang === "en" ? "en-US" : "ko-KR",
@@ -89,40 +49,8 @@ export async function DashboardTrainer({
       ? selectedDay
       : monthInfo.todayDay;
 
-  const offSet = new Set(weeklyOffDays);
-  function weekdayOf(day: number): Weekday {
-    const idx = (monthInfo.firstWeekday + (day - 1)) % 7;
-    return WEEKDAY_BY_INDEX[idx];
-  }
-  function isTrainerOff(day: number): boolean {
-    return MOCK_CLOSED_DAYS.has(day) || offSet.has(weekdayOf(day));
-  }
-
-  // 휴무일 클릭 시에도 reservations는 계산하지만 보통 비어있음.
-  const reservations: MockReservation[] = isTrainerOff(safeSelectedDay)
-    ? []
-    : safeSelectedDay === monthInfo.todayDay
-      ? MOCK_RESERVATIONS_TODAY.filter((r) => r.staff === trainerName)
-      : synthesizeReservations(safeSelectedDay, trainerName, (key) =>
-          t(`sampleGroupClass.${key}`),
-        );
-  const buckets = groupByHour(reservations);
-
-  // 선택일 라벨 (날짜 + 요일)
-  const selectedDate = new Date(
-    Date.UTC(monthInfo.year, monthInfo.month - 1, safeSelectedDay, 4, 0, 0),
-  );
-  const selectedDateLabel = new Intl.DateTimeFormat(
-    lang === "en" ? "en-US" : "ko-KR",
-    {
-      timeZone: "Asia/Manila",
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-    },
-  ).format(selectedDate);
-
-  // 출입 QR
+  // 출입 QR — accessToken이 바뀌지 않는 한 매 페이지 진입마다 동일.
+  // 추후 캐싱(react cache) 가능하지만 client navigation을 안 쓰므로 충분.
   const qrDataUrl = await QRCode.toDataURL(accessToken, {
     width: 320,
     margin: 1,
@@ -166,166 +94,15 @@ export async function DashboardTrainer({
           </p>
         </section>
 
-        {/* 일정 — 제목+카운트 한 줄에 합쳐서 (KPI 별도 섹션 제거) */}
-        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-heading text-base tracking-tight text-white">
-              {safeSelectedDay === monthInfo.todayDay
-                ? t("timelineTitle")
-                : t("timelineTitleForDate", { date: selectedDateLabel })}
-            </h2>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-lime-300/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-lime-300 ring-1 ring-lime-300/40">
-                {t("trainerScheduleCount", { count: reservations.length })}
-              </span>
-              {!isTrainerOff(safeSelectedDay) && <AddReservationButton />}
-            </div>
-          </div>
-          {buckets.length === 0 ? (
-            <p className="mt-4 text-sm text-zinc-500">
-              {isTrainerOff(safeSelectedDay)
-                ? t("trainerOffDay")
-                : t("trainerNoBookings")}
-            </p>
-          ) : (
-            <ol className="mt-5 divide-y divide-white/10">
-              {buckets.map((b) => (
-                <li
-                  key={b.startMin}
-                  className="grid grid-cols-[56px_1fr] gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="pt-2 text-sm font-medium tabular-nums text-zinc-400">
-                    {fmtTime(b.startMin)}
-                  </div>
-                  <div className="grid gap-2">
-                    {b.items.map((r) => {
-                      const isGroup = r.serviceType === "GROUP";
-                      return (
-                        <div
-                          key={r.id}
-                          className={`rounded-xl p-3 ring-1 ${
-                            isGroup
-                              ? "bg-zinc-800 ring-lime-300/40"
-                              : "bg-zinc-800 ring-white/10"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium text-white">
-                              {r.customer}
-                            </span>
-                            {isGroup && (
-                              <span className="rounded-full bg-lime-300 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-950">
-                                {t("groupBadge", {
-                                  enrolled: r.enrolled ?? 0,
-                                  capacity: r.capacity ?? 0,
-                                })}
-                              </span>
-                            )}
-                          </div>
-                          <div className="mt-1 text-xs text-zinc-400">
-                            {r.service}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-
-        {/* 월별 캘린더 — 일자 클릭 시 selectedDay 변경 */}
-        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-          <h2 className="font-heading text-base tracking-tight text-white">
-            {t("calendarTitle", { month: monthLabel })}
-          </h2>
-          <p className="mt-1 text-[11px] text-zinc-500">
-            {t("trainerCalendarHint")}
-          </p>
-          <div className="mt-4 grid grid-cols-7 gap-1 text-center">
-            {weekdays.map((w) => (
-              <span
-                key={w}
-                className="border-b border-white/10 pb-2 text-[10px] font-medium text-zinc-400"
-              >
-                {w}
-              </span>
-            ))}
-            {Array.from({ length: monthInfo.firstWeekday }).map((_, i) => (
-              <div key={`pad-${i}`} />
-            ))}
-            {Array.from(
-              { length: monthInfo.daysInMonth },
-              (_, i) => i + 1,
-            ).map((day) => {
-              const isToday = day === monthInfo.todayDay;
-              const isSelected = day === safeSelectedDay;
-              const off = isTrainerOff(day);
-              const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
-
-              const baseCell =
-                "relative block min-h-[60px] rounded-md p-1.5 text-left transition";
-
-              if (off) {
-                // 게이트 휴관 + 트레이너 정기 휴무 + (향후) 개인 휴무 모두 동일 회색
-                return (
-                  <Link
-                    key={day}
-                    href={`/${lang}/g/${slug}/dashboard?day=${day}`}
-                    scroll={false}
-                    className={`${baseCell} bg-zinc-700/70 hover:bg-zinc-600 ${
-                      isSelected ? "ring-2 ring-lime-300" : ""
-                    }`}
-                  >
-                    <div className="text-[10px] font-medium text-zinc-300">
-                      {day}
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-zinc-300">
-                      {t("closed")}
-                    </div>
-                  </Link>
-                );
-              }
-
-              const ring = isSelected
-                ? "ring-2 ring-lime-300"
-                : isToday
-                  ? "ring-1 ring-lime-300/40"
-                  : "border border-white/10";
-              const bg = isSelected ? "bg-zinc-800" : "bg-zinc-800/60";
-
-              return (
-                <Link
-                  key={day}
-                  href={`/${lang}/g/${slug}/dashboard?day=${day}`}
-                  scroll={false}
-                  className={`${baseCell} ${bg} ${ring} hover:bg-zinc-700`}
-                >
-                  <div
-                    className={`text-[11px] font-semibold ${
-                      isToday ? "text-lime-300" : "text-zinc-100"
-                    }`}
-                  >
-                    {day}
-                  </div>
-                  {classes.length > 0 && (
-                    <ul className="mt-0.5 space-y-0.5">
-                      {classes.map((key) => (
-                        <li
-                          key={key}
-                          className="truncate rounded bg-lime-300/15 px-1 py-0.5 text-[9px] font-medium text-lime-300 ring-1 ring-lime-300/40"
-                        >
-                          {t(`sampleGroupClass.${key}`)}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+        {/* 일정 + 캘린더 — 클라이언트 상태로 즉시 반응 */}
+        <TrainerCalendarSchedule
+          lang={lang}
+          trainerName={trainerName}
+          weeklyOffDays={weeklyOffDays}
+          monthLabel={monthLabel}
+          monthInfo={monthInfo}
+          initialSelectedDay={safeSelectedDay}
+        />
       </main>
 
       <footer className="border-t border-white/5 px-5 py-4 text-center text-[11px] text-zinc-500">
