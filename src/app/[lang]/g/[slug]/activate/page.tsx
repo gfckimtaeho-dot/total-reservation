@@ -88,7 +88,11 @@ export default async function ActivatePage({
                 {reason}
               </p>
               <Link
-                href={`/${lang}/g/${slug}/login`}
+                href={
+                  link?.targetUser?.email
+                    ? `/${lang}/g/${slug}/login?email=${encodeURIComponent(link.targetUser.email)}`
+                    : `/${lang}/g/${slug}/login`
+                }
                 className="mt-4 inline-block text-sm font-medium text-ink underline"
               >
                 {t("loginLink")}
