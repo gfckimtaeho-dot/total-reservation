@@ -217,19 +217,31 @@ export function TrainerCalendarSchedule({
                 "relative block min-h-[60px] rounded-md p-1.5 text-left transition";
 
               if (off) {
+                // 휴무일이라도 today / selected 는 무조건 식별 가능해야 함
+                const offRing = isSelected
+                  ? "ring-2 ring-lime-300"
+                  : isToday
+                    ? "ring-2 ring-lime-300/60"
+                    : "";
                 return (
                   <button
                     key={day}
                     type="button"
                     onClick={() => selectDay(day)}
-                    className={`${baseCell} bg-zinc-700/70 hover:bg-zinc-600 ${
-                      isSelected ? "ring-2 ring-lime-300" : ""
-                    }`}
+                    className={`${baseCell} bg-zinc-700/70 hover:bg-zinc-600 ${offRing}`}
                   >
-                    <div className="text-[10px] font-medium text-zinc-300">
+                    <div
+                      className={`text-[10px] font-medium ${
+                        isToday ? "text-lime-300" : "text-zinc-300"
+                      }`}
+                    >
                       {day}
                     </div>
-                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-zinc-300">
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center text-[9px] font-medium ${
+                        isToday ? "text-lime-300/80" : "text-zinc-300"
+                      }`}
+                    >
                       {t("closed")}
                     </div>
                   </button>
