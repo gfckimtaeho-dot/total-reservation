@@ -85,7 +85,6 @@ export function TrainerCalendarSchedule({
 
   function selectDay(day: number) {
     setSelectedDay(day);
-    // URL 갱신은 history API로만 — 라우터 navigation 없이 새로고침/북마크 호환
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.set("day", String(day));
@@ -119,8 +118,8 @@ export function TrainerCalendarSchedule({
 
   return (
     <>
-      {/* 일정 — 제목+카운트+예약 추가 한 줄 */}
-      <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+      {/* 일정 */}
+      <section className="rounded-2xl border border-amber-400/25 bg-black p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-heading text-base tracking-tight text-white">
             {selectedDay === monthInfo.todayDay
@@ -128,7 +127,7 @@ export function TrainerCalendarSchedule({
               : t("timelineTitleForDate", { date: selectedDateLabel })}
           </h2>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-lime-300/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-lime-300 ring-1 ring-lime-300/40">
+            <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-amber-300 ring-1 ring-amber-400/40">
               {t("trainerScheduleCount", { count: reservations.length })}
             </span>
             {!isOff(selectedDay) && <AddReservationButton />}
@@ -139,13 +138,13 @@ export function TrainerCalendarSchedule({
             {isOff(selectedDay) ? t("trainerOffDay") : t("trainerNoBookings")}
           </p>
         ) : (
-          <ol className="mt-5 divide-y divide-white/10">
+          <ol className="mt-4 divide-y divide-amber-400/15">
             {buckets.map((b) => (
               <li
                 key={b.startMin}
                 className="grid grid-cols-[56px_1fr] gap-3 py-3 first:pt-0 last:pb-0"
               >
-                <div className="pt-2 text-sm font-medium tabular-nums text-zinc-400">
+                <div className="pt-1 font-mono text-sm font-semibold tabular-nums text-amber-300">
                   {fmtTime(b.startMin)}
                 </div>
                 <div className="grid gap-2">
@@ -154,18 +153,14 @@ export function TrainerCalendarSchedule({
                     return (
                       <div
                         key={r.id}
-                        className={`rounded-xl p-3 ring-1 ${
-                          isGroup
-                            ? "bg-zinc-800 ring-lime-300/40"
-                            : "bg-zinc-800 ring-white/10"
-                        }`}
+                        className="rounded-xl bg-zinc-900 p-3 ring-1 ring-amber-400/30"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium text-white">
                             {r.customer}
                           </span>
                           {isGroup && (
-                            <span className="rounded-full bg-lime-300 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-950">
+                            <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-950">
                               {t("groupBadge", {
                                 enrolled: r.enrolled ?? 0,
                                 capacity: r.capacity ?? 0,
@@ -186,8 +181,8 @@ export function TrainerCalendarSchedule({
         )}
       </section>
 
-      {/* 월별 캘린더 — 일자 클릭 시 selectedDay 갱신 (서버 왕복 없음) */}
-      <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+      {/* 월별 캘린더 */}
+      <section className="rounded-2xl border border-amber-400/25 bg-black p-5">
         <h2 className="font-heading text-base tracking-tight text-white">
           {t("calendarTitle", { month: monthLabel })}
         </h2>
@@ -198,7 +193,7 @@ export function TrainerCalendarSchedule({
           {weekdays.map((w) => (
             <span
               key={w}
-              className="border-b border-white/10 pb-2 text-[10px] font-medium text-zinc-400"
+              className="border-b-2 border-amber-400/25 pb-2 text-[11px] font-bold text-white"
             >
               {w}
             </span>
@@ -214,83 +209,65 @@ export function TrainerCalendarSchedule({
               const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
 
               const baseCell =
-                "relative block min-h-[60px] rounded-md p-1.5 text-left transition";
+                "relative h-16 overflow-hidden rounded-md border p-1.5 text-left transition";
 
               if (off) {
-                // 휴무일이라도 today / selected 는 무조건 식별 가능해야 함
                 const offRing = isSelected
-                  ? "ring-2 ring-lime-300"
+                  ? "ring-2 ring-amber-400"
                   : isToday
-                    ? "ring-2 ring-lime-300/60"
+                    ? "ring-2 ring-amber-400/60"
                     : "";
                 return (
                   <button
                     key={day}
                     type="button"
                     onClick={() => selectDay(day)}
-                    className={`${baseCell} bg-zinc-700/70 hover:bg-zinc-600 ${offRing}`}
+                    className={`${baseCell} bg-zinc-900/50 border-amber-400/15 hover:bg-zinc-900 ${offRing}`}
                   >
                     <div
-                      className={`text-[10px] font-medium ${
-                        isToday ? "text-lime-300" : "text-zinc-300"
+                      className={`text-[11px] font-bold ${
+                        isToday ? "text-amber-300" : "text-zinc-500"
                       }`}
                     >
                       {day}
                     </div>
                     <div
-                      className={`absolute inset-0 flex items-center justify-center text-[9px] font-medium ${
-                        isToday ? "text-lime-300/80" : "text-zinc-300"
+                      className={`mt-0.5 text-[9px] uppercase tracking-wider ${
+                        isToday ? "text-amber-300" : "text-zinc-600"
                       }`}
                     >
-                      {t("closed")}
+                      OFF
                     </div>
                   </button>
                 );
               }
 
-              // 시각 계층:
-              //   today + selected: 굵은 lime ring + lime tint
-              //   today (only):     중간 lime ring + 옅은 lime tint (한눈에 오늘 식별)
-              //   selected (only):  굵은 lime ring + 약간 밝은 zinc
-              //   normal:           회색 border
               const ring = isSelected
-                ? "ring-2 ring-lime-300"
+                ? "ring-2 ring-amber-400"
                 : isToday
-                  ? "ring-2 ring-lime-300/60"
-                  : "border border-white/10";
-              const bg = isSelected
-                ? isToday
-                  ? "bg-lime-300/20"
-                  : "bg-zinc-800"
-                : isToday
-                  ? "bg-lime-300/10"
-                  : "bg-zinc-800/60";
+                  ? "ring-2 ring-amber-400/60"
+                  : "";
+              const bg = isToday ? "bg-amber-400/10" : "bg-zinc-900";
 
               return (
                 <button
                   key={day}
                   type="button"
                   onClick={() => selectDay(day)}
-                  className={`${baseCell} ${bg} ${ring} hover:bg-zinc-700`}
+                  className={`${baseCell} ${bg} border-amber-400/15 hover:bg-zinc-800 ${ring}`}
                 >
                   <div
-                    className={`text-[11px] font-semibold ${
-                      isToday ? "text-lime-300" : "text-zinc-100"
+                    className={`text-[11px] font-bold ${
+                      isToday ? "text-amber-300" : "text-zinc-100"
                     }`}
                   >
                     {day}
                   </div>
                   {classes.length > 0 && (
-                    <ul className="mt-0.5 space-y-0.5">
-                      {classes.map((key) => (
-                        <li
-                          key={key}
-                          className="truncate rounded bg-lime-300/15 px-1 py-0.5 text-[9px] font-medium text-lime-300 ring-1 ring-lime-300/40"
-                        >
-                          {t(`sampleGroupClass.${key}`)}
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="mt-1 truncate text-[9px] font-medium text-amber-300">
+                      {classes.map((k) => t(`sampleGroupClass.${k}`))[0]}
+                      {classes.length > 1 ? ` +${classes.length - 1}` : ""}
+                    </div>
                   )}
                 </button>
               );
