@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { sendStaffActivationEmail } from "@/lib/email/resend";
 import { uploadStaffImage, deleteStaffImageUrl } from "@/lib/storage/blob";
+import { generateAccessToken } from "@/lib/auth/accessToken";
 
 const ROLE_KEY = {
   OWNER: "roleOwner",
@@ -148,6 +149,7 @@ export async function createTrainer(
           note: d.note || null,
           role: d.role,
           status: "PENDING",
+          accessToken: generateAccessToken(),
         },
         select: { id: true },
       });
@@ -547,6 +549,39 @@ export async function addLeave(
   revalidatePath(`/ko/g/${d.slug}/trainers`);
   revalidatePath(`/en/g/${d.slug}/trainers`);
   return {};
+}
+
+// QR 재발급 — 기존 accessToken을 새 무작위로 교체. 옛 QR 즉시 무효.
+export async function regenerateTrainerAccessToken(
+  formData: FormData,
+): Promise<{ ok: boolean; message?: string }> {
+  const slug = String(formData.get("slug") ?? "");
+  const staffId = String(formData.get("staffId") ?? "");
+  try {
+    const auth = await requireGymStaff(slug);
+    if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+      return { ok: false, message: "권한이 없습니다" };
+    }
+    const gymId = auth.business!.id;
+
+    const staff = await prisma.staff.findFirst({
+      where: { id: staffId, gymId },
+      select: { user: { select: { id: true } } },
+    });
+    if (!staff) return { ok: false, message: "트레이너를 찾을 수 없습니다" };
+
+    await prisma.user.update({
+      where: { id: staff.user.id },
+      data: { accessToken: generateAccessToken() },
+    });
+    revalidatePath(`/ko/g/${slug}/trainers/${staffId}`);
+    revalidatePath(`/en/g/${slug}/trainers/${staffId}`);
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[regenerateTrainerAccessToken] failed:", message, err);
+    return { ok: false, message: `재발급 실패: ${message}` };
+  }
 }
 
 export async function removeLeave(formData: FormData) {

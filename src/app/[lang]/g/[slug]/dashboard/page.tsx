@@ -1,8 +1,10 @@
 import { requireGymStaff } from "@/lib/auth/dal";
 import { getTheme } from "@/lib/theme";
+import { ensureAccessToken } from "@/lib/auth/accessToken";
 import { DashboardNormal } from "./DashboardNormal";
 import { DashboardBlack } from "./DashboardBlack";
 import { DashboardWhite } from "./DashboardWhite";
+import { DashboardTrainer } from "./DashboardTrainer";
 
 export default async function GymDashboardPage({
   params,
@@ -12,8 +14,22 @@ export default async function GymDashboardPage({
   const { lang, slug } = await params;
   const user = await requireGymStaff(slug);
   const business = user.business!;
-  const theme = await getTheme();
 
+  // 트레이너는 단일 다크 테마 + 본인 시점 화면. 사장/매니저는 기존 테마 선택권.
+  if (user.role === "TRAINER") {
+    const accessToken = await ensureAccessToken(user.id);
+    return (
+      <DashboardTrainer
+        lang={lang}
+        slug={slug}
+        businessName={business.name}
+        trainerName={user.name}
+        accessToken={accessToken}
+      />
+    );
+  }
+
+  const theme = await getTheme();
   const props = {
     lang,
     slug,

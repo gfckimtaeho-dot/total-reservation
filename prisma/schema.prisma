@@ -230,6 +230,8 @@ model User {
   role         Role       @default(CUSTOMER)
   status       UserStatus @default(PENDING)
   locale       Locale     @default(ko)
+  // 영구 출입 토큰. 사장이 트레이너 관리에서 "재발급" 시 새 값으로 교체.
+  accessToken  String?    @unique
   createdAt    DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
 

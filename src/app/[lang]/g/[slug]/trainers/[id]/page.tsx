@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { differenceInYears } from "date-fns";
+import QRCode from "qrcode";
 import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { getTheme } from "@/lib/theme";
+import { ensureAccessToken } from "@/lib/auth/accessToken";
 import { SidebarNav } from "../../dashboard/SidebarNav";
+import { RegenerateQrButton } from "./RegenerateQrButton";
 
 const PAGE_BG = {
   normal: "bg-amber-50/50",
@@ -141,6 +144,12 @@ export default async function TrainerDetailPage({
   ].join(" / ");
 
   const offSet = new Set(staff.weeklyOffDays);
+  const accessToken = await ensureAccessToken(u.id);
+  const qrDataUrl = await QRCode.toDataURL(accessToken, {
+    width: 240,
+    margin: 1,
+    color: { dark: "#0a0a0a", light: "#ffffff" },
+  });
 
   return (
     <div className={`flex min-h-screen ${PAGE_BG[theme]}`}>
@@ -224,6 +233,44 @@ export default async function TrainerDetailPage({
         </header>
 
         <div className="mx-auto w-full max-w-5xl space-y-5 p-6">
+          {/* Access QR */}
+          <section className={SECTION[theme]}>
+            <h2
+              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
+            >
+              {t("detailQr")}
+            </h2>
+            <p className={`mt-1 text-xs ${SUBTLE[theme]}`}>
+              {t("detailQrHint")}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-5">
+              <div className="rounded-xl bg-white p-3 ring-1 ring-zinc-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrDataUrl}
+                  alt="Access QR"
+                  className="block h-40 w-40"
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-2">
+                <code
+                  className={`break-all rounded-md px-2 py-1.5 font-mono text-[11px] ${
+                    theme === "black"
+                      ? "bg-zinc-800 text-zinc-300"
+                      : "bg-zinc-50 text-zinc-600"
+                  }`}
+                >
+                  {accessToken}
+                </code>
+                <RegenerateQrButton
+                  slug={slug}
+                  staffId={staff.id}
+                  tone={theme}
+                />
+              </div>
+            </div>
+          </section>
+
           {/* Photos */}
           <section className={SECTION[theme]}>
             <h2
