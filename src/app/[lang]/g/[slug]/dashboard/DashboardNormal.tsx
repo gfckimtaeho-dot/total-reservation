@@ -2,14 +2,14 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import {
+  MOCK_CLOSED_DAYS,
   MOCK_EXPIRING,
+  MOCK_GROUP_CLASSES_BY_DAY,
   MOCK_KPI,
-  MOCK_MONTH,
-  MOCK_MONTH_LABEL,
-  MOCK_MONTH_START_WEEKDAY,
   MOCK_RESERVATIONS_TODAY,
-  MOCK_TOTAL_MONTH_BOOKINGS,
   fmtTime,
+  formatManilaMonthLabel,
+  getManilaMonthInfo,
   groupByHour,
 } from "../../../preview/_mock";
 import { SidebarNav } from "./SidebarNav";
@@ -39,13 +39,8 @@ export async function DashboardNormal({ lang, slug, businessName }: Props) {
       weekday: "long",
     },
   ).format(today);
-  const todayDay = parseInt(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Manila",
-      day: "numeric",
-    }).format(today),
-    10,
-  );
+  const monthLabel = formatManilaMonthLabel(today, lang);
+  const monthInfo = getManilaMonthInfo(today);
 
   return (
     <div className="flex min-h-screen bg-amber-50/50">
@@ -174,16 +169,11 @@ export async function DashboardNormal({ lang, slug, businessName }: Props) {
           </section>
 
           <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-6 xl:col-span-7">
-            <div className="flex items-baseline justify-between">
-              <SectionHead
-                eyebrow={t("calendarEyebrow")}
-                title={t("calendarTitle", { month: MOCK_MONTH_LABEL })}
-              />
-              <span className="text-xs text-zinc-500">
-                {t("totalBookings", { count: MOCK_TOTAL_MONTH_BOOKINGS })}
-              </span>
-            </div>
-            <CalendarGrid t={t} weekdays={weekdays} todayDay={todayDay} />
+            <SectionHead
+              eyebrow={t("calendarEyebrow")}
+              title={t("calendarTitle", { month: monthLabel })}
+            />
+            <CalendarGrid t={t} weekdays={weekdays} monthInfo={monthInfo} />
           </section>
 
           <section className="col-span-12 rounded-2xl bg-amber-100/60 p-6 ring-1 ring-amber-200/60">
@@ -270,94 +260,65 @@ function KpiCard({
 function CalendarGrid({
   t,
   weekdays,
-  todayDay,
+  monthInfo,
 }: {
   t: (k: string, v?: Record<string, string | number>) => string;
   weekdays: readonly string[];
-  todayDay: number;
+  monthInfo: ReturnType<typeof getManilaMonthInfo>;
 }) {
+  const { daysInMonth, firstWeekday, todayDay } = monthInfo;
   return (
-    <>
-      <div className="mt-5 grid grid-cols-7 gap-1.5 text-center">
-        {weekdays.map((w) => (
-          <span
-            key={w}
-            className="rounded-t-md bg-band/40 py-2 pb-2 text-[11px] font-medium text-ink/70"
-          >
-            {w}
-          </span>
-        ))}
-        {Array.from({ length: MOCK_MONTH_START_WEEKDAY }).map((_, i) => (
-          <div key={`pad-${i}`} />
-        ))}
-        {MOCK_MONTH.map((d) => {
-          if (d.isClosed) {
-            return (
-              <div
-                key={d.day}
-                className="relative min-h-[68px] rounded-md bg-amber-200/60 p-2 text-left text-amber-900/70"
-              >
-                <div className="text-xs font-medium">{d.day}</div>
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
-                  {t("closed")}
-                </div>
-              </div>
-            );
-          }
-          const barTotal = d.pt + d.group;
-          const isToday = d.day === todayDay;
+    <div className="mt-5 grid grid-cols-7 gap-1.5 text-center">
+      {weekdays.map((w) => (
+        <span
+          key={w}
+          className="rounded-t-md bg-band/40 py-2 pb-2 text-[11px] font-medium text-ink/70"
+        >
+          {w}
+        </span>
+      ))}
+      {Array.from({ length: firstWeekday }).map((_, i) => (
+        <div key={`pad-${i}`} />
+      ))}
+      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+        if (MOCK_CLOSED_DAYS.has(day)) {
           return (
             <div
-              key={d.day}
-              className={`relative min-h-[68px] rounded-md border border-amber-200/60 p-2 text-left ${
-                isToday ? "bg-white ring-2 ring-ink" : "bg-amber-50/30"
-              }`}
+              key={day}
+              className="relative min-h-[68px] rounded-md bg-amber-200/60 p-2 text-left text-amber-900/70"
             >
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-medium text-ink">{d.day}</span>
-                {d.group > 0 && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                )}
+              <div className="text-xs font-medium">{day}</div>
+              <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
+                {t("closed")}
               </div>
-              {d.total > 0 && (
-                <div className="font-heading mt-0.5 text-lg leading-none tabular-nums text-ink">
-                  {d.total}
-                </div>
-              )}
-              {barTotal > 0 && (
-                <div className="absolute inset-x-2 bottom-2 flex h-1 overflow-hidden rounded-full bg-amber-100">
-                  <div
-                    className="bg-ink"
-                    style={{ width: `${(d.pt / barTotal) * 100}%` }}
-                  />
-                  <div
-                    className="bg-emerald-500"
-                    style={{ width: `${(d.group / barTotal) * 100}%` }}
-                  />
-                </div>
-              )}
             </div>
           );
-        })}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-zinc-500">
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-sm bg-ink" />
-          {t("legendPt")}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-3 rounded-sm bg-emerald-500" />
-          {t("legendGroup")}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-          {t("legendHasGroup")}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-amber-200/60" />
-          {t("legendClosed")}
-        </span>
-      </div>
-    </>
+        }
+        const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
+        const isToday = day === todayDay;
+        return (
+          <div
+            key={day}
+            className={`min-h-[68px] rounded-md border border-amber-200/60 p-2 text-left ${
+              isToday ? "bg-white ring-2 ring-ink" : "bg-amber-50/30"
+            }`}
+          >
+            <div className="text-xs font-medium text-ink">{day}</div>
+            {classes.length > 0 && (
+              <ul className="mt-1 space-y-0.5">
+                {classes.map((key) => (
+                  <li
+                    key={key}
+                    className="truncate rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800 ring-1 ring-emerald-200/70"
+                  >
+                    {t(`sampleGroupClass.${key}`)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -108,6 +108,53 @@ export const MOCK_MONTH: MockDay[] = [
 
 export const MOCK_TOTAL_MONTH_BOOKINGS = MOCK_MONTH.reduce((s, d) => s + d.total, 0);
 
+// Live dashboard용: 일자별 단체수업 이름(i18n key). 실제 schema 연결 전 샘플.
+export const MOCK_GROUP_CLASSES_BY_DAY: Record<number, string[]> = {
+  3: ["yoga"],
+  6: ["pilates", "yoga"],
+  9: ["spin"],
+  13: ["yoga", "pilates"],
+  16: ["spin"],
+  20: ["yoga"],
+  23: ["pilates"],
+  27: ["yoga", "spin"],
+};
+
+export const MOCK_CLOSED_DAYS: ReadonlySet<number> = new Set([10, 17, 24, 31]);
+
+// Manila 시간대 기준 현재 달 정보 — 일수, 1일의 요일, 오늘 일자
+export function getManilaMonthInfo(now: Date = new Date()): {
+  year: number;
+  month: number;
+  daysInMonth: number;
+  firstWeekday: number;
+  todayDay: number;
+} {
+  const fmt = (opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", ...opts }).format(now);
+  const year = parseInt(fmt({ year: "numeric" }), 10);
+  const month = parseInt(fmt({ month: "numeric" }), 10);
+  const todayDay = parseInt(fmt({ day: "numeric" }), 10);
+
+  // 정오(UTC 04:00 = Manila 12:00)를 기준점으로 잡아 DST·시차 영향 회피
+  const firstOfMonthUtc = new Date(Date.UTC(year, month - 1, 1, 4, 0, 0));
+  const firstWeekday = firstOfMonthUtc.getUTCDay();
+
+  const lastOfMonthUtc = new Date(Date.UTC(year, month, 0, 4, 0, 0));
+  const daysInMonth = lastOfMonthUtc.getUTCDate();
+
+  return { year, month, daysInMonth, firstWeekday, todayDay };
+}
+
+// "2026년 5월" / "May 2026" — Intl이 lang 기반으로 알아서 처리
+export function formatManilaMonthLabel(now: Date, lang: string): string {
+  return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "long",
+  }).format(now);
+}
+
 export function shadeLevel(total: number): 0 | 1 | 2 | 3 {
   if (total === 0) return 0;
   if (total < 20) return 1;
