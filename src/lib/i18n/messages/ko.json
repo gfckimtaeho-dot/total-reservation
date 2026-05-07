@@ -206,7 +206,6 @@
     "trainerQrEyebrow": "ACCESS",
     "trainerQrTitle": "내 출입 QR",
     "trainerQrHint": "매장 단말에 이 QR을 보여 주세요. 영구 발급되며, 분실 시 사장님께 재발급 요청.",
-    "trainerQrPhoneOnly": "출입 QR은 핸드폰에서만 표시됩니다. 출입 시에는 핸드폰에서 로그인해 사용해 주세요.",
     "trainerTodayBookingsLabel": "오늘 내 예약",
     "trainerNoBookings": "오늘 잡힌 일정이 없어요",
     "trainerProfileLink": "내 정보",
