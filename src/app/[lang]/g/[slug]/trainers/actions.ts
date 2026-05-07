@@ -31,6 +31,8 @@ const createSchema = z.object({
   phone: z.string().min(1, "핸드폰 번호를 입력해 주세요"),
   email: z
     .string()
+    .trim()
+    .toLowerCase()
     .email("이메일 형식이 올바르지 않습니다")
     .optional()
     .or(z.literal("")),

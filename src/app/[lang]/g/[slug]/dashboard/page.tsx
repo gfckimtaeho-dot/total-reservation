@@ -8,16 +8,21 @@ import { DashboardTrainer } from "./DashboardTrainer";
 
 export default async function GymDashboardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string; slug: string }>;
+  searchParams: Promise<{ day?: string }>;
 }) {
   const { lang, slug } = await params;
+  const sp = await searchParams;
   const user = await requireGymStaff(slug);
   const business = user.business!;
 
   // 트레이너는 단일 다크 테마 + 본인 시점 화면. 사장/매니저는 기존 테마 선택권.
   if (user.role === "TRAINER") {
     const accessToken = await ensureAccessToken(user.id);
+    const dayParam = parseInt(sp.day ?? "", 10);
+    const selectedDay = Number.isFinite(dayParam) ? dayParam : 0;
     return (
       <DashboardTrainer
         lang={lang}
@@ -25,6 +30,7 @@ export default async function GymDashboardPage({
         businessName={business.name}
         trainerName={user.name}
         accessToken={accessToken}
+        selectedDay={selectedDay}
       />
     );
   }

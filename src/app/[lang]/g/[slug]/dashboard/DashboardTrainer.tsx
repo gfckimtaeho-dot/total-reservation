@@ -10,6 +10,7 @@ import {
   formatManilaMonthLabel,
   getManilaMonthInfo,
   groupByHour,
+  type MockReservation,
 } from "../../../preview/_mock";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
@@ -21,7 +22,29 @@ type Props = {
   businessName: string;
   trainerName: string;
   accessToken: string;
+  selectedDay: number;
 };
+
+// 비-오늘 날짜에 단체수업이 있을 때 합성. 실제 schema 연동 전 데모용.
+function synthesizeReservations(
+  day: number,
+  trainerName: string,
+  translateClass: (key: string) => string,
+): MockReservation[] {
+  const keys = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
+  return keys.map((key, i) => ({
+    id: `${day}-${key}-${i}`,
+    startMin: (10 + i * 2) * 60,
+    endMin: (11 + i * 2) * 60,
+    customer: translateClass(key),
+    staff: trainerName,
+    service: translateClass(key),
+    serviceType: "GROUP",
+    capacity: 12,
+    enrolled: 6 + (day % 5),
+    status: "CONFIRMED",
+  }));
+}
 
 export async function DashboardTrainer({
   lang,
@@ -29,15 +52,10 @@ export async function DashboardTrainer({
   businessName,
   trainerName,
   accessToken,
+  selectedDay,
 }: Props) {
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
-  // 모바일 우선 — 본인이 staff인 reservation만 필터.
-  // schema 연결 전이라 mock의 staff 이름이 매칭하지 않으면 빈 배열.
-  const myReservations = MOCK_RESERVATIONS_TODAY.filter(
-    (r) => r.staff === trainerName,
-  );
-  const buckets = groupByHour(myReservations);
   const weekdays = lang === "en" ? WEEKDAYS_EN : WEEKDAYS;
   const today = new Date();
   const todayDisplay = new Intl.DateTimeFormat(
@@ -52,8 +70,36 @@ export async function DashboardTrainer({
   ).format(today);
   const monthLabel = formatManilaMonthLabel(today, lang);
   const monthInfo = getManilaMonthInfo(today);
+  const safeSelectedDay =
+    selectedDay >= 1 && selectedDay <= monthInfo.daysInMonth
+      ? selectedDay
+      : monthInfo.todayDay;
 
-  // 출입 QR — 영구 토큰을 그대로 인코딩. 단말 스캐너가 이 값을 verify.
+  // 선택일이 오늘이면 mock의 오늘 예약을 trainerName으로 필터.
+  // 다른 날은 단체수업 mock을 합성 (실제 데이터 wiring 전 데모).
+  const reservations: MockReservation[] =
+    safeSelectedDay === monthInfo.todayDay
+      ? MOCK_RESERVATIONS_TODAY.filter((r) => r.staff === trainerName)
+      : synthesizeReservations(safeSelectedDay, trainerName, (key) =>
+          t(`sampleGroupClass.${key}`),
+        );
+  const buckets = groupByHour(reservations);
+
+  // 선택한 날짜 라벨
+  const selectedDate = new Date(
+    Date.UTC(monthInfo.year, monthInfo.month - 1, safeSelectedDay, 4, 0, 0),
+  );
+  const selectedDateLabel = new Intl.DateTimeFormat(
+    lang === "en" ? "en-US" : "ko-KR",
+    {
+      timeZone: "Asia/Manila",
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    },
+  ).format(selectedDate);
+
+  // 출입 QR
   const qrDataUrl = await QRCode.toDataURL(accessToken, {
     width: 320,
     margin: 1,
@@ -82,8 +128,8 @@ export async function DashboardTrainer({
       </header>
 
       <main className="flex-1 space-y-4 p-4">
-        {/* QR — 핸드폰에서만 (테블릿/PC는 게이트에 들고가지 않으니 섹션 자체 숨김) */}
-        <section className="flex flex-col items-center rounded-2xl border border-white/5 bg-zinc-900 p-5 md:hidden">
+        {/* QR — 핸드폰만 (md 이상은 섹션 자체 숨김) */}
+        <section className="flex flex-col items-center rounded-2xl border border-white/10 bg-zinc-900 p-5 md:hidden">
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
             {t("trainerQrEyebrow")}
           </span>
@@ -103,41 +149,47 @@ export async function DashboardTrainer({
           </p>
         </section>
 
-        {/* KPI — 오늘 본인 예약 */}
-        <section className="rounded-2xl border border-white/5 bg-zinc-900 p-5">
+        {/* KPI — 선택일이 오늘일 때만 의미 있음 */}
+        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
-              {t("trainerTodayBookingsLabel")}
+              {safeSelectedDay === monthInfo.todayDay
+                ? t("trainerTodayBookingsLabel")
+                : t("trainerSelectedBookingsLabel", {
+                    date: selectedDateLabel,
+                  })}
             </span>
           </div>
           <div className="mt-2 flex items-baseline gap-1.5">
             <span className="font-heading text-4xl tabular-nums tracking-tight text-white">
-              {myReservations.length}
+              {reservations.length}
             </span>
             <span className="text-sm text-zinc-500">{t("unitCount")}</span>
           </div>
         </section>
 
-        {/* 오늘의 일정 — 본인 PT/그룹 수업만 */}
-        <section className="rounded-2xl border border-white/5 bg-zinc-900 p-5">
+        {/* 일정 — 선택한 날짜의 본인 PT/단체수업 */}
+        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
             {t("timelineEyebrow")}
           </span>
           <h2 className="mt-1 font-heading text-base tracking-tight text-white">
-            {t("timelineTitle")}
+            {safeSelectedDay === monthInfo.todayDay
+              ? t("timelineTitle")
+              : t("timelineTitleForDate", { date: selectedDateLabel })}
           </h2>
           {buckets.length === 0 ? (
             <p className="mt-4 text-sm text-zinc-500">
               {t("trainerNoBookings")}
             </p>
           ) : (
-            <ol className="mt-5 space-y-3">
+            <ol className="mt-5 divide-y divide-white/10">
               {buckets.map((b) => (
                 <li
                   key={b.startMin}
-                  className="grid grid-cols-[56px_1fr] gap-3"
+                  className="grid grid-cols-[56px_1fr] gap-3 py-3 first:pt-0 last:pb-0"
                 >
-                  <div className="pt-2 text-sm font-medium tabular-nums text-zinc-500">
+                  <div className="pt-2 text-sm font-medium tabular-nums text-zinc-400">
                     {fmtTime(b.startMin)}
                   </div>
                   <div className="grid gap-2">
@@ -149,7 +201,7 @@ export async function DashboardTrainer({
                           className={`rounded-xl p-3 ring-1 ${
                             isGroup
                               ? "bg-zinc-800 ring-lime-300/40"
-                              : "bg-zinc-800 ring-white/5"
+                              : "bg-zinc-800 ring-white/10"
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
@@ -178,19 +230,22 @@ export async function DashboardTrainer({
           )}
         </section>
 
-        {/* 월별 — 본인 단체수업/PT만 (현재 mock에 staff 매핑 없어 샘플) */}
-        <section className="rounded-2xl border border-white/5 bg-zinc-900 p-5">
+        {/* 월별 캘린더 — 일자 클릭 시 selectedDay 변경 */}
+        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
             {t("calendarEyebrow")}
           </span>
           <h2 className="mt-1 font-heading text-base tracking-tight text-white">
             {t("calendarTitle", { month: monthLabel })}
           </h2>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            {t("trainerCalendarHint")}
+          </p>
           <div className="mt-4 grid grid-cols-7 gap-1 text-center">
             {weekdays.map((w) => (
               <span
                 key={w}
-                className="pb-1 text-[10px] font-medium text-zinc-500"
+                className="border-b border-white/10 pb-2 text-[10px] font-medium text-zinc-400"
               >
                 {w}
               </span>
@@ -202,31 +257,50 @@ export async function DashboardTrainer({
               { length: monthInfo.daysInMonth },
               (_, i) => i + 1,
             ).map((day) => {
-              if (MOCK_CLOSED_DAYS.has(day)) {
+              const isClosed = MOCK_CLOSED_DAYS.has(day);
+              const isToday = day === monthInfo.todayDay;
+              const isSelected = day === safeSelectedDay;
+              const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
+
+              const baseCell =
+                "relative block min-h-[60px] rounded-md p-1.5 text-left transition";
+              if (isClosed) {
                 return (
-                  <div
+                  <Link
                     key={day}
-                    className="relative min-h-[56px] rounded-md bg-zinc-700 p-1.5 text-left"
+                    href={`/${lang}/g/${slug}/dashboard?day=${day}`}
+                    className={`${baseCell} bg-zinc-700 hover:bg-zinc-600 ${
+                      isSelected ? "ring-2 ring-lime-300" : ""
+                    }`}
                   >
-                    <div className="text-[10px] font-medium text-zinc-400">
+                    <div className="text-[10px] font-medium text-zinc-300">
                       {day}
                     </div>
-                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-zinc-400">
+                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-medium text-zinc-300">
                       {t("closed")}
                     </div>
-                  </div>
+                  </Link>
                 );
               }
-              const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
-              const isToday = day === monthInfo.todayDay;
+
+              const ring = isSelected
+                ? "ring-2 ring-lime-300"
+                : isToday
+                  ? "ring-1 ring-lime-300/40"
+                  : "border border-white/10";
+              const bg = isSelected ? "bg-zinc-800" : "bg-zinc-800/60";
+
               return (
-                <div
+                <Link
                   key={day}
-                  className={`min-h-[56px] rounded-md border border-white/5 bg-zinc-900 p-1.5 text-left ${
-                    isToday ? "ring-2 ring-lime-300" : ""
-                  }`}
+                  href={`/${lang}/g/${slug}/dashboard?day=${day}`}
+                  className={`${baseCell} ${bg} ${ring} hover:bg-zinc-700`}
                 >
-                  <div className="text-[10px] font-medium text-zinc-200">
+                  <div
+                    className={`text-[11px] font-semibold ${
+                      isToday ? "text-lime-300" : "text-zinc-100"
+                    }`}
+                  >
                     {day}
                   </div>
                   {classes.length > 0 && (
@@ -234,14 +308,14 @@ export async function DashboardTrainer({
                       {classes.map((key) => (
                         <li
                           key={key}
-                          className="truncate rounded bg-lime-300/10 px-1 py-0.5 text-[9px] font-medium text-lime-300 ring-1 ring-lime-300/30"
+                          className="truncate rounded bg-lime-300/15 px-1 py-0.5 text-[9px] font-medium text-lime-300 ring-1 ring-lime-300/40"
                         >
                           {t(`sampleGroupClass.${key}`)}
                         </li>
                       ))}
                     </ul>
                   )}
-                </div>
+                </Link>
               );
             })}
           </div>
