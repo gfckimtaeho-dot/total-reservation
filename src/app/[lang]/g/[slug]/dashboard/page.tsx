@@ -1,6 +1,7 @@
 import { requireGymStaff } from "@/lib/auth/dal";
 import { getTheme } from "@/lib/theme";
 import { ensureAccessToken } from "@/lib/auth/accessToken";
+import { prisma } from "@/lib/db/client";
 import { DashboardNormal } from "./DashboardNormal";
 import { DashboardBlack } from "./DashboardBlack";
 import { DashboardWhite } from "./DashboardWhite";
@@ -23,6 +24,10 @@ export default async function GymDashboardPage({
     const accessToken = await ensureAccessToken(user.id);
     const dayParam = parseInt(sp.day ?? "", 10);
     const selectedDay = Number.isFinite(dayParam) ? dayParam : 0;
+    const staff = await prisma.staff.findFirst({
+      where: { userId: user.id, gymId: business.id },
+      select: { weeklyOffDays: true },
+    });
     return (
       <DashboardTrainer
         lang={lang}
@@ -31,6 +36,7 @@ export default async function GymDashboardPage({
         trainerName={user.name}
         accessToken={accessToken}
         selectedDay={selectedDay}
+        weeklyOffDays={staff?.weeklyOffDays ?? []}
       />
     );
   }

@@ -15,6 +15,17 @@ import {
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const WEEKDAY_BY_INDEX = [
+  "SUN",
+  "MON",
+  "TUE",
+  "WED",
+  "THU",
+  "FRI",
+  "SAT",
+] as const;
+
+type Weekday = (typeof WEEKDAY_BY_INDEX)[number];
 
 type Props = {
   lang: string;
@@ -23,6 +34,7 @@ type Props = {
   trainerName: string;
   accessToken: string;
   selectedDay: number;
+  weeklyOffDays: Weekday[];
 };
 
 // 비-오늘 날짜에 단체수업이 있을 때 합성. 실제 schema 연동 전 데모용.
@@ -53,6 +65,7 @@ export async function DashboardTrainer({
   trainerName,
   accessToken,
   selectedDay,
+  weeklyOffDays,
 }: Props) {
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
@@ -75,17 +88,26 @@ export async function DashboardTrainer({
       ? selectedDay
       : monthInfo.todayDay;
 
-  // 선택일이 오늘이면 mock의 오늘 예약을 trainerName으로 필터.
-  // 다른 날은 단체수업 mock을 합성 (실제 데이터 wiring 전 데모).
-  const reservations: MockReservation[] =
-    safeSelectedDay === monthInfo.todayDay
+  const offSet = new Set(weeklyOffDays);
+  function weekdayOf(day: number): Weekday {
+    const idx = (monthInfo.firstWeekday + (day - 1)) % 7;
+    return WEEKDAY_BY_INDEX[idx];
+  }
+  function isTrainerOff(day: number): boolean {
+    return MOCK_CLOSED_DAYS.has(day) || offSet.has(weekdayOf(day));
+  }
+
+  // 휴무일 클릭 시에도 reservations는 계산하지만 보통 비어있음.
+  const reservations: MockReservation[] = isTrainerOff(safeSelectedDay)
+    ? []
+    : safeSelectedDay === monthInfo.todayDay
       ? MOCK_RESERVATIONS_TODAY.filter((r) => r.staff === trainerName)
       : synthesizeReservations(safeSelectedDay, trainerName, (key) =>
           t(`sampleGroupClass.${key}`),
         );
   const buckets = groupByHour(reservations);
 
-  // 선택한 날짜 라벨
+  // 선택일 라벨 (날짜 + 요일)
   const selectedDate = new Date(
     Date.UTC(monthInfo.year, monthInfo.month - 1, safeSelectedDay, 4, 0, 0),
   );
@@ -110,9 +132,6 @@ export async function DashboardTrainer({
     <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-200">
       <header className="flex items-center justify-between border-b border-white/5 px-5 py-4">
         <div>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
-            {tn("dashboard")}
-          </span>
           <h1 className="font-heading text-lg tracking-tight text-white">
             {trainerName}
           </h1>
@@ -130,13 +149,10 @@ export async function DashboardTrainer({
       <main className="flex-1 space-y-4 p-4">
         {/* QR — 핸드폰만 (md 이상은 섹션 자체 숨김) */}
         <section className="flex flex-col items-center rounded-2xl border border-white/10 bg-zinc-900 p-5 md:hidden">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
-            {t("trainerQrEyebrow")}
-          </span>
-          <h2 className="mt-1 font-heading text-base tracking-tight text-white">
+          <h2 className="font-heading text-base tracking-tight text-white">
             {t("trainerQrTitle")}
           </h2>
-          <div className="mt-4 rounded-xl bg-white p-3">
+          <div className="mt-3 rounded-xl bg-white p-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qrDataUrl}
@@ -149,38 +165,23 @@ export async function DashboardTrainer({
           </p>
         </section>
 
-        {/* KPI — 선택일이 오늘일 때만 의미 있음 */}
+        {/* 일정 — 제목+카운트 한 줄에 합쳐서 (KPI 별도 섹션 제거) */}
         <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-heading text-base tracking-tight text-white">
               {safeSelectedDay === monthInfo.todayDay
-                ? t("trainerTodayBookingsLabel")
-                : t("trainerSelectedBookingsLabel", {
-                    date: selectedDateLabel,
-                  })}
+                ? t("timelineTitle")
+                : t("timelineTitleForDate", { date: selectedDateLabel })}
+            </h2>
+            <span className="shrink-0 rounded-full bg-lime-300/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-lime-300 ring-1 ring-lime-300/40">
+              {t("trainerScheduleCount", { count: reservations.length })}
             </span>
           </div>
-          <div className="mt-2 flex items-baseline gap-1.5">
-            <span className="font-heading text-4xl tabular-nums tracking-tight text-white">
-              {reservations.length}
-            </span>
-            <span className="text-sm text-zinc-500">{t("unitCount")}</span>
-          </div>
-        </section>
-
-        {/* 일정 — 선택한 날짜의 본인 PT/단체수업 */}
-        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
-            {t("timelineEyebrow")}
-          </span>
-          <h2 className="mt-1 font-heading text-base tracking-tight text-white">
-            {safeSelectedDay === monthInfo.todayDay
-              ? t("timelineTitle")
-              : t("timelineTitleForDate", { date: selectedDateLabel })}
-          </h2>
           {buckets.length === 0 ? (
             <p className="mt-4 text-sm text-zinc-500">
-              {t("trainerNoBookings")}
+              {isTrainerOff(safeSelectedDay)
+                ? t("trainerOffDay")
+                : t("trainerNoBookings")}
             </p>
           ) : (
             <ol className="mt-5 divide-y divide-white/10">
@@ -232,10 +233,7 @@ export async function DashboardTrainer({
 
         {/* 월별 캘린더 — 일자 클릭 시 selectedDay 변경 */}
         <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-lime-300/80">
-            {t("calendarEyebrow")}
-          </span>
-          <h2 className="mt-1 font-heading text-base tracking-tight text-white">
+          <h2 className="font-heading text-base tracking-tight text-white">
             {t("calendarTitle", { month: monthLabel })}
           </h2>
           <p className="mt-1 text-[11px] text-zinc-500">
@@ -257,19 +255,21 @@ export async function DashboardTrainer({
               { length: monthInfo.daysInMonth },
               (_, i) => i + 1,
             ).map((day) => {
-              const isClosed = MOCK_CLOSED_DAYS.has(day);
               const isToday = day === monthInfo.todayDay;
               const isSelected = day === safeSelectedDay;
+              const off = isTrainerOff(day);
               const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
 
               const baseCell =
                 "relative block min-h-[60px] rounded-md p-1.5 text-left transition";
-              if (isClosed) {
+
+              if (off) {
+                // 게이트 휴관 + 트레이너 정기 휴무 + (향후) 개인 휴무 모두 동일 회색
                 return (
                   <Link
                     key={day}
                     href={`/${lang}/g/${slug}/dashboard?day=${day}`}
-                    className={`${baseCell} bg-zinc-700 hover:bg-zinc-600 ${
+                    className={`${baseCell} bg-zinc-700/70 hover:bg-zinc-600 ${
                       isSelected ? "ring-2 ring-lime-300" : ""
                     }`}
                   >
