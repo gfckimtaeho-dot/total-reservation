@@ -26,15 +26,17 @@ export function DobPicker({
   lang,
   label,
   tone,
+  initialDate,
 }: {
   name: string;
   lang: string;
   label: string;
   tone: Tone;
+  initialDate?: Date;
 }) {
   const t = useTranslations("memberAdd");
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [date, setDate] = useState<Date | undefined>(initialDate);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const locale = lang === "en" ? enUS : ko;
   const today = new Date();

@@ -415,7 +415,11 @@
     "notePlaceholder": "트레이너 컨디션·휴가 사유 등 내부 기록",
     "cancel": "취소",
     "submit": "트레이너 등록",
-    "submitting": "등록 중..."
+    "submitting": "등록 중...",
+    "editTitle": "트레이너 수정",
+    "editBack": "← 상세로",
+    "editSubmit": "수정 저장",
+    "editSubmitting": "저장 중..."
   },
   "me": {
     "header": "내 회원증",

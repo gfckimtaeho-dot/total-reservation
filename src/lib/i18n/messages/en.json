@@ -415,7 +415,11 @@
     "notePlaceholder": "Trainer condition, leave reasons, internal records",
     "cancel": "Cancel",
     "submit": "Add trainer",
-    "submitting": "Adding..."
+    "submitting": "Adding...",
+    "editTitle": "Edit trainer",
+    "editBack": "← Back to detail",
+    "editSubmit": "Save changes",
+    "editSubmitting": "Saving..."
   },
   "me": {
     "header": "My membership",

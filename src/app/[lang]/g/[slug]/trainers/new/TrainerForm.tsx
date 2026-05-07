@@ -3,7 +3,11 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createTrainer, type CreateTrainerState } from "../actions";
+import {
+  createTrainer,
+  updateTrainer,
+  type CreateTrainerState,
+} from "../actions";
 import { PhotoUploader } from "./PhotoUploader";
 import { DobPicker } from "../../members/DobPicker";
 
@@ -35,7 +39,7 @@ const TONE = {
     submit: "bg-ink text-white hover:bg-ink/90",
     cancel: "border border-amber-200/60 bg-white text-zinc-700 hover:border-ink",
     weekdayOn: "bg-emerald-500 text-white",
-    weekdayOff: "bg-rose-200 text-rose-800",
+    weekdayOff: "bg-zinc-200 text-zinc-500",
   },
   black: {
     section: "rounded-2xl bg-zinc-900 ring-1 ring-white/10 p-6",
@@ -49,7 +53,7 @@ const TONE = {
     submit: "bg-lime-300 text-zinc-950 hover:bg-lime-200",
     cancel: "border border-white/10 bg-zinc-800 text-zinc-300 hover:border-lime-300",
     weekdayOn: "bg-lime-300 text-zinc-950",
-    weekdayOff: "bg-rose-500/30 text-rose-200",
+    weekdayOff: "bg-zinc-700 text-zinc-400",
   },
   white: {
     section: "rounded-2xl bg-white ring-1 ring-zinc-200 p-6",
@@ -63,54 +67,87 @@ const TONE = {
     submit: "bg-ink text-white hover:bg-ink/90",
     cancel: "border border-zinc-300 bg-white text-zinc-700 hover:border-ink",
     weekdayOn: "bg-sky-700 text-white",
-    weekdayOff: "bg-rose-200 text-rose-800",
+    weekdayOff: "bg-zinc-200 text-zinc-500",
   },
 } as const;
 
 const initialState: CreateTrainerState = {};
 
+export type TrainerInitialValues = {
+  name: string;
+  gender: "MALE" | "FEMALE";
+  phone: string;
+  email: string;
+  dob: Date | null;
+  emergencyContactPhone: string;
+  role: "TRAINER" | "MANAGER";
+  specialties: Specialty[];
+  customSpecialty: string;
+  bio: string;
+  career: string;
+  weeklyOffDays: Weekday[];
+  note: string;
+  imageUrls: string[];
+};
+
 export function TrainerForm({
   slug,
   lang,
   tone,
+  mode = "create",
+  staffId,
+  initialValues,
 }: {
   slug: string;
   lang: string;
   tone: Tone;
+  mode?: "create" | "edit";
+  staffId?: string;
+  initialValues?: TrainerInitialValues;
 }) {
   const t = useTranslations("trainerAdd");
   const tt = useTranslations("trainers");
   const router = useRouter();
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [specs, setSpecs] = useState<Set<Specialty>>(new Set());
-  const [otherOn, setOtherOn] = useState(false);
-  const [customSpecialty, setCustomSpecialty] = useState("");
-  const [offDays, setOffDays] = useState<Set<Weekday>>(new Set());
-  const [role, setRole] = useState<"TRAINER" | "MANAGER">("TRAINER");
+  const iv = initialValues;
+  const [imageUrls, setImageUrls] = useState<string[]>(iv?.imageUrls ?? []);
+  const [specs, setSpecs] = useState<Set<Specialty>>(
+    new Set(iv?.specialties ?? []),
+  );
+  const [otherOn, setOtherOn] = useState(Boolean(iv?.customSpecialty));
+  const [customSpecialty, setCustomSpecialty] = useState(
+    iv?.customSpecialty ?? "",
+  );
+  const [offDays, setOffDays] = useState<Set<Weekday>>(
+    new Set(iv?.weeklyOffDays ?? []),
+  );
+  const [role, setRole] = useState<"TRAINER" | "MANAGER">(iv?.role ?? "TRAINER");
+  const [gender, setGender] = useState<"MALE" | "FEMALE">(iv?.gender ?? "MALE");
   // Controlled text fields — auto-reset 방지 (등록 실패 시 입력값 보존).
   const [fields, setFields] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    emergencyContactPhone: "",
-    bio: "",
-    career: "",
-    note: "",
+    name: iv?.name ?? "",
+    phone: iv?.phone ?? "",
+    email: iv?.email ?? "",
+    emergencyContactPhone: iv?.emergencyContactPhone ?? "",
+    bio: iv?.bio ?? "",
+    career: iv?.career ?? "",
+    note: iv?.note ?? "",
   });
   function set<K extends keyof typeof fields>(k: K, v: string) {
     setFields((p) => ({ ...p, [k]: v }));
   }
-  const [state, formAction, pending] = useActionState(
-    createTrainer,
-    initialState,
-  );
+  const action = mode === "edit" ? updateTrainer : createTrainer;
+  const [state, formAction, pending] = useActionState(action, initialState);
   const tk = TONE[tone];
 
   useEffect(() => {
     if (state.success) {
-      router.push(`/${lang}/g/${slug}/trainers`);
+      const target =
+        mode === "edit"
+          ? `/${lang}/g/${slug}/trainers/${state.success.id}`
+          : `/${lang}/g/${slug}/trainers`;
+      router.push(target);
     }
-  }, [state.success, router, lang, slug]);
+  }, [state.success, router, lang, slug, mode]);
 
   function toggleSpec(s: Specialty) {
     setSpecs((prev) => {
@@ -133,6 +170,14 @@ export function TrainerForm({
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="slug" value={slug} />
+      {mode === "edit" && staffId && (
+        <input type="hidden" name="staffId" value={staffId} />
+      )}
+      <input
+        type="hidden"
+        name="imageUrls"
+        value={JSON.stringify(imageUrls)}
+      />
 
       {/* Section 1 — Photos */}
       <section className={tk.section}>
@@ -170,7 +215,7 @@ export function TrainerForm({
               {t("gender")} <span className="text-rose-500">*</span>
             </span>
             <div className="flex gap-2">
-              {(["MALE", "FEMALE"] as const).map((g, i) => (
+              {(["MALE", "FEMALE"] as const).map((g) => (
                 <label
                   key={g}
                   className="flex flex-1 cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition has-checked:border-ink"
@@ -179,7 +224,8 @@ export function TrainerForm({
                     type="radio"
                     name="gender"
                     value={g}
-                    defaultChecked={i === 0}
+                    checked={gender === g}
+                    onChange={() => setGender(g)}
                     className="h-4 w-4 accent-ink"
                   />
                   <span className={tk.text}>
@@ -205,6 +251,7 @@ export function TrainerForm({
             lang={lang}
             label={t("dob")}
             tone={tone}
+            initialDate={iv?.dob ?? undefined}
           />
           <Field
             tk={tk}
@@ -360,7 +407,13 @@ export function TrainerForm({
       <div className="flex items-center justify-end gap-2">
         <button
           type="button"
-          onClick={() => router.push(`/${lang}/g/${slug}/trainers`)}
+          onClick={() =>
+            router.push(
+              mode === "edit" && staffId
+                ? `/${lang}/g/${slug}/trainers/${staffId}`
+                : `/${lang}/g/${slug}/trainers`,
+            )
+          }
           className={`h-11 rounded-md px-5 text-sm transition ${tk.cancel}`}
         >
           {t("cancel")}
@@ -370,7 +423,13 @@ export function TrainerForm({
           disabled={pending}
           className={`h-11 rounded-md px-6 text-sm font-medium transition disabled:opacity-60 ${tk.submit}`}
         >
-          {pending ? t("submitting") : t("submit")}
+          {mode === "edit"
+            ? pending
+              ? t("editSubmitting")
+              : t("editSubmit")
+            : pending
+              ? t("submitting")
+              : t("submit")}
         </button>
       </div>
 

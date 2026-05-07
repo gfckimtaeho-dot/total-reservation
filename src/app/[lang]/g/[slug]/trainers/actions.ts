@@ -189,6 +189,157 @@ export async function createTrainer(
   return { success: { id: result.staffId } };
 }
 
+const updateSchema = createSchema.extend({
+  staffId: z.string().min(1),
+});
+
+export async function updateTrainer(
+  _prev: CreateTrainerState,
+  formData: FormData,
+): Promise<CreateTrainerState> {
+  const raw = {
+    staffId: formData.get("staffId"),
+    slug: formData.get("slug"),
+    name: formData.get("name"),
+    gender: formData.get("gender"),
+    phone: formData.get("phone"),
+    email: formData.get("email") ?? "",
+    dob: formData.get("dob") ?? "",
+    emergencyContactPhone: formData.get("emergencyContactPhone") ?? "",
+    role: formData.get("role"),
+    specialties: formData.getAll("specialties"),
+    customSpecialty: formData.get("customSpecialty") ?? "",
+    bio: formData.get("bio") ?? "",
+    career: formData.get("career") ?? "",
+    weeklyOffDays: formData.getAll("weeklyOffDays"),
+    note: formData.get("note") ?? "",
+    imageUrls: (() => {
+      const raw = formData.get("imageUrls");
+      if (typeof raw !== "string" || !raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })(),
+  };
+  const parsed = updateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[] | undefined
+      >,
+    };
+  }
+  const d = parsed.data;
+
+  const auth = await requireGymStaff(d.slug);
+  const gymId = auth.business!.id;
+
+  const existing = await prisma.staff.findFirst({
+    where: { id: d.staffId, gymId },
+    include: { user: { select: { id: true } }, images: true },
+  });
+  if (!existing) return { message: "트레이너를 찾을 수 없습니다" };
+
+  const te = await getTranslations("errors");
+
+  const phoneConflict = await prisma.user.findFirst({
+    where: { gymId, phone: d.phone, NOT: { id: existing.user.id } },
+    select: { id: true, role: true, name: true },
+  });
+  if (phoneConflict) {
+    return {
+      errors: {
+        phone: [
+          te("phoneTakenBy", {
+            role: te(ROLE_KEY[phoneConflict.role]),
+            name: phoneConflict.name,
+          }),
+        ],
+      },
+    };
+  }
+
+  if (d.email) {
+    const emailConflict = await prisma.user.findFirst({
+      where: { gymId, email: d.email, NOT: { id: existing.user.id } },
+      select: { id: true, role: true, name: true },
+    });
+    if (emailConflict) {
+      return {
+        errors: {
+          email: [
+            te("emailTakenBy", {
+              role: te(ROLE_KEY[emailConflict.role]),
+              name: emailConflict.name,
+            }),
+          ],
+        },
+      };
+    }
+  }
+
+  const removedUrls = existing.images
+    .filter((img) => !d.imageUrls.includes(img.url))
+    .map((img) => img.url);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: existing.user.id },
+        data: {
+          name: d.name,
+          gender: d.gender,
+          phone: d.phone,
+          email: d.email ? d.email : null,
+          dob: d.dob ? new Date(d.dob) : null,
+          emergencyContactPhone: d.emergencyContactPhone || null,
+          note: d.note || null,
+          role: d.role,
+        },
+      });
+      await tx.staff.update({
+        where: { id: existing.id },
+        data: {
+          role: d.role,
+          bio: d.bio || null,
+          career: d.career || null,
+          specialties: d.specialties,
+          customSpecialty: d.customSpecialty || null,
+          weeklyOffDays: d.weeklyOffDays,
+          photoUrl: d.imageUrls[0] ?? null,
+        },
+      });
+      await tx.staffImage.deleteMany({ where: { staffId: existing.id } });
+      if (d.imageUrls.length > 0) {
+        await tx.staffImage.createMany({
+          data: d.imageUrls.map((url, position) => ({
+            staffId: existing.id,
+            url,
+            position,
+          })),
+        });
+      }
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[updateTrainer] transaction failed:", message, err);
+    return { message: `수정 실패: ${message}` };
+  }
+
+  // 제거된 사진은 best-effort로 Blob에서도 정리
+  await Promise.all(removedUrls.map((url) => deleteStaffImageUrl(url)));
+
+  revalidatePath(`/ko/g/${d.slug}/trainers`);
+  revalidatePath(`/en/g/${d.slug}/trainers`);
+  revalidatePath(`/ko/g/${d.slug}/trainers/${d.staffId}`);
+  revalidatePath(`/en/g/${d.slug}/trainers/${d.staffId}`);
+  return { success: { id: d.staffId } };
+}
+
 async function buildActivationUrl(
   slug: string,
   userId: string,

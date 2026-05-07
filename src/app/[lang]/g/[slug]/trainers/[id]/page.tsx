@@ -81,9 +81,9 @@ const WEEKDAY_ON = {
 } as const;
 
 const WEEKDAY_OFF = {
-  normal: "bg-rose-200 text-rose-800",
-  black: "bg-rose-500/30 text-rose-200",
-  white: "bg-rose-200 text-rose-800",
+  normal: "bg-zinc-200 text-zinc-500",
+  black: "bg-zinc-700 text-zinc-400",
+  white: "bg-zinc-200 text-zinc-500",
 } as const;
 
 const ALL_WEEKDAYS = [
