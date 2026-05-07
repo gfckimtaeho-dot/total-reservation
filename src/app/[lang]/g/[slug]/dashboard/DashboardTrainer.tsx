@@ -12,10 +12,7 @@ import {
   groupByHour,
   type MockReservation,
 } from "../../../preview/_mock";
-import {
-  AddReservationButton,
-  ScrollToScheduleOnDayChange,
-} from "./TrainerScheduleClient";
+import { AddReservationButton } from "./TrainerScheduleClient";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -170,11 +167,7 @@ export async function DashboardTrainer({
         </section>
 
         {/* 일정 — 제목+카운트 한 줄에 합쳐서 (KPI 별도 섹션 제거) */}
-        <section
-          id="schedule"
-          className="scroll-mt-4 rounded-2xl border border-white/10 bg-zinc-900 p-5"
-        >
-          <ScrollToScheduleOnDayChange />
+        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-heading text-base tracking-tight text-white">
               {safeSelectedDay === monthInfo.todayDay
