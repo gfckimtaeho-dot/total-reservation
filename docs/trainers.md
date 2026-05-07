@@ -86,13 +86,49 @@ model StaffLeave {
 
 - `/g/{slug}/trainers` — 목록 (3-theme: paper/black/white). 검색(이름·직책·전문분야 다중·현재휴가).
 - `/g/{slug}/trainers/new` — 별도 등록 페이지 (가로 max-w-5xl). 6 섹션: 사진/기본/직책·전문/자기소개·경력/출근요일/메모.
-- `/g/{slug}/trainers/[id]` — 상세 페이지 (row 클릭으로 진입). 사진 갤러리 + 모든 필드 + 휴가 이력.
-- `/g/{slug}/trainers/[id]/edit` — 편집 페이지 (stub, M5에서 구현).
+- `/g/{slug}/trainers/[id]` — 상세 페이지 (row 클릭으로 진입). 사진 갤러리 + 모든 필드 + **출입 QR 섹션** + 휴가 이력.
+- `/g/{slug}/trainers/[id]/edit` — 편집 페이지 (2026-05-07 구현 완료).
+
+## 편집 (2026-05-07)
+
+- TrainerForm을 `mode: "create" | "edit"` 양 모드 지원으로 일반화. `initialValues` + `staffId` props.
+- DobPicker는 `initialDate` prop으로 기존 생년월일 prefill.
+- gender는 `defaultChecked` → controlled radio (React 19 form auto-reset 회피, edit 시 초기값 반영).
+- `updateTrainer` server action — User+Staff+StaffImage 트랜잭션 갱신 + unique 충돌 시 자기 자신 제외 (`NOT: { id: existing.user.id }`).
+- 제거된 사진은 best-effort로 Vercel Blob에서 정리 (`deleteStaffImageUrl`).
+- ⚠️ 함께 fix된 기존 버그: TrainerForm에 imageUrls hidden input 누락이라 등록 시에도 사진 URL이 actions로 안 넘어가던 상태였음 (이제 정상).
+
+## 출입 QR (트레이너 detail 상단)
+
+- `User.accessToken String? @unique` 32자 base64url. 등록 시 자동 발급 (`generateAccessToken`), 기존 트레이너는 detail 첫 진입 시 lazy-create (`ensureAccessToken`).
+- 사장 시점: QR 이미지 + 토큰 텍스트 + "재발급" 버튼 (confirm dialog → `regenerateTrainerAccessToken`).
+- 트레이너 시점: 핸드폰 dashboard에 표시 (테블릿/PC `md:hidden`).
+- 자세한 정책은 `docs/access.md` 참고.
+
+## 트레이너 dashboard (TRAINER role 진입 시 — 2026-05-07)
+
+`/g/{slug}/dashboard` 가 user.role 보고 분기:
+- TRAINER → `DashboardTrainer` (단일 다크 = Black + Amber)
+- OWNER/MANAGER → 기존 3-theme
+
+특징:
+- 헤더 → (핸드폰만) QR → 일정 → 캘린더 → 푸터. 사이드바 없음 (모바일 우선).
+- 일정·캘린더는 `TrainerCalendarSchedule` 클라이언트 컴포넌트 — useState로 selectedDay 관리. URL은 `history.replaceState`로 동기화 (서버 왕복 없이 즉시 반응).
+- 캘린더: 셀 고정 높이 `h-16`, 일자 좌상단, 단체수업 1줄 truncate. 오늘 = amber tint + amber ring + amber 글자 (휴무여도 강조).
+- 비-오늘 mock 합성 (`MOCK_GROUP_CLASSES_BY_DAY`) — M6 reservation 모델 wiring 시 교체.
+- "+ 예약 추가" 버튼 stub (alert "M6 마일스톤").
+
+## 휴무 모델 (트레이너 dashboard)
+
+캘린더 셀에서 "휴" 표시되는 조건:
+- 매장 휴관일 (`MOCK_CLOSED_DAYS` — 추후 BusinessHours 연동)
+- 트레이너 정기 휴무 (`Staff.weeklyOffDays`에 그 요일이 있을 때)
+- (예정) 트레이너 개인 휴무 (`StaffLeave` 기간) — 사장이 등록할 화면 추후 추가
 
 ## 미구현 (다음 작업 후보)
 
-- 트레이너 편집 페이지
-- 휴가 등록 모달 (server action은 actions.ts에 있음)
+- 휴가 등록 모달 (server action은 actions.ts에 있음, UI만 추가)
+- 트레이너 개인 휴무 등록 (사장이 등록) — schema는 StaffLeave 있음
 - 트레이너별 service 단가 차등 (현재 service.pricePhp 단일)
 - 트레이너 평점·후기 시스템
 
