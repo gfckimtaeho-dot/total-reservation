@@ -103,7 +103,7 @@ export async function DashboardBlack({ lang, slug, businessName }: Props) {
             sub={t("unitPeople")}
           />
 
-          <section className="col-span-12 rounded-2xl border border-white/5 bg-zinc-900 p-6 xl:col-span-4">
+          <section className="col-span-12 rounded-2xl border border-white/5 bg-zinc-900 p-6 xl:col-span-5">
             <SectionHead
               eyebrow={t("timelineEyebrow")}
               title={t("timelineTitle")}
@@ -177,7 +177,7 @@ export async function DashboardBlack({ lang, slug, businessName }: Props) {
             </ol>
           </section>
 
-          <section className="col-span-12 rounded-2xl border border-white/5 bg-zinc-900 p-6 xl:col-span-4">
+          <section className="col-span-12 rounded-2xl border border-white/5 bg-zinc-900 p-6 xl:col-span-5">
             <SectionHead
               eyebrow={t("calendarEyebrow")}
               title={t("calendarTitle", { month: monthLabel })}
@@ -185,29 +185,25 @@ export async function DashboardBlack({ lang, slug, businessName }: Props) {
             <DarkCalendarGrid t={t} weekdays={weekdays} monthInfo={monthInfo} />
           </section>
 
-          <section className="col-span-12 rounded-2xl border border-white/5 bg-zinc-900 p-6 xl:col-span-4">
+          <section className="col-span-12 rounded-2xl border border-white/5 bg-zinc-900 p-4 xl:col-span-2">
             <SectionHead
               eyebrow={t("accessEyebrow")}
               title={t("accessTitle")}
             />
-            <ul className="mt-5 divide-y divide-white/5">
-              {MOCK_ACCESS_LOG.map((e) => (
-                <li
-                  key={e.id}
-                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-white">
+            <ul className="mt-4 divide-y divide-white/5">
+              {MOCK_ACCESS_LOG.filter((e) => e.daysAgo === 0).map((e) => (
+                <li key={e.id} className="py-2 first:pt-0 last:pb-0">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-sm font-medium text-white">
                       {e.name}
-                    </div>
-                    <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-lime-300/80">
-                      {t(`accessRole.${e.role}`)}
-                    </div>
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-zinc-400">
+                      {String(e.hour).padStart(2, "0")}:
+                      {String(e.min).padStart(2, "0")}
+                    </span>
                   </div>
-                  <div className="shrink-0 text-xs tabular-nums text-zinc-400">
-                    {e.daysAgo === 1 ? `${t("accessYesterday")} ` : ""}
-                    {String(e.hour).padStart(2, "0")}:
-                    {String(e.min).padStart(2, "0")}
+                  <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-lime-300/70">
+                    {t(`accessRole.${e.role}`)}
                   </div>
                 </li>
               ))}
