@@ -34,6 +34,7 @@ export async function gymLogin(
     rememberMe: formData.get("rememberMe"),
   });
   if (!parsed.success) {
+    console.error("[gymLogin] schema invalid:", parsed.error.flatten());
     return {
       errors: parsed.error.flatten().fieldErrors as Record<
         string,
@@ -44,19 +45,43 @@ export async function gymLogin(
   const { slug, email, password, rememberMe } = parsed.data;
 
   const business = await prisma.business.findUnique({ where: { slug } });
-  if (!business) return { message: "notMember" };
+  if (!business) {
+    console.error("[gymLogin] business not found:", { slug });
+    return { message: "notMember" };
+  }
 
   const user = await prisma.user.findUnique({
     where: { email_gymId: { email, gymId: business.id } },
   });
-  if (!user || !user.passwordHash) return { message: "notMember" };
+  if (!user) {
+    console.error("[gymLogin] user not found:", {
+      slug,
+      gymId: business.id,
+      email,
+    });
+    return { message: "notMember" };
+  }
+  if (!user.passwordHash) {
+    console.error("[gymLogin] passwordHash missing:", {
+      userId: user.id,
+      email,
+      status: user.status,
+    });
+    return { message: "notMember" };
+  }
   if (user.status === "PENDING") return { message: "pending" };
   if (user.status === "WITHDRAWN" || user.status === "ANONYMIZED") {
     return { message: "withdrawn" };
   }
 
   const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) return { message: "wrong" };
+  if (!ok) {
+    console.error("[gymLogin] password mismatch:", {
+      userId: user.id,
+      email,
+    });
+    return { message: "wrong" };
+  }
 
   await issueSession(user.id, user.role, rememberMe === "on");
   const target =
