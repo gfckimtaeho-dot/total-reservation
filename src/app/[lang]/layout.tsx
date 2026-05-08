@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter, Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing, type AppLocale } from "@/lib/i18n/config";
+import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import "../globals.css";
 
 // Mindbody-style typography pair: transitional serif headlines + grotesque body.
@@ -38,6 +39,18 @@ const notoSansKR = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "예약가즈아",
   description: "헬스장 운영 관리 SaaS",
+  appleWebApp: {
+    capable: true,
+    title: "예약가즈아",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default async function LangLayout({
@@ -61,6 +74,7 @@ export default async function LangLayout({
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

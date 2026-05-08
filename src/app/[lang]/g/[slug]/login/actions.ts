@@ -20,7 +20,13 @@ const schema = z.object({
 
 export type GymLoginState = {
   errors?: Record<string, string[] | undefined>;
-  message?: "wrong" | "notMember" | "pending" | "withdrawn";
+  message?:
+    | "wrong"
+    | "noBusiness"
+    | "noUser"
+    | "notActivated"
+    | "pending"
+    | "withdrawn";
 };
 
 export async function gymLogin(
@@ -47,7 +53,7 @@ export async function gymLogin(
   const business = await prisma.business.findUnique({ where: { slug } });
   if (!business) {
     console.error("[gymLogin] business not found:", { slug });
-    return { message: "notMember" };
+    return { message: "noBusiness" };
   }
 
   const user = await prisma.user.findUnique({
@@ -59,7 +65,7 @@ export async function gymLogin(
       gymId: business.id,
       email,
     });
-    return { message: "notMember" };
+    return { message: "noUser" };
   }
   if (!user.passwordHash) {
     console.error("[gymLogin] passwordHash missing:", {
@@ -67,7 +73,7 @@ export async function gymLogin(
       email,
       status: user.status,
     });
-    return { message: "notMember" };
+    return { message: "notActivated" };
   }
   if (user.status === "PENDING") return { message: "pending" };
   if (user.status === "WITHDRAWN" || user.status === "ANONYMIZED") {

@@ -85,6 +85,11 @@ export default async function proxy(request: NextRequest) {
   return intlResponse;
 }
 
+// Exclude PWA / metadata routes that must NOT be locale-prefixed:
+//   /icon/192, /icon/512   (app/icon.tsx via generateImageMetadata)
+//   /apple-icon            (app/apple-icon.tsx)
+// /manifest.webmanifest, /sw.js, /favicon.ico, etc. all contain a dot and are
+// already excluded by the .*\..* clause below.
 export const config = {
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  matcher: ["/((?!api|_next|_vercel|icon/|apple-icon|.*\\..*).*)"],
 };
