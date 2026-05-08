@@ -222,7 +222,7 @@ export function TrainerCalendarSchedule({
                     key={day}
                     type="button"
                     onClick={() => selectDay(day)}
-                    className={`${baseCell} bg-zinc-900/50 border-amber-400/15 hover:bg-zinc-900 ${offRing}`}
+                    className={`${baseCell} bg-zinc-950 border-zinc-800 hover:bg-zinc-900 ${offRing}`}
                   >
                     <div
                       className={`text-[11px] font-bold ${
@@ -247,14 +247,14 @@ export function TrainerCalendarSchedule({
                 : isToday
                   ? "ring-2 ring-amber-400/60"
                   : "";
-              const bg = isToday ? "bg-amber-400/10" : "bg-zinc-900";
+              const bg = isToday ? "bg-amber-400/15" : "bg-zinc-800";
 
               return (
                 <button
                   key={day}
                   type="button"
                   onClick={() => selectDay(day)}
-                  className={`${baseCell} ${bg} border-amber-400/15 hover:bg-zinc-800 ${ring}`}
+                  className={`${baseCell} ${bg} border-amber-400/30 hover:bg-zinc-700 ${ring}`}
                 >
                   <div
                     className={`text-[11px] font-bold ${
