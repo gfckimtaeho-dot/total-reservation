@@ -163,6 +163,17 @@
       "rights": "© 2026 Yeyak Gazua · Philippines"
     }
   },
+  "hours": {
+    "pageTitle": "Business hours",
+    "weeklyTitle": "Weekly hours",
+    "weeklyHint": "Set open/closed and opening/closing times per weekday",
+    "open": "Open",
+    "closed": "Closed",
+    "breakLabel": "Break",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "members": "Members",
@@ -355,6 +366,17 @@
     "detailMemo": "Note (owner only)",
     "detailLeaves": "Leave history",
     "detailNoLeaves": "No records",
+    "leaveAdd": "+ Add leave",
+    "leaveDelete": "Delete",
+    "leaveStartDate": "Start date",
+    "leaveEndDate": "End date",
+    "leaveReason": "Reason (optional)",
+    "leaveReasonPlaceholder": "e.g. sick, personal, vacation",
+    "leaveSave": "Save",
+    "leaveSaving": "Saving...",
+    "leaveCancel": "Cancel",
+    "leaveModalTitle": "Add leave",
+    "leaveDateInvalid": "End date must be after start date",
     "labelGender": "Gender",
     "labelAge": "Age",
     "labelPhone": "Phone",

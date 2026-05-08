@@ -163,6 +163,17 @@
       "rights": "© 2026 예약가즈아 · Philippines"
     }
   },
+  "hours": {
+    "pageTitle": "영업일·영업시간",
+    "weeklyTitle": "주간 영업시간",
+    "weeklyHint": "요일별로 영업 여부와 시작·종료 시간을 설정합니다",
+    "open": "영업",
+    "closed": "휴무",
+    "breakLabel": "휴게",
+    "save": "저장",
+    "saving": "저장 중...",
+    "saved": "저장됨"
+  },
   "nav": {
     "dashboard": "대시보드",
     "members": "회원관리",
@@ -355,6 +366,17 @@
     "detailMemo": "메모 (사장 내부)",
     "detailLeaves": "휴가 이력",
     "detailNoLeaves": "기록 없음",
+    "leaveAdd": "+ 휴가 추가",
+    "leaveDelete": "삭제",
+    "leaveStartDate": "시작일",
+    "leaveEndDate": "종료일",
+    "leaveReason": "사유 (선택)",
+    "leaveReasonPlaceholder": "예: 병가, 개인 사유, 휴가 등",
+    "leaveSave": "등록",
+    "leaveSaving": "등록 중...",
+    "leaveCancel": "취소",
+    "leaveModalTitle": "휴가 등록",
+    "leaveDateInvalid": "종료일은 시작일 이후여야 합니다",
     "labelGender": "성별",
     "labelAge": "나이",
     "labelPhone": "핸드폰",

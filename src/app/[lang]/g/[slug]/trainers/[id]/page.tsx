@@ -10,6 +10,7 @@ import { getTheme } from "@/lib/theme";
 import { ensureAccessToken } from "@/lib/auth/accessToken";
 import { SidebarNav } from "../../dashboard/SidebarNav";
 import { RegenerateQrButton } from "./RegenerateQrButton";
+import { LeaveManager } from "./LeaveManager";
 
 const PAGE_BG = {
   normal: "bg-amber-50/50",
@@ -428,35 +429,18 @@ export default async function TrainerDetailPage({
 
           {/* Leaves */}
           <section className={SECTION[theme]}>
-            <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
-            >
-              {t("detailLeaves")}
-            </h2>
-            {staff.leaves.length === 0 ? (
-              <p className={`mt-3 text-sm ${SUBTLE[theme]}`}>
-                {t("detailNoLeaves")}
-              </p>
-            ) : (
-              <ul className="mt-4 space-y-2 text-sm">
-                {staff.leaves.map((l) => (
-                  <li
-                    key={l.id}
-                    className={`rounded-md bg-zinc-50 px-3 py-2 ${TITLE[theme]}`}
-                  >
-                    <span className="tabular-nums">
-                      {l.startDate.toISOString().slice(0, 10)} ~{" "}
-                      {l.endDate.toISOString().slice(0, 10)}
-                    </span>
-                    {l.reason && (
-                      <span className={`ml-2 text-xs ${SUBTLE[theme]}`}>
-                        · {l.reason}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <LeaveManager
+              lang={lang}
+              slug={slug}
+              staffId={staff.id}
+              tone={theme}
+              leaves={staff.leaves.map((l) => ({
+                id: l.id,
+                startDate: l.startDate.toISOString().slice(0, 10),
+                endDate: l.endDate.toISOString().slice(0, 10),
+                reason: l.reason,
+              }))}
+            />
           </section>
         </div>
       </main>

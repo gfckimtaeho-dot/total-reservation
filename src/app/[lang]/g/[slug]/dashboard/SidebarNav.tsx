@@ -14,7 +14,7 @@ function items(lang: string, slug: string): Item[] {
   return [
     { key: "members", href: `/${lang}/g/${slug}/members` },
     { key: "trainers", href: `/${lang}/g/${slug}/trainers` },
-    { key: "hours", href: null },
+    { key: "hours", href: `/${lang}/g/${slug}/hours` },
     { key: "services", href: null },
     { key: "revenue", href: null },
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
@@ -47,7 +47,7 @@ export function SidebarNav({
 }: {
   lang: string;
   slug: string;
-  activeKey: "dashboard" | "settings" | "members" | "trainers";
+  activeKey: "dashboard" | "settings" | "members" | "trainers" | "hours";
   tone: SidebarTone;
 }) {
   const t = useTranslations("nav");
@@ -70,7 +70,8 @@ export function SidebarNav({
         const isActive =
           (activeKey === "settings" && n.key === "settings") ||
           (activeKey === "members" && n.key === "members") ||
-          (activeKey === "trainers" && n.key === "trainers");
+          (activeKey === "trainers" && n.key === "trainers") ||
+          (activeKey === "hours" && n.key === "hours");
         if (!n.href) {
           return (
             <span
