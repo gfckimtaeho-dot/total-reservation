@@ -85,6 +85,23 @@ export function GymLoginForm({
         </div>
       )}
 
+      {state.debug && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 font-mono whitespace-pre-wrap break-all">
+          <div className="font-semibold mb-1">[DEBUG — 임시 진단]</div>
+          <div>입력 email bytes: {state.debug.rawEmailBytes}</div>
+          <div>입력 email hex:   {state.debug.rawEmailHex}</div>
+          <div>정규화 후 email:  {state.debug.normalizedEmail}</div>
+          <div>입력 slug bytes:  {state.debug.rawSlugBytes}</div>
+          <div>입력 slug hex:    {state.debug.rawSlugHex}</div>
+          <div>
+            DB에 있는 비슷한 이메일:{" "}
+            {state.debug.similarEmails.length > 0
+              ? state.debug.similarEmails.join(", ")
+              : "(없음)"}
+          </div>
+        </div>
+      )}
+
       <button
         type="submit"
         disabled={pending}

@@ -27,12 +27,27 @@ export type GymLoginState = {
     | "notActivated"
     | "pending"
     | "withdrawn";
+  // 임시 디버그: noUser 분기 진단용. 안정화되면 제거.
+  debug?: {
+    rawEmailBytes: number;
+    rawEmailHex: string;
+    normalizedEmail: string;
+    rawSlugBytes: number;
+    rawSlugHex: string;
+    similarEmails: string[];
+  };
 };
 
 export async function gymLogin(
   _prev: GymLoginState,
   formData: FormData,
 ): Promise<GymLoginState> {
+  // raw 입력 캡처 (정규화 전) — invisible char 진단용
+  const rawEmailInput = String(formData.get("email") ?? "");
+  const rawSlugInput = String(formData.get("slug") ?? "");
+  const rawEmailHex = Buffer.from(rawEmailInput, "utf8").toString("hex");
+  const rawSlugHex = Buffer.from(rawSlugInput, "utf8").toString("hex");
+
   const parsed = schema.safeParse({
     slug: formData.get("slug"),
     email: formData.get("email"),
@@ -52,20 +67,55 @@ export async function gymLogin(
 
   const business = await prisma.business.findUnique({ where: { slug } });
   if (!business) {
-    console.error("[gymLogin] business not found:", { slug });
-    return { message: "noBusiness" };
+    console.error("[gymLogin] business not found:", {
+      slug,
+      rawSlugInput,
+      rawSlugHex,
+      rawSlugBytes: rawSlugInput.length,
+    });
+    return {
+      message: "noBusiness",
+      debug: {
+        rawEmailBytes: rawEmailInput.length,
+        rawEmailHex,
+        normalizedEmail: email,
+        rawSlugBytes: rawSlugInput.length,
+        rawSlugHex,
+        similarEmails: [],
+      },
+    };
   }
 
   const user = await prisma.user.findUnique({
     where: { email_gymId: { email, gymId: business.id } },
   });
   if (!user) {
+    // 같은 매장에 비슷한 email이 있는지 prefix 검색 — 입력값과 DB값의 차이를 보여줌
+    const similar = await prisma.user.findMany({
+      where: { gymId: business.id, email: { contains: email.split("@")[0]?.slice(0, 4) ?? "" } },
+      select: { email: true },
+      take: 5,
+    });
     console.error("[gymLogin] user not found:", {
       slug,
       gymId: business.id,
       email,
+      rawEmailInput,
+      rawEmailHex,
+      rawEmailBytes: rawEmailInput.length,
+      similarEmails: similar.map((s) => s.email),
     });
-    return { message: "noUser" };
+    return {
+      message: "noUser",
+      debug: {
+        rawEmailBytes: rawEmailInput.length,
+        rawEmailHex,
+        normalizedEmail: email,
+        rawSlugBytes: rawSlugInput.length,
+        rawSlugHex,
+        similarEmails: similar.map((s) => s.email ?? ""),
+      },
+    };
   }
   if (!user.passwordHash) {
     console.error("[gymLogin] passwordHash missing:", {
