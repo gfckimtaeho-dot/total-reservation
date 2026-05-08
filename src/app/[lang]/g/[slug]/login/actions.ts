@@ -5,16 +5,25 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { verifyPassword } from "@/lib/auth/password";
 import { issueSession } from "@/lib/auth/session";
+import {
+  normalizeEmail,
+  normalizePassword,
+  normalizeSlug,
+} from "@/lib/auth/normalize";
 
+// Normalization happens BEFORE zod via .transform — autofill from mobile
+// keyboards/password managers can inject NBSP / zero-width / BOM chars that
+// .trim() doesn't catch. See src/lib/auth/normalize.ts for details.
 const schema = z.object({
-  slug: z.string().min(1),
-  // 대소문자·앞뒤 공백 정규화 — DB의 etcrrrtt@gmail.com과 사용자가 친 ETCRRRTT@gmail.com 매치
+  slug: z.string().transform(normalizeSlug).pipe(z.string().min(1)),
   email: z
     .string()
-    .trim()
-    .toLowerCase()
-    .email("이메일 형식이 올바르지 않습니다"),
-  password: z.string().min(1, "비밀번호를 입력해 주세요"),
+    .transform(normalizeEmail)
+    .pipe(z.string().email("이메일 형식이 올바르지 않습니다")),
+  password: z
+    .string()
+    .transform(normalizePassword)
+    .pipe(z.string().min(1, "비밀번호를 입력해 주세요")),
   rememberMe: z.string().nullish(),
 });
 
