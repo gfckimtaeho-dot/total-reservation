@@ -208,8 +208,11 @@ export function TrainerCalendarSchedule({
               const off = isOff(day);
               const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
 
+              // flex flex-col + items-start 로 날짜 숫자를 항상 좌상단으로 고정.
+              // button 요소는 기본 inline-block이라 자식 수에 따라 레이아웃이
+              // 미묘하게 흔들릴 수 있음 — flex-col로 강제 통일.
               const baseCell =
-                "relative h-16 overflow-hidden rounded-md border p-1.5 text-left transition";
+                "relative flex h-16 flex-col items-start overflow-hidden rounded-md border p-1.5 text-left transition";
 
               if (off) {
                 const offRing = isSelected
