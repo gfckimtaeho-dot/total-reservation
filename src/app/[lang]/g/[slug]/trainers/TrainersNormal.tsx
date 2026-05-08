@@ -45,12 +45,7 @@ export async function TrainersNormal({
           </div>
           <div className="mt-0.5 text-xs text-ink/60">/g/{slug}</div>
         </div>
-        <SidebarNav
-          lang={lang}
-          slug={slug}
-          activeKey="trainers"
-          tone="normal"
-        />
+        <SidebarNav tone="normal" />
         <div className="border-t border-ink/10 px-3 py-4">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-ink/80 hover:bg-white/40">

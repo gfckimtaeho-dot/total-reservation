@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 export type SidebarTone = "normal" | "black" | "white";
 
+type ActiveKey =
+  | "dashboard"
+  | "members"
+  | "trainers"
+  | "hours"
+  | "services"
+  | "revenue"
+  | "settings";
+
 type Item = {
-  key: "members" | "trainers" | "hours" | "services" | "revenue" | "settings";
+  key: Exclude<ActiveKey, "dashboard">;
   href: string | null;
 };
 
@@ -43,12 +52,28 @@ const TONE = {
   },
 } as const;
 
-type ActiveKey =
-  | "dashboard"
-  | "settings"
-  | "members"
-  | "trainers"
-  | "hours";
+// pathname에서 lang/slug/active key를 모두 derive. props로 안 받아도
+// loading.tsx 같은 곳에서 그대로 mount할 수 있음.
+function parsePathname(pathname: string): {
+  lang: string;
+  slug: string;
+  activeKey: ActiveKey | null;
+} {
+  // /{lang}/g/{slug}/{section}/...
+  const parts = pathname.split("/").filter(Boolean);
+  const lang = parts[0] ?? "ko";
+  const slug = parts[2] ?? "";
+  const section = parts[3] ?? "";
+  let key: ActiveKey | null = null;
+  if (section === "dashboard") key = "dashboard";
+  else if (section === "members") key = "members";
+  else if (section === "trainers") key = "trainers";
+  else if (section === "hours") key = "hours";
+  else if (section === "services") key = "services";
+  else if (section === "revenue") key = "revenue";
+  else if (section === "settings") key = "settings";
+  return { lang, slug, activeKey: key };
+}
 
 function keyFromHref(href: string): ActiveKey | null {
   if (href.endsWith("/dashboard")) return "dashboard";
@@ -59,27 +84,29 @@ function keyFromHref(href: string): ActiveKey | null {
   return null;
 }
 
-export function SidebarNav({
-  lang,
-  slug,
-  activeKey,
-  tone,
-}: {
-  lang: string;
-  slug: string;
-  activeKey: ActiveKey;
-  tone: SidebarTone;
-}) {
+export function SidebarNav({ tone }: { tone: SidebarTone }) {
   const t = useTranslations("nav");
   const tk = TONE[tone];
-  const list = items(lang, slug);
+  const pathname = usePathname() ?? "";
+  const { lang, slug, activeKey } = useMemo(
+    () => parsePathname(pathname),
+    [pathname],
+  );
+  const list = useMemo(() => items(lang, slug), [lang, slug]);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [pendingKey, setPendingKey] = useState<ActiveKey | null>(null);
 
+  // pathname이 바뀌면 (= navigation 완료) pendingKey 클리어. transition이
+  // 빠르게 끝나도 router.push가 즉시 pathname을 업데이트하므로 안전.
+  useEffect(() => {
+    setPendingKey(null);
+  }, [pathname]);
+
   // 모바일은 hover prefetch가 안 됨 — sidebar mount 시 모든 라우트를
   // 명시적으로 prefetch해 두면 첫 클릭이 캐시 히트로 전환됨.
   useEffect(() => {
+    if (!slug) return;
     router.prefetch(`/${lang}/g/${slug}/dashboard`);
     for (const item of list) {
       if (item.href) router.prefetch(item.href);
@@ -87,10 +114,7 @@ export function SidebarNav({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, slug]);
 
-  // Optimistic active: 클릭 즉시 pendingKey가 적용되어 server response 기다리지
-  // 않고 highlight가 옮겨감. transition이 끝나면 pendingKey가 클리어되고
-  // server-rendered activeKey가 그대로 일치하는 상태가 됨.
-  const effectiveKey: ActiveKey = pendingKey ?? activeKey;
+  const effectiveKey: ActiveKey | null = pendingKey ?? activeKey;
 
   function navigate(href: string) {
     const k = keyFromHref(href);
@@ -125,10 +149,12 @@ export function SidebarNav({
       </button>
       {list.map((n) => {
         const isActive =
-          (effectiveKey === "settings" && n.key === "settings") ||
-          (effectiveKey === "members" && n.key === "members") ||
-          (effectiveKey === "trainers" && n.key === "trainers") ||
-          (effectiveKey === "hours" && n.key === "hours");
+          effectiveKey != null &&
+          (n.key === "members" ||
+            n.key === "trainers" ||
+            n.key === "hours" ||
+            n.key === "settings") &&
+          effectiveKey === n.key;
         if (!n.href) {
           return (
             <span
@@ -145,13 +171,7 @@ export function SidebarNav({
           );
         }
         const href = n.href;
-        const isPendingThis =
-          pending &&
-          pendingKey != null &&
-          ((pendingKey === "members" && n.key === "members") ||
-            (pendingKey === "trainers" && n.key === "trainers") ||
-            (pendingKey === "hours" && n.key === "hours") ||
-            (pendingKey === "settings" && n.key === "settings"));
+        const isPendingThis = pending && pendingKey === n.key;
         return (
           <button
             key={n.key}

@@ -110,7 +110,7 @@ export default async function GymHoursPage({
             /g/{slug}
           </div>
         </div>
-        <SidebarNav lang={lang} slug={slug} activeKey="hours" tone={theme} />
+        <SidebarNav tone={theme} />
         <div className={`border-t px-3 py-4 ${SIDEBAR_BORDER[theme]}`}>
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button

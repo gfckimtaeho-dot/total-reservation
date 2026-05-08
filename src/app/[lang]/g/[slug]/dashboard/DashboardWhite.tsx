@@ -55,12 +55,7 @@ export async function DashboardWhite({ lang, slug, businessName }: Props) {
           </div>
           <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
         </div>
-        <SidebarNav
-          lang={lang}
-          slug={slug}
-          activeKey="dashboard"
-          tone="white"
-        />
+        <SidebarNav tone="white" />
         <div className="border-t border-zinc-100 px-3 py-4">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
