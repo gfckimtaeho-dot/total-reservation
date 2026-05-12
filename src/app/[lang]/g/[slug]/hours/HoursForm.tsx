@@ -93,6 +93,30 @@ export function HoursForm({
     return m;
   });
 
+  function is24h(d: DayInitial): boolean {
+    return d.open && d.openTime === "00:00" && d.closeTime === "24:00";
+  }
+
+  function toggle24h(w: Weekday) {
+    setDays((prev) => {
+      const next = new Map(prev);
+      const cur = next.get(w)!;
+      if (is24h(cur)) {
+        next.set(w, { ...cur, openTime: "09:00", closeTime: "22:00" });
+      } else {
+        next.set(w, {
+          ...cur,
+          open: true,
+          openTime: "00:00",
+          closeTime: "24:00",
+          breakStartTime: "",
+          breakEndTime: "",
+        });
+      }
+      return next;
+    });
+  }
+
   const [state, formAction, pending] = useActionState(
     saveBusinessHours,
     initialState,
@@ -123,6 +147,7 @@ export function HoursForm({
             const d = days.get(w)!;
             const timeError = state.errors?.[`time_${w}`];
             const breakError = state.errors?.[`break_${w}`];
+            const twentyFour = is24h(d);
             return (
               <div
                 key={w}
@@ -146,62 +171,96 @@ export function HoursForm({
                   {d.open ? t("open") : t("closed")}
                 </button>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    type="time"
-                    lang={lang}
-                    name={`openTime_${w}`}
-                    value={d.openTime}
+                <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto">
+                  {twentyFour ? (
+                    <>
+                      <div
+                        className={`flex h-10 w-[17rem] shrink-0 items-center justify-center rounded-md border text-sm font-medium ${
+                          tone === "black"
+                            ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
+                            : "border-emerald-300 bg-emerald-50 text-emerald-700"
+                        }`}
+                      >
+                        00:00 ~ 24:00
+                      </div>
+                      <input type="hidden" name={`openTime_${w}`} value="00:00" />
+                      <input type="hidden" name={`closeTime_${w}`} value="24:00" />
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        type="time"
+                        lang={lang}
+                        name={`openTime_${w}`}
+                        value={d.openTime}
+                        disabled={!d.open}
+                        onChange={(e) =>
+                          patch(w, { openTime: e.currentTarget.value })
+                        }
+                        className={`${tk.input} w-[8rem] shrink-0`}
+                      />
+                      <span className={`text-xs ${tk.subtle}`}>~</span>
+                      <input
+                        type="time"
+                        lang={lang}
+                        name={`closeTime_${w}`}
+                        value={d.closeTime}
+                        disabled={!d.open}
+                        onChange={(e) =>
+                          patch(w, { closeTime: e.currentTarget.value })
+                        }
+                        className={`${tk.input} w-[8rem] shrink-0`}
+                      />
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => toggle24h(w)}
                     disabled={!d.open}
-                    onChange={(e) =>
-                      patch(w, { openTime: e.currentTarget.value })
-                    }
-                    className={`${tk.input} w-[7.5rem]`}
-                  />
-                  <span className={`text-xs ${tk.subtle}`}>~</span>
-                  <input
-                    type="time"
-                    lang={lang}
-                    name={`closeTime_${w}`}
-                    value={d.closeTime}
-                    disabled={!d.open}
-                    onChange={(e) =>
-                      patch(w, { closeTime: e.currentTarget.value })
-                    }
-                    className={`${tk.input} w-[7.5rem]`}
-                  />
+                    className={`h-10 shrink-0 rounded-md px-1.5 text-[10px] font-bold transition disabled:opacity-40 ${
+                      twentyFour ? tk.on : tk.off
+                    }`}
+                  >
+                    24h
+                  </button>
+
                   <input
                     type="hidden"
                     name={`open_${w}`}
                     value={d.open ? "on" : ""}
                   />
 
-                  <span className={`ml-2 text-[10px] uppercase tracking-wider ${tk.subtle}`}>
-                    {t("breakLabel")}
-                  </span>
-                  <input
-                    type="time"
-                    lang={lang}
-                    name={`breakStartTime_${w}`}
-                    value={d.breakStartTime}
-                    disabled={!d.open}
-                    onChange={(e) =>
-                      patch(w, { breakStartTime: e.currentTarget.value })
-                    }
-                    className={`${tk.input} w-[7.5rem]`}
-                  />
-                  <span className={`text-xs ${tk.subtle}`}>~</span>
-                  <input
-                    type="time"
-                    lang={lang}
-                    name={`breakEndTime_${w}`}
-                    value={d.breakEndTime}
-                    disabled={!d.open}
-                    onChange={(e) =>
-                      patch(w, { breakEndTime: e.currentTarget.value })
-                    }
-                    className={`${tk.input} w-[7.5rem]`}
-                  />
+                  {!twentyFour && (
+                    <>
+                      <span className={`ml-1 shrink-0 text-[10px] uppercase ${tk.subtle}`}>
+                        {t("breakLabel")}
+                      </span>
+                      <input
+                        type="time"
+                        lang={lang}
+                        name={`breakStartTime_${w}`}
+                        value={d.breakStartTime}
+                        disabled={!d.open}
+                        onChange={(e) =>
+                          patch(w, { breakStartTime: e.currentTarget.value })
+                        }
+                        className={`${tk.input} w-[8rem] shrink-0`}
+                      />
+                      <span className={`text-xs ${tk.subtle}`}>~</span>
+                      <input
+                        type="time"
+                        lang={lang}
+                        name={`breakEndTime_${w}`}
+                        value={d.breakEndTime}
+                        disabled={!d.open}
+                        onChange={(e) =>
+                          patch(w, { breakEndTime: e.currentTarget.value })
+                        }
+                        className={`${tk.input} w-[8rem] shrink-0`}
+                      />
+                    </>
+                  )}
                 </div>
 
                 {(timeError || breakError) && (

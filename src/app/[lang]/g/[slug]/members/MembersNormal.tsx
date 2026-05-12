@@ -14,6 +14,8 @@ type Props = {
   q: string;
   gender: "all" | "MALE" | "FEMALE";
   expiringSoon: boolean;
+  expireWeekCount: number;
+  expireMonthCount: number;
 };
 
 export async function MembersNormal({
@@ -24,6 +26,8 @@ export async function MembersNormal({
   q,
   gender,
   expiringSoon,
+  expireWeekCount,
+  expireMonthCount,
 }: Props) {
   const t = await getTranslations("members");
   const tn = await getTranslations("nav");
@@ -70,6 +74,30 @@ export async function MembersNormal({
         </header>
 
         <div className="p-6">
+          <div className="mb-4 grid grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-700/80">
+                {t("expireWeekLabel")}
+              </span>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="font-heading text-4xl tabular-nums tracking-tight text-rose-700">
+                  {expireWeekCount}
+                </span>
+                <span className="text-sm text-rose-700/70">{t("peopleUnit")}</span>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-800/80">
+                {t("expireMonthLabel")}
+              </span>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="font-heading text-4xl tabular-nums tracking-tight text-amber-800">
+                  {expireMonthCount}
+                </span>
+                <span className="text-sm text-amber-800/70">{t("peopleUnit")}</span>
+              </div>
+            </div>
+          </div>
           <MembersSearch
             tone="normal"
             q={q}

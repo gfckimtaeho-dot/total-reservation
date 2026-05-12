@@ -176,6 +176,49 @@ export async function sendStaffActivationEmail(opts: {
   }
 }
 
+export async function sendExpiryReminderEmail(opts: {
+  to: string;
+  memberName: string;
+  storeName: string;
+  endDate: string; // YYYY-MM-DD
+  loginUrl: string;
+}): Promise<SendResult> {
+  const subject = `${opts.storeName} — 회원권 만료 일주일 전 알림`;
+  const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px">
+    <p style="font-size:16px">${opts.memberName} 님, 안녕하세요.</p>
+    <p style="font-size:16px"><strong>${opts.storeName}</strong> 회원권 만료일이 일주일 남았습니다.</p>
+    <p style="font-size:14px;color:#444;margin:16px 0">만료일: <strong>${opts.endDate}</strong></p>
+    <p style="font-size:14px;color:#444">계속 이용하시려면 매장에 방문하여 갱신해 주세요.</p>
+    <p style="margin:24px 0">
+      <a href="${opts.loginUrl}" style="display:inline-block;background:#1A1A1A;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">회원 페이지 →</a>
+    </p>
+  </div>`;
+  const text = `${opts.memberName} 님,\n\n${opts.storeName} 회원권 만료일이 일주일 남았습니다.\n만료일: ${opts.endDate}\n\n회원 페이지: ${opts.loginUrl}`;
+
+  const transport = makeTransport();
+  if (!transport) {
+    console.log(
+      `[email/fallback] expiry reminder skipped (GMAIL creds missing) to ${opts.to}`,
+    );
+    return { ok: false, fallback: true };
+  }
+
+  try {
+    const info = await transport.sendMail({
+      from: `${FROM_NAME} <${user}>`,
+      to: opts.to,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, id: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[email] SMTP error (expiry reminder):", message);
+    return { ok: false, fallback: false, error: message };
+  }
+}
+
 export async function sendInviteEmail(opts: {
   to: string;
   inviteUrl: string;

@@ -46,6 +46,8 @@ export default async function GymMembersPage({
   today.setHours(0, 0, 0, 0);
   const sevenDays = new Date(today);
   sevenDays.setDate(sevenDays.getDate() + 7);
+  const thirtyDays = new Date(today);
+  thirtyDays.setDate(thirtyDays.getDate() + 30);
 
   const where: Prisma.UserWhereInput = {
     gymId: business.id,
@@ -63,28 +65,49 @@ export default async function GymMembersPage({
       : {}),
   };
 
-  const rows = await prisma.user.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      gender: true,
-      phone: true,
-      email: true,
-      dob: true,
-      note: true,
-      status: true,
-      memberships: {
-        orderBy: { endDate: "desc" },
-        take: 1,
-        select: { endDate: true },
+  const [rows, expireWeekCount, expireMonthCount] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        gender: true,
+        phone: true,
+        email: true,
+        dob: true,
+        note: true,
+        status: true,
+        memberships: {
+          orderBy: { endDate: "desc" },
+          take: 1,
+          select: { endDate: true },
+        },
+        packages: {
+          select: { remainingCount: true },
+        },
       },
-      packages: {
-        select: { remainingCount: true },
+    }),
+    // distinct 회원 수 (같은 회원이 여러 membership 가질 수 있어 user 단위)
+    prisma.user.count({
+      where: {
+        gymId: business.id,
+        role: "CUSTOMER",
+        memberships: {
+          some: { endDate: { gte: today, lte: sevenDays } },
+        },
       },
-    },
-  });
+    }),
+    prisma.user.count({
+      where: {
+        gymId: business.id,
+        role: "CUSTOMER",
+        memberships: {
+          some: { endDate: { gte: today, lte: thirtyDays } },
+        },
+      },
+    }),
+  ]);
 
   const remainingFmt = new Intl.NumberFormat(
     lang === "en" ? "en-US" : "ko-KR",
@@ -126,6 +149,8 @@ export default async function GymMembersPage({
     q,
     gender,
     expiringSoon,
+    expireWeekCount,
+    expireMonthCount,
   };
 
   const theme = await getTheme();

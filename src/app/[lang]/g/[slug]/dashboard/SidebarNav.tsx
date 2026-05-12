@@ -59,11 +59,14 @@ function parsePathname(pathname: string): {
   slug: string;
   activeKey: ActiveKey | null;
 } {
-  // /{lang}/g/{slug}/{section}/...
+  // /{lang}/g/{slug}/{section}/... — 'g' literal 다음을 slug로 anchor.
+  // 단순 인덱스 접근은 lang이 i18n 미들웨어로 prepend되지 않은 edge case에서
+  // slug 자리가 'g' 자체로 derive되는 사고를 일으킬 수 있음.
   const parts = pathname.split("/").filter(Boolean);
-  const lang = parts[0] ?? "ko";
-  const slug = parts[2] ?? "";
-  const section = parts[3] ?? "";
+  const gIdx = parts.indexOf("g");
+  const lang = gIdx > 0 ? parts[gIdx - 1]! : (parts[0] ?? "ko");
+  const slug = gIdx >= 0 ? (parts[gIdx + 1] ?? "") : "";
+  const section = gIdx >= 0 ? (parts[gIdx + 2] ?? "") : "";
   let key: ActiveKey | null = null;
   if (section === "dashboard") key = "dashboard";
   else if (section === "members") key = "members";

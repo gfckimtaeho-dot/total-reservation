@@ -7,12 +7,17 @@ import {
   getManilaMonthInfo,
 } from "../../../preview/_mock";
 import { TrainerCalendarSchedule } from "./TrainerCalendarSchedule";
+import { HoursStatusCard } from "./HoursStatusCard";
+import { MyCheckInCard } from "./MyCheckInCard";
 
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
 type Props = {
   lang: string;
   slug: string;
+  gymId: string;
+  userId: string;
+  staffId: string | null;
   businessName: string;
   trainerName: string;
   accessToken: string;
@@ -23,6 +28,9 @@ type Props = {
 export async function DashboardTrainer({
   lang,
   slug,
+  gymId,
+  userId,
+  staffId,
   businessName,
   trainerName,
   accessToken,
@@ -91,6 +99,16 @@ export async function DashboardTrainer({
             {t("trainerQrHint")}
           </p>
         </section>
+
+        <MyCheckInCard gymId={gymId} userId={userId} staffId={staffId} />
+
+        <HoursStatusCard
+          gymId={gymId}
+          lang={lang}
+          slug={slug}
+          tone="trainer"
+          canEdit={false}
+        />
 
         <TrainerCalendarSchedule
           lang={lang}

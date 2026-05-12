@@ -26,12 +26,15 @@ export default async function GymDashboardPage({
     const selectedDay = Number.isFinite(dayParam) ? dayParam : 0;
     const staff = await prisma.staff.findFirst({
       where: { userId: user.id, gymId: business.id },
-      select: { weeklyOffDays: true },
+      select: { id: true, weeklyOffDays: true },
     });
     return (
       <DashboardTrainer
         lang={lang}
         slug={slug}
+        gymId={business.id}
+        userId={user.id}
+        staffId={staff?.id ?? null}
         businessName={business.name}
         trainerName={user.name}
         accessToken={accessToken}
@@ -45,6 +48,7 @@ export default async function GymDashboardPage({
   const props = {
     lang,
     slug,
+    gymId: business.id,
     businessName: business.name,
   };
 

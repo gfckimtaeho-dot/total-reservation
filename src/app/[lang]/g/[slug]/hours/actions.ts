@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import type { Weekday } from "@/generated/prisma/enums";
+import { ClosureKind } from "@/generated/prisma/enums";
 
 const ALL_WEEKDAYS: Weekday[] = [
   "SUN",
@@ -16,13 +17,14 @@ const ALL_WEEKDAYS: Weekday[] = [
   "SAT",
 ];
 
-// 시간을 "HH:MM" 형식으로 받아서 분으로 변환
+// "HH:MM" → 분. 24:00 = 1440 허용 (24시간 영업).
 function parseTime(value: string): number | null {
   const m = value.match(/^(\d{1,2}):(\d{2})$/);
   if (!m) return null;
   const h = Number(m[1]);
   const min = Number(m[2]);
   if (h < 0 || h > 24 || min < 0 || min > 59) return null;
+  if (h === 24 && min !== 0) return null;
   return h * 60 + min;
 }
 
@@ -158,5 +160,128 @@ export async function saveBusinessHours(
 
   revalidatePath(`/ko/g/${parsed.data.slug}/hours`);
   revalidatePath(`/en/g/${parsed.data.slug}/hours`);
+  revalidatePath(`/ko/g/${parsed.data.slug}/dashboard`);
+  revalidatePath(`/en/g/${parsed.data.slug}/dashboard`);
+  return { ok: true };
+}
+
+// ─── BusinessClosure (특정 날짜 임시 휴무/단축영업/특별휴게) ───
+
+const closureKindZ = z.enum(["CLOSED", "SHORTENED"]);
+
+const closureSchema = z.object({
+  slug: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kind: closureKindZ,
+  openTime: z.string().optional(),
+  closeTime: z.string().optional(),
+  reason: z.string().max(120).optional(),
+});
+
+export type SaveClosureState = {
+  error?: string;
+  ok?: boolean;
+  // useActionState가 같은 state 객체를 재사용해 useEffect가 새 저장을
+  // 감지 못하는 케이스를 막기 위한 매번 새 timestamp.
+  at?: number;
+};
+
+function parseYmd(s: string): Date | null {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo, d));
+  if (
+    dt.getUTCFullYear() !== y ||
+    dt.getUTCMonth() !== mo ||
+    dt.getUTCDate() !== d
+  ) {
+    return null;
+  }
+  return dt;
+}
+
+export async function saveClosure(
+  _prev: SaveClosureState,
+  formData: FormData,
+): Promise<SaveClosureState> {
+  const parsed = closureSchema.safeParse({
+    slug: formData.get("slug"),
+    date: formData.get("date"),
+    kind: formData.get("kind"),
+    openTime: formData.get("openTime") ?? undefined,
+    closeTime: formData.get("closeTime") ?? undefined,
+    reason: formData.get("reason") ?? undefined,
+  });
+  if (!parsed.success) {
+    return { error: "입력값이 올바르지 않습니다" };
+  }
+  const { slug, kind, reason } = parsed.data;
+  const dateUtc = parseYmd(parsed.data.date);
+  if (!dateUtc) return { error: "날짜 형식 오류" };
+
+  const auth = await requireGymStaff(slug);
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { error: "권한이 없습니다" };
+  }
+  const gymId = auth.business!.id;
+
+  let openMinute: number | null = null;
+  let closeMinute: number | null = null;
+
+  if (kind === "SHORTENED") {
+    openMinute = parsed.data.openTime ? parseTime(parsed.data.openTime) : null;
+    closeMinute = parsed.data.closeTime ? parseTime(parsed.data.closeTime) : null;
+    if (openMinute == null || closeMinute == null) {
+      return { error: "단축영업은 시작/종료 시간이 필요합니다" };
+    }
+    if (closeMinute <= openMinute) {
+      return { error: "종료가 시작보다 늦어야 합니다" };
+    }
+  }
+
+  await prisma.businessClosure.upsert({
+    where: { gymId_date: { gymId, date: dateUtc } },
+    create: {
+      gymId,
+      date: dateUtc,
+      kind: kind as ClosureKind,
+      openMinute,
+      closeMinute,
+      reason: reason || null,
+    },
+    update: {
+      kind: kind as ClosureKind,
+      openMinute,
+      closeMinute,
+      reason: reason || null,
+    },
+  });
+
+  revalidatePath(`/ko/g/${slug}/hours`);
+  revalidatePath(`/en/g/${slug}/hours`);
+  revalidatePath(`/ko/g/${slug}/dashboard`);
+  revalidatePath(`/en/g/${slug}/dashboard`);
+  return { ok: true, at: Date.now() };
+}
+
+export async function removeClosure(
+  slug: string,
+  closureId: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const auth = await requireGymStaff(slug);
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { error: "권한이 없습니다" };
+  }
+  const gymId = auth.business!.id;
+  const c = await prisma.businessClosure.findUnique({ where: { id: closureId } });
+  if (!c || c.gymId !== gymId) return { error: "찾을 수 없습니다" };
+  await prisma.businessClosure.delete({ where: { id: closureId } });
+  revalidatePath(`/ko/g/${slug}/hours`);
+  revalidatePath(`/en/g/${slug}/hours`);
+  revalidatePath(`/ko/g/${slug}/dashboard`);
+  revalidatePath(`/en/g/${slug}/dashboard`);
   return { ok: true };
 }

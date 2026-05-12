@@ -6,6 +6,8 @@ import { requireGymStaff } from "@/lib/auth/dal";
 import { getTheme } from "@/lib/theme";
 import { SidebarNav } from "../dashboard/SidebarNav";
 import { HoursForm } from "./HoursForm";
+import { ClosureManager } from "./ClosureManager";
+import { ymd } from "@/lib/hours/status";
 
 const PAGE_BG = {
   normal: "bg-amber-50/50",
@@ -73,9 +75,13 @@ export default async function GymHoursPage({
   const t = await getTranslations("hours");
   const tn = await getTranslations("nav");
 
-  const rows = await prisma.businessHours.findMany({
-    where: { gymId: business.id },
-  });
+  const [rows, closureRows] = await Promise.all([
+    prisma.businessHours.findMany({ where: { gymId: business.id } }),
+    prisma.businessClosure.findMany({
+      where: { gymId: business.id },
+      orderBy: { date: "asc" },
+    }),
+  ]);
 
   const initialDays = rows.map((r) => ({
     weekday: r.weekday,
@@ -84,6 +90,15 @@ export default async function GymHoursPage({
     closeTime: fmtTime(r.closeMinute),
     breakStartTime: r.breakStartMin != null ? fmtTime(r.breakStartMin) : "",
     breakEndTime: r.breakEndMin != null ? fmtTime(r.breakEndMin) : "",
+  }));
+
+  const initialClosures = closureRows.map((c) => ({
+    id: c.id,
+    date: ymd(c.date),
+    kind: c.kind,
+    openMinute: c.openMinute,
+    closeMinute: c.closeMinute,
+    reason: c.reason,
   }));
 
   return (
@@ -156,12 +171,18 @@ export default async function GymHoursPage({
           </Link>
         </header>
 
-        <div className="mx-auto w-full max-w-4xl space-y-5 p-6">
+        <div className="mx-auto w-full max-w-6xl space-y-5 p-6">
           <HoursForm
             lang={lang}
             slug={slug}
             tone={theme}
             initialDays={initialDays}
+          />
+          <ClosureManager
+            lang={lang}
+            slug={slug}
+            tone={theme}
+            initialClosures={initialClosures}
           />
         </div>
       </main>

@@ -4,7 +4,6 @@ import { logout } from "@/lib/auth/actions";
 import {
   MOCK_ACCESS_LOG,
   MOCK_CLOSED_DAYS,
-  MOCK_EXPIRING,
   MOCK_GROUP_CLASSES_BY_DAY,
   MOCK_KPI,
   MOCK_RESERVATIONS_TODAY,
@@ -14,6 +13,8 @@ import {
   groupByHour,
 } from "../../../preview/_mock";
 import { SidebarNav } from "./SidebarNav";
+import { getKpiExtras, fmtHoursRange, fmtCheckIn } from "./kpi-data";
+import type { ReactNode } from "react";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -21,12 +22,16 @@ const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 type Props = {
   lang: string;
   slug: string;
+  gymId: string;
   businessName: string;
 };
 
-export async function DashboardNormal({ lang, slug, businessName }: Props) {
+export async function DashboardNormal({ lang, slug, gymId, businessName }: Props) {
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
+  const tc = await getTranslations("checkin");
+  const th = await getTranslations("hours");
+  const kpi = await getKpiExtras(gymId);
   const buckets = groupByHour(MOCK_RESERVATIONS_TODAY);
   const weekdays = lang === "en" ? WEEKDAYS_EN : WEEKDAYS;
   const today = new Date();
@@ -81,26 +86,92 @@ export async function DashboardNormal({ lang, slug, businessName }: Props) {
         </header>
 
         <div className="grid grid-cols-12 gap-4 p-6">
+          <div className="col-span-12 grid grid-cols-2 gap-4 xl:col-span-5">
           <KpiCard
             label={t("kpiTodayBookings")}
             value={MOCK_KPI.todayBookings}
             sub={t("unitCount")}
-            badge={t("inProgress", { count: MOCK_KPI.inProgress })}
+            cellOnly
+            extra={
+              <div className="flex flex-col items-end gap-1 text-right text-xs">
+                {kpi.hours.state === "OPEN" ? (
+                  <>
+                    <span
+                      className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        kpi.hours.onBreak
+                          ? "bg-amber-100 text-amber-800"
+                          : kpi.hours.nowOpen
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-rose-100 text-rose-700"
+                      }`}
+                    >
+                      {kpi.hours.onBreak
+                        ? th("onBreakNow")
+                        : kpi.hours.nowOpen
+                          ? th("operatingNow")
+                          : th("closedNow")}
+                    </span>
+                    <span className="font-mono tabular-nums text-zinc-600">
+                      {fmtHoursRange(kpi.hours)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                    {th("closedToday")}
+                  </span>
+                )}
+              </div>
+            }
           />
           <KpiCard
             label={t("kpiActiveMembers")}
             value={`${MOCK_KPI.activeMembers}/${MOCK_KPI.totalCustomersEver}`}
             sub={t("unitPeople")}
+            cellOnly
           />
+          </div>
+          <div className="col-span-12 xl:col-span-7">
           <KpiCard
             label={t("kpiTodayStaff")}
-            value={MOCK_KPI.todayShiftStaff}
-            sub={t("unitPeople")}
+            value={kpi.staff.filter((s) => s.checkInMin != null).length}
+            sub={`/${kpi.staff.length}${t("unitPeople")}`}
+            cellOnly
+            extra={
+              kpi.staff.length === 0 ? null : (
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 lg:grid-cols-3">
+                  {kpi.staff.slice(0, 9).map((s) => (
+                    <li key={s.userId} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate text-ink">{s.name}</span>
+                      {s.checkInMin != null ? (
+                        <div className="flex shrink-0 items-center gap-1">
+                          <span className="font-mono tabular-nums text-zinc-700">
+                            {fmtCheckIn(s.checkInMin)}
+                          </span>
+                          {s.lateMin != null && s.lateMin > 0 && (
+                            <span className="rounded-full bg-rose-100 px-1 text-[9px] font-bold text-rose-700">
+                              {tc("late", { min: s.lateMin })}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="shrink-0 text-[10px] text-zinc-400">{tc("notCheckedIn")}</span>
+                      )}
+                    </li>
+                  ))}
+                  {kpi.staff.length > 9 && (
+                    <li className="col-span-2 text-[10px] text-zinc-500 lg:col-span-3">
+                      +{kpi.staff.length - 9}
+                    </li>
+                  )}
+                </ul>
+              )
+            }
           />
+          </div>
+          <input type="hidden" data-lang={lang} data-slug={slug} />
 
           <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-6 xl:col-span-5">
             <SectionHead
-              eyebrow={t("timelineEyebrow")}
               title={t("timelineTitle")}
             />
             <ol className="mt-5 divide-y divide-amber-100">
@@ -164,19 +235,15 @@ export async function DashboardNormal({ lang, slug, businessName }: Props) {
             </ol>
           </section>
 
-          <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-6 xl:col-span-5">
+          <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-4 xl:col-span-5">
             <SectionHead
-              eyebrow={t("calendarEyebrow")}
               title={t("calendarTitle", { month: monthLabel })}
             />
             <CalendarGrid t={t} weekdays={weekdays} monthInfo={monthInfo} />
           </section>
 
           <section className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-4 xl:col-span-2">
-            <SectionHead
-              eyebrow={t("accessEyebrow")}
-              title={t("accessTitle")}
-            />
+            <SectionHead title={t("accessTitle")} />
             <ul className="mt-4 divide-y divide-amber-100">
               {MOCK_ACCESS_LOG.filter((e) => e.daysAgo === 0).map((e) => (
                 <li key={e.id} className="py-2 first:pt-0 last:pb-0">
@@ -197,25 +264,6 @@ export async function DashboardNormal({ lang, slug, businessName }: Props) {
             </ul>
           </section>
 
-          <section className="col-span-12 rounded-2xl bg-amber-100/60 p-6 ring-1 ring-amber-200/60">
-            <SectionHead
-              eyebrow={t("membershipEyebrow")}
-              title={t("membershipTitle")}
-            />
-            <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {MOCK_EXPIRING.map((m) => (
-                <li
-                  key={m.name}
-                  className="flex items-center justify-between rounded-lg bg-white px-4 py-3 ring-1 ring-amber-200/60"
-                >
-                  <span className="font-medium text-ink">{m.name}</span>
-                  <span className="text-xs text-zinc-600">
-                    {t("daysLeft", { days: m.daysLeft })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
         </div>
 
         <footer className="border-t border-amber-200/60 bg-white/50 px-8 py-5 text-xs text-zinc-500">
@@ -232,12 +280,14 @@ export async function DashboardNormal({ lang, slug, businessName }: Props) {
   );
 }
 
-function SectionHead({ eyebrow, title }: { eyebrow: string; title: string }) {
+function SectionHead({ eyebrow, title }: { eyebrow?: string; title: string }) {
   return (
     <div>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink/60">
-        {eyebrow}
-      </span>
+      {eyebrow && (
+        <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink/60">
+          {eyebrow}
+        </span>
+      )}
       <h2 className="font-heading text-base tracking-tight text-ink">
         {title}
       </h2>
@@ -249,30 +299,33 @@ function KpiCard({
   label,
   value,
   sub,
-  badge,
+  span = "lg:col-span-4",
+  cellOnly,
+  extra,
 }: {
   label: string;
   value: string | number;
   sub: string;
-  badge?: string;
+  span?: string;
+  cellOnly?: boolean;
+  extra?: ReactNode;
 }) {
+  const wrap = cellOnly
+    ? "rounded-2xl border border-amber-200/60 bg-white p-5"
+    : `col-span-12 rounded-2xl border border-amber-200/60 bg-white p-5 sm:col-span-6 ${span}`;
   return (
-    <div className="col-span-12 rounded-2xl border border-amber-200/60 bg-white p-5 sm:col-span-6 lg:col-span-4">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink/60">
-          {label}
-        </span>
-        {badge && (
-          <span className="rounded-full bg-band px-2 py-0.5 text-[10px] font-medium text-ink">
-            {badge}
+    <div className={wrap}>
+      <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ink/60">
+        {label}
+      </span>
+      <div className="mt-2 flex items-start justify-between gap-6">
+        <div className="flex items-baseline gap-1.5 shrink-0">
+          <span className="font-heading text-4xl tabular-nums tracking-tight text-ink">
+            {value}
           </span>
-        )}
-      </div>
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="font-heading text-4xl tabular-nums tracking-tight text-ink">
-          {value}
-        </span>
-        <span className="text-sm text-zinc-500">{sub}</span>
+          <span className="text-sm text-zinc-500">{sub}</span>
+        </div>
+        {extra && <div className="min-w-0 flex-1 pl-4">{extra}</div>}
       </div>
     </div>
   );
@@ -289,7 +342,7 @@ function CalendarGrid({
 }) {
   const { daysInMonth, firstWeekday, todayDay } = monthInfo;
   return (
-    <div className="mt-5 grid grid-cols-7 gap-1.5 text-center">
+    <div className="mt-4 grid grid-cols-7 gap-1 text-center">
       {weekdays.map((w) => (
         <span
           key={w}
@@ -306,7 +359,7 @@ function CalendarGrid({
           return (
             <div
               key={day}
-              className="relative min-h-[68px] rounded-md bg-amber-200/60 p-2 text-left text-amber-900/70"
+              className="relative min-h-[68px] rounded-md bg-amber-200/60 p-1.5 text-left text-amber-900/70"
             >
               <div className="text-xs font-medium">{day}</div>
               <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
@@ -320,7 +373,7 @@ function CalendarGrid({
         return (
           <div
             key={day}
-            className={`min-h-[68px] rounded-md border border-amber-200/60 p-2 text-left ${
+            className={`min-h-[68px] rounded-md border border-amber-200/60 p-1.5 text-left ${
               isToday ? "bg-white ring-2 ring-ink" : "bg-amber-50/30"
             }`}
           >
@@ -330,7 +383,7 @@ function CalendarGrid({
                 {classes.map((key) => (
                   <li
                     key={key}
-                    className="truncate rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800 ring-1 ring-emerald-200/70"
+                    className="truncate rounded bg-emerald-50 px-1.5 py-0.5 text-center text-[10px] font-medium text-emerald-800 ring-1 ring-emerald-200/70"
                   >
                     {t(`sampleGroupClass.${key}`)}
                   </li>

@@ -144,6 +144,11 @@ enum TimeUnit {
   M60
 }
 
+enum ClosureKind {
+  CLOSED
+  SHORTENED
+}
+
 // ─── PSGC Location (글로벌 마스터) ────────────────────────
 
 model City {
@@ -192,6 +197,7 @@ model Business {
   staffLeaves         StaffLeave[]
   services            Service[]
   hours               BusinessHours[]
+  closures            BusinessClosure[]
   images              BusinessImage[]
   memberships         Membership[]
   packages            Package[]
@@ -404,6 +410,24 @@ model BusinessHours {
   breakEndMin   Int?
 
   @@unique([gymId, weekday])
+}
+
+// 특정 날짜 단건 override. 같은 날짜에 한 건만 허용 (@@unique).
+//   CLOSED    : 전일 휴무 (open/close 무시)
+//   SHORTENED : 단축영업 (openMinute, closeMinute 사용)
+model BusinessClosure {
+  id          String      @id @default(cuid())
+  gymId       String
+  business    Business    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  date        DateTime    @db.Date
+  kind        ClosureKind
+  openMinute  Int?
+  closeMinute Int?
+  reason      String?
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+
+  @@unique([gymId, date])
+  @@index([gymId, date])
 }
 
 model BusinessImage {
