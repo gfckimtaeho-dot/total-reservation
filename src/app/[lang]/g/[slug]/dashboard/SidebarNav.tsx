@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 export type SidebarTone = "normal" | "black" | "white";
 
@@ -25,7 +25,7 @@ function items(lang: string, slug: string): Item[] {
     { key: "members", href: `/${lang}/g/${slug}/members` },
     { key: "trainers", href: `/${lang}/g/${slug}/trainers` },
     { key: "hours", href: `/${lang}/g/${slug}/hours` },
-    { key: "services", href: null },
+    { key: "services", href: `/${lang}/g/${slug}/services` },
     { key: "revenue", href: null },
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
   ];
@@ -54,7 +54,10 @@ const TONE = {
 
 // pathname에서 lang/slug/active key를 모두 derive. props로 안 받아도
 // loading.tsx 같은 곳에서 그대로 mount할 수 있음.
-function parsePathname(pathname: string): {
+function parsePathname(
+  pathname: string,
+  fallbackLocale: string,
+): {
   lang: string;
   slug: string;
   activeKey: ActiveKey | null;
@@ -62,9 +65,11 @@ function parsePathname(pathname: string): {
   // /{lang}/g/{slug}/{section}/... — 'g' literal 다음을 slug로 anchor.
   // 단순 인덱스 접근은 lang이 i18n 미들웨어로 prepend되지 않은 edge case에서
   // slug 자리가 'g' 자체로 derive되는 사고를 일으킬 수 있음.
+  // lang fallback도 parts[0]에 의존하면 'g'가 lang으로 잘못 derive되어
+  // href가 `/g/g/{slug}/...`로 망가짐 — next-intl locale로 anchor.
   const parts = pathname.split("/").filter(Boolean);
   const gIdx = parts.indexOf("g");
-  const lang = gIdx > 0 ? parts[gIdx - 1]! : (parts[0] ?? "ko");
+  const lang = gIdx > 0 ? parts[gIdx - 1]! : fallbackLocale;
   const slug = gIdx >= 0 ? (parts[gIdx + 1] ?? "") : "";
   const section = gIdx >= 0 ? (parts[gIdx + 2] ?? "") : "";
   let key: ActiveKey | null = null;
@@ -83,17 +88,19 @@ function keyFromHref(href: string): ActiveKey | null {
   if (href.endsWith("/members")) return "members";
   if (href.endsWith("/trainers")) return "trainers";
   if (href.endsWith("/hours")) return "hours";
+  if (href.endsWith("/services")) return "services";
   if (href.endsWith("/settings")) return "settings";
   return null;
 }
 
 export function SidebarNav({ tone }: { tone: SidebarTone }) {
   const t = useTranslations("nav");
+  const locale = useLocale();
   const tk = TONE[tone];
   const pathname = usePathname() ?? "";
   const { lang, slug, activeKey } = useMemo(
-    () => parsePathname(pathname),
-    [pathname],
+    () => parsePathname(pathname, locale),
+    [pathname, locale],
   );
   const list = useMemo(() => items(lang, slug), [lang, slug]);
   const router = useRouter();
@@ -156,6 +163,7 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
           (n.key === "members" ||
             n.key === "trainers" ||
             n.key === "hours" ||
+            n.key === "services" ||
             n.key === "settings") &&
           effectiveKey === n.key;
         if (!n.href) {

@@ -35,8 +35,8 @@ export async function MembersWhite({
 
   return (
     <div className="flex min-h-screen bg-white">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-zinc-100 bg-white lg:flex">
-        <div className="border-b border-zinc-100 px-6 py-6">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-violet-100 bg-violet-50 lg:flex">
+        <div className="border-b border-violet-100 px-6 py-6">
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
             {tn("studio")}
           </span>
@@ -46,7 +46,7 @@ export async function MembersWhite({
           <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
         </div>
         <SidebarNav tone="white" />
-        <div className="border-t border-zinc-100 px-3 py-4">
+        <div className="border-t border-violet-100 px-3 py-4">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
               {tn("logout")}

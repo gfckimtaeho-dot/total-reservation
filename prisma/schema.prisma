@@ -149,6 +149,11 @@ enum ClosureKind {
   SHORTENED
 }
 
+enum ScheduleKind {
+  RECURRING
+  ONE_OFF
+}
+
 // ─── PSGC Location (글로벌 마스터) ────────────────────────
 
 model City {
@@ -214,6 +219,7 @@ model Business {
   payments            Payment[]
   magicLinkTokens     MagicLinkToken[]
   inviteToken         InviteToken?
+  scheduledClasses    ScheduledClass[]
 
   @@index([cityId, barangayId])
   @@index([status])
@@ -343,9 +349,10 @@ model Staff {
   createdAt       DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
 
-  reservations Reservation[]
-  images       StaffImage[]
-  leaves       StaffLeave[]
+  reservations     Reservation[]
+  images           StaffImage[]
+  leaves           StaffLeave[]
+  scheduledClasses ScheduledClass[]
 
   @@index([gymId, role])
 }
@@ -387,14 +394,53 @@ model Service {
   timeUnit    TimeUnit
   durationMin Int
   pricePhp    Int
+  payoutPhp   Int      @default(0)
   deductCount Decimal  @default(1.0) @db.Decimal(3, 1)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
   reservations Reservation[]
   packages     Package[]
+  schedules    ScheduledClass[]
 
   @@index([gymId])
+}
+
+// ─── ScheduledClass ────────────────────────────────────────
+// 단체 수업의 정기 운영 schedule. 같은 service를 매주 정해진 요일/시간에
+// 반복 운영. 회원은 해당 schedule에 등록(=Reservation row 생성).
+//
+// 1:1 service는 이 테이블 안 씀 — 회원이 빈 슬롯 자유 예약. capacity ≥ 2
+// 인 단체 service만 schedule을 갖는 패턴.
+
+model ScheduledClass {
+  id           String       @id @default(cuid())
+  gymId        String
+  business     Business     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  serviceId    String
+  service      Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staffId      String?
+  staff        Staff?       @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  kind         ScheduleKind @default(RECURRING)
+  // RECURRING: 매주 반복할 요일들. ONE_OFF면 빈 배열.
+  weekdays     Weekday[]
+  // ONE_OFF: 특정 단발 날짜. RECURRING이면 null.
+  specificDate DateTime?    @db.Date
+  startMinute  Int
+  // RECURRING의 운영 시작일. ONE_OFF는 specificDate와 같은 값으로 기록.
+  validFrom    DateTime     @db.Date
+  // RECURRING의 운영 종료일 (null=무기한). ONE_OFF는 null.
+  validUntil   DateTime?    @db.Date
+  active       Boolean      @default(true)
+  note         String?
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
+
+  reservations Reservation[]
+
+  @@index([gymId, serviceId])
+  @@index([gymId, active])
+  @@index([gymId, specificDate])
 }
 
 // ─── Business Hours / Images ───────────────────────────────
@@ -490,6 +536,10 @@ model Reservation {
   endAt            DateTime          @db.Timestamptz(3)
   status           ReservationStatus @default(PENDING_PAYMENT)
   depositConfirmed Boolean           @default(false)
+  // 정기 단체 수업에서 발생한 예약이면 그 schedule을 가리킴.
+  // 1:1 자유 예약은 null. schedule 삭제 시 SetNull로 row는 보존.
+  scheduledClassId String?
+  scheduledClass   ScheduledClass?   @relation(fields: [scheduledClassId], references: [id], onDelete: SetNull)
   createdAt        DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
 

@@ -1,0 +1,215 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { prisma } from "@/lib/db/client";
+import { requireGymStaff } from "@/lib/auth/dal";
+import type { TimeUnit } from "@/generated/prisma/enums";
+
+// 숫자 input은 모두 type="text" + 콤마 포맷팅 ("5,000")으로 들어오므로
+// 콤마 제거 후 정수 변환. 빈 문자열은 0으로.
+const intWithCommas = z.preprocess((v) => {
+  if (typeof v !== "string") return v;
+  const cleaned = v.replace(/,/g, "").trim();
+  if (cleaned === "") return 0;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : NaN;
+}, z.number().int());
+
+const schema = z.object({
+  slug: z.string().min(1),
+  type: z.enum(["personal", "group"]),
+  name: z.string().trim().min(1, "name").max(60),
+  durationMin: intWithCommas.pipe(z.number().int().min(5).max(480)),
+  capacity: intWithCommas.pipe(z.number().int().min(1).max(100)),
+  pricePhp: intWithCommas.pipe(z.number().int().min(0)),
+  payoutPhp: intWithCommas.pipe(z.number().int().min(0)),
+});
+
+export type CreateServiceState = {
+  errors?: Record<string, string[] | undefined>;
+  ok?: boolean;
+  at?: number;
+};
+
+export async function createService(
+  _prev: CreateServiceState,
+  formData: FormData,
+): Promise<CreateServiceState> {
+  const parsed = schema.safeParse({
+    slug: formData.get("slug"),
+    type: formData.get("type"),
+    name: formData.get("name"),
+    durationMin: formData.get("durationMin"),
+    capacity: formData.get("capacity") || "1",
+    pricePhp: formData.get("pricePhp") || "0",
+    payoutPhp: formData.get("payoutPhp") || "0",
+  });
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[] | undefined
+      >,
+    };
+  }
+  const data = parsed.data;
+
+  const fieldErrors: Record<string, string[]> = {};
+  if (data.type === "group" && data.capacity < 2) {
+    fieldErrors.capacity = ["capacity"];
+  }
+  if (data.payoutPhp > data.pricePhp) {
+    fieldErrors.payoutPhp = ["payoutOverPrice"];
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return { errors: fieldErrors };
+  }
+
+  const auth = await requireGymStaff(data.slug);
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { errors: { _global: ["permission"] } };
+  }
+  const gymId = auth.business!.id;
+
+  // 60의 배수 → 정시 슬롯(M60), 그 외 → 30분 슬롯(M30)으로 자동 추론.
+  // step은 슬롯 시작 간격이며 durationMin과 다른 개념: 50분 PT라도 30분마다
+  // 시작 가능(M30), 60분 요가는 정시 시작(M60)이 자연스러움.
+  const timeUnit: TimeUnit = data.durationMin % 60 === 0 ? "M60" : "M30";
+  const capacity = data.type === "personal" ? 1 : data.capacity;
+
+  await prisma.service.create({
+    data: {
+      gymId,
+      name: data.name,
+      capacity,
+      timeUnit,
+      durationMin: data.durationMin,
+      pricePhp: data.pricePhp,
+      payoutPhp: data.payoutPhp,
+    },
+  });
+
+  revalidatePath(`/ko/g/${data.slug}/services`);
+  revalidatePath(`/en/g/${data.slug}/services`);
+  return { ok: true, at: Date.now() };
+}
+
+const updateSchema = z.object({
+  serviceId: z.string().min(1),
+  slug: z.string().min(1),
+  type: z.enum(["personal", "group"]),
+  name: z.string().trim().min(1, "name").max(60),
+  durationMin: intWithCommas.pipe(z.number().int().min(5).max(480)),
+  capacity: intWithCommas.pipe(z.number().int().min(1).max(100)),
+  pricePhp: intWithCommas.pipe(z.number().int().min(0)),
+  payoutPhp: intWithCommas.pipe(z.number().int().min(0)),
+});
+
+export type UpdateServiceState = {
+  errors?: Record<string, string[] | undefined>;
+  ok?: boolean;
+  at?: number;
+};
+
+export async function updateService(
+  _prev: UpdateServiceState,
+  formData: FormData,
+): Promise<UpdateServiceState> {
+  const parsed = updateSchema.safeParse({
+    serviceId: formData.get("serviceId"),
+    slug: formData.get("slug"),
+    type: formData.get("type"),
+    name: formData.get("name"),
+    durationMin: formData.get("durationMin"),
+    capacity: formData.get("capacity") || "1",
+    pricePhp: formData.get("pricePhp") || "0",
+    payoutPhp: formData.get("payoutPhp") || "0",
+  });
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[] | undefined
+      >,
+    };
+  }
+  const data = parsed.data;
+
+  const fieldErrors: Record<string, string[]> = {};
+  if (data.type === "group" && data.capacity < 2) {
+    fieldErrors.capacity = ["capacity"];
+  }
+  if (data.payoutPhp > data.pricePhp) {
+    fieldErrors.payoutPhp = ["payoutOverPrice"];
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return { errors: fieldErrors };
+  }
+
+  const auth = await requireGymStaff(data.slug);
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { errors: { _global: ["permission"] } };
+  }
+  const gymId = auth.business!.id;
+
+  const svc = await prisma.service.findUnique({
+    where: { id: data.serviceId },
+  });
+  if (!svc || svc.gymId !== gymId) {
+    return { errors: { _global: ["permission"] } };
+  }
+
+  const timeUnit: TimeUnit = data.durationMin % 60 === 0 ? "M60" : "M30";
+  const capacity = data.type === "personal" ? 1 : data.capacity;
+
+  await prisma.service.update({
+    where: { id: data.serviceId },
+    data: {
+      name: data.name,
+      capacity,
+      timeUnit,
+      durationMin: data.durationMin,
+      pricePhp: data.pricePhp,
+      payoutPhp: data.payoutPhp,
+    },
+  });
+
+  revalidatePath(`/ko/g/${data.slug}/services`);
+  revalidatePath(`/en/g/${data.slug}/services`);
+  return { ok: true, at: Date.now() };
+}
+
+export async function deleteService(
+  slug: string,
+  serviceId: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const auth = await requireGymStaff(slug);
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { error: "permission" };
+  }
+  const gymId = auth.business!.id;
+
+  const svc = await prisma.service.findUnique({ where: { id: serviceId } });
+  if (!svc || svc.gymId !== gymId) {
+    return { error: "permission" };
+  }
+
+  // 진행 중·예정된 예약이 남아있으면 삭제 차단 — 이력 데이터 보호.
+  const activeCount = await prisma.reservation.count({
+    where: {
+      serviceId,
+      status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
+      endAt: { gte: new Date() },
+    },
+  });
+  if (activeCount > 0) {
+    return { error: "hasReservations" };
+  }
+
+  await prisma.service.delete({ where: { id: serviceId } });
+
+  revalidatePath(`/ko/g/${slug}/services`);
+  revalidatePath(`/en/g/${slug}/services`);
+  return { ok: true };
+}

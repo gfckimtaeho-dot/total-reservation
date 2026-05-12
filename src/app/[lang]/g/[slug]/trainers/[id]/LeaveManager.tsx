@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { NativePickerInput } from "@/components/NativePickerInput";
 import { addLeave, removeLeave } from "../actions";
 
 type Leave = {
@@ -181,7 +182,7 @@ export function LeaveManager({
                 <span className={`text-xs font-medium ${tk.label}`}>
                   {t("leaveStartDate")}
                 </span>
-                <input
+                <NativePickerInput
                   type="date"
                   lang={lang}
                   value={start}
@@ -194,7 +195,7 @@ export function LeaveManager({
                 <span className={`text-xs font-medium ${tk.label}`}>
                   {t("leaveEndDate")}
                 </span>
-                <input
+                <NativePickerInput
                   type="date"
                   lang={lang}
                   value={end}

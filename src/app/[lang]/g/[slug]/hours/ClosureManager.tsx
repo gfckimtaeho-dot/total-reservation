@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { NativePickerInput } from "@/components/NativePickerInput";
 import type { ClosureKind } from "@/generated/prisma/enums";
 import { removeClosure, saveClosure, type SaveClosureState } from "./actions";
 
@@ -402,7 +403,7 @@ function ClosureModal({
 
           {kind === "SHORTENED" && (
             <div className="flex items-center gap-2">
-              <input
+              <NativePickerInput
                 type="time"
                 lang={lang}
                 name="openTime"
@@ -410,7 +411,7 @@ function ClosureModal({
                 className={`${tk.input} flex-1`}
               />
               <span className={`text-xs ${tk.subtle}`}>~</span>
-              <input
+              <NativePickerInput
                 type="time"
                 lang={lang}
                 name="closeTime"

@@ -18,13 +18,13 @@ const PAGE_BG = {
 const SIDEBAR_BG = {
   normal: "bg-band",
   black: "bg-black",
-  white: "border-r border-zinc-100 bg-white",
+  white: "border-r border-violet-100 bg-violet-50",
 } as const;
 
 const SIDEBAR_BORDER = {
   normal: "border-ink/10",
   black: "border-white/5",
-  white: "border-zinc-100",
+  white: "border-violet-100",
 } as const;
 
 const SIDEBAR_LABEL = {

@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
+import { prisma } from "@/lib/db/client";
 import {
   MOCK_ACCESS_LOG,
-  MOCK_CLOSED_DAYS,
-  MOCK_GROUP_CLASSES_BY_DAY,
   MOCK_KPI,
   MOCK_RESERVATIONS_TODAY,
   fmtTime,
@@ -14,6 +13,11 @@ import {
 } from "../../../preview/_mock";
 import { SidebarNav } from "./SidebarNav";
 import { getKpiExtras, fmtHoursRange, fmtCheckIn } from "./kpi-data";
+import { CalendarMonth } from "./CalendarMonth";
+import {
+  expandSchedulesToMonth,
+  type ScheduleInput,
+} from "@/lib/booking/schedule-expand";
 import type { ReactNode } from "react";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
@@ -31,6 +35,7 @@ export async function DashboardBlack({ lang, slug, gymId, businessName }: Props)
   const tn = await getTranslations("nav");
   const tc = await getTranslations("checkin");
   const th = await getTranslations("hours");
+  const ts = await getTranslations("services.schedule");
   const kpi = await getKpiExtras(gymId);
   const buckets = groupByHour(MOCK_RESERVATIONS_TODAY);
   const weekdays = lang === "en" ? WEEKDAYS_EN : WEEKDAYS;
@@ -47,6 +52,83 @@ export async function DashboardBlack({ lang, slug, gymId, businessName }: Props)
   ).format(today);
   const monthLabel = formatManilaMonthLabel(today, lang);
   const monthInfo = getManilaMonthInfo(today);
+  const monthStart = new Date(Date.UTC(monthInfo.year, monthInfo.month - 1, 1));
+  const monthEndExclusive = new Date(
+    Date.UTC(monthInfo.year, monthInfo.month, 1),
+  );
+
+  const [groupServiceRows, closures] = await Promise.all([
+    prisma.service.findMany({
+      where: { gymId, capacity: { gte: 2 } },
+      include: {
+        schedules: {
+          where: { active: true },
+          orderBy: { startMinute: "asc" },
+          include: {
+            staff: { include: { user: { select: { name: true } } } },
+            reservations: {
+              where: {
+                status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
+                startAt: { gte: monthStart, lt: monthEndExclusive },
+              },
+              select: { startAt: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.businessClosure.findMany({
+      where: {
+        gymId,
+        date: { gte: monthStart, lt: monthEndExclusive },
+        kind: "CLOSED",
+      },
+      select: { date: true },
+    }),
+  ]);
+
+  const allSchedules: ScheduleInput[] = groupServiceRows.flatMap((s) =>
+    s.schedules.map((sc) => ({
+      id: sc.id,
+      serviceId: s.id,
+      service: { name: s.name, capacity: s.capacity, durationMin: s.durationMin },
+      staff: sc.staff ? { user: { name: sc.staff.user.name } } : null,
+      kind: sc.kind,
+      weekdays: sc.weekdays,
+      specificDate: sc.specificDate,
+      startMinute: sc.startMinute,
+      validFrom: sc.validFrom,
+      validUntil: sc.validUntil,
+      note: sc.note,
+      reservations: sc.reservations.map((r) => ({ startAt: r.startAt })),
+    })),
+  );
+
+  const eventsByDayMap = expandSchedulesToMonth(
+    allSchedules,
+    monthInfo.year,
+    monthInfo.month - 1,
+  );
+  const eventsByDay: Record<number, ReturnType<typeof expandSchedulesToMonth> extends Map<number, infer V> ? V : never> = Object.fromEntries(eventsByDayMap);
+
+  const closedDays = closures.map((c) => c.date.getUTCDate());
+
+  const calendarLabels = {
+    closed: t("closed"),
+    badgeRecurring: ts("badgeRecurring"),
+    badgeOneOff: ts("badgeOneOff"),
+    capacityLabel: t("capacityLabel"),
+    enrolledLabel: t("enrolledLabel"),
+    durationLabel: t("durationLabel"),
+    startTimeLabel: t("startTimeLabel"),
+    endTimeLabel: t("endTimeLabel"),
+    staffLabel: t("staffLabel"),
+    staffNone: ts("staffNone"),
+    noteLabel: t("noteLabel"),
+    noEvents: t("noEventsForDay"),
+    unit: { min: t("unitMin"), people: t("unitPeople") },
+  };
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-200">
@@ -247,7 +329,14 @@ export async function DashboardBlack({ lang, slug, gymId, businessName }: Props)
             <SectionHead
               title={t("calendarTitle", { month: monthLabel })}
             />
-            <DarkCalendarGrid t={t} weekdays={weekdays} monthInfo={monthInfo} />
+            <CalendarMonth
+              weekdays={weekdays}
+              monthInfo={monthInfo}
+              eventsByDay={eventsByDay}
+              closedDays={closedDays}
+              tone="black"
+              labels={calendarLabels}
+            />
           </section>
 
           <section className="col-span-12 rounded-2xl border border-white/5 bg-zinc-900 p-4 xl:col-span-2">
@@ -339,65 +428,3 @@ function DarkKpi({
   );
 }
 
-function DarkCalendarGrid({
-  t,
-  weekdays,
-  monthInfo,
-}: {
-  t: (k: string, v?: Record<string, string | number>) => string;
-  weekdays: readonly string[];
-  monthInfo: ReturnType<typeof getManilaMonthInfo>;
-}) {
-  const { daysInMonth, firstWeekday, todayDay } = monthInfo;
-  return (
-    <div className="mt-4 grid grid-cols-7 gap-1 text-center">
-      {weekdays.map((w) => (
-        <span key={w} className="pb-2 text-[11px] font-medium text-zinc-500">
-          {w}
-        </span>
-      ))}
-      {Array.from({ length: firstWeekday }).map((_, i) => (
-        <div key={`pad-${i}`} />
-      ))}
-      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
-        if (MOCK_CLOSED_DAYS.has(day)) {
-          return (
-            <div
-              key={day}
-              className="relative min-h-[68px] rounded-md bg-zinc-700 p-2 text-left"
-            >
-              <div className="text-xs font-medium text-zinc-400">{day}</div>
-              <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-zinc-400">
-                {t("closed")}
-              </div>
-            </div>
-          );
-        }
-        const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
-        const isToday = day === todayDay;
-        return (
-          <div
-            key={day}
-            className={`min-h-[68px] rounded-md border border-white/5 bg-zinc-900 p-1.5 text-left ${
-              isToday ? "ring-2 ring-lime-300" : ""
-            }`}
-          >
-            <div className="text-xs font-medium text-zinc-200">{day}</div>
-            {classes.length > 0 && (
-              <ul className="mt-1 space-y-0.5">
-                {classes.map((key) => (
-                  <li
-                    key={key}
-                    className="truncate rounded bg-lime-300/10 px-1.5 py-0.5 text-center text-[10px] font-medium text-lime-300 ring-1 ring-lime-300/30"
-                  >
-                    {t(`sampleGroupClass.${key}`)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}

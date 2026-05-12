@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
+import { NativePickerInput } from "@/components/NativePickerInput";
 import { saveBusinessHours, type SaveHoursState } from "./actions";
 
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
@@ -188,7 +189,7 @@ export function HoursForm({
                     </>
                   ) : (
                     <>
-                      <input
+                      <NativePickerInput
                         type="time"
                         lang={lang}
                         name={`openTime_${w}`}
@@ -200,7 +201,7 @@ export function HoursForm({
                         className={`${tk.input} w-[8rem] shrink-0`}
                       />
                       <span className={`text-xs ${tk.subtle}`}>~</span>
-                      <input
+                      <NativePickerInput
                         type="time"
                         lang={lang}
                         name={`closeTime_${w}`}
@@ -236,7 +237,7 @@ export function HoursForm({
                       <span className={`ml-1 shrink-0 text-[10px] uppercase ${tk.subtle}`}>
                         {t("breakLabel")}
                       </span>
-                      <input
+                      <NativePickerInput
                         type="time"
                         lang={lang}
                         name={`breakStartTime_${w}`}
@@ -248,7 +249,7 @@ export function HoursForm({
                         className={`${tk.input} w-[8rem] shrink-0`}
                       />
                       <span className={`text-xs ${tk.subtle}`}>~</span>
-                      <input
+                      <NativePickerInput
                         type="time"
                         lang={lang}
                         name={`breakEndTime_${w}`}

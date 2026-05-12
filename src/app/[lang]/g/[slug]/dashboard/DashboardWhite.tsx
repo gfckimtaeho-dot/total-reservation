@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
+import { prisma } from "@/lib/db/client";
 import {
   MOCK_ACCESS_LOG,
-  MOCK_CLOSED_DAYS,
-  MOCK_GROUP_CLASSES_BY_DAY,
   MOCK_KPI,
   MOCK_RESERVATIONS_TODAY,
   fmtTime,
@@ -14,6 +13,11 @@ import {
 } from "../../../preview/_mock";
 import { SidebarNav } from "./SidebarNav";
 import { getKpiExtras, fmtHoursRange, fmtCheckIn } from "./kpi-data";
+import { CalendarMonth } from "./CalendarMonth";
+import {
+  expandSchedulesToMonth,
+  type ScheduleInput,
+} from "@/lib/booking/schedule-expand";
 import type { ReactNode } from "react";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
@@ -31,6 +35,7 @@ export async function DashboardWhite({ lang, slug, gymId, businessName }: Props)
   const tn = await getTranslations("nav");
   const tc = await getTranslations("checkin");
   const th = await getTranslations("hours");
+  const ts = await getTranslations("services.schedule");
   const kpi = await getKpiExtras(gymId);
   const buckets = groupByHour(MOCK_RESERVATIONS_TODAY);
   const weekdays = lang === "en" ? WEEKDAYS_EN : WEEKDAYS;
@@ -47,11 +52,88 @@ export async function DashboardWhite({ lang, slug, gymId, businessName }: Props)
   ).format(today);
   const monthLabel = formatManilaMonthLabel(today, lang);
   const monthInfo = getManilaMonthInfo(today);
+  const monthStart = new Date(Date.UTC(monthInfo.year, monthInfo.month - 1, 1));
+  const monthEndExclusive = new Date(
+    Date.UTC(monthInfo.year, monthInfo.month, 1),
+  );
+
+  const [groupServiceRows, closures] = await Promise.all([
+    prisma.service.findMany({
+      where: { gymId, capacity: { gte: 2 } },
+      include: {
+        schedules: {
+          where: { active: true },
+          orderBy: { startMinute: "asc" },
+          include: {
+            staff: { include: { user: { select: { name: true } } } },
+            reservations: {
+              where: {
+                status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
+                startAt: { gte: monthStart, lt: monthEndExclusive },
+              },
+              select: { startAt: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.businessClosure.findMany({
+      where: {
+        gymId,
+        date: { gte: monthStart, lt: monthEndExclusive },
+        kind: "CLOSED",
+      },
+      select: { date: true },
+    }),
+  ]);
+
+  const allSchedules: ScheduleInput[] = groupServiceRows.flatMap((s) =>
+    s.schedules.map((sc) => ({
+      id: sc.id,
+      serviceId: s.id,
+      service: { name: s.name, capacity: s.capacity, durationMin: s.durationMin },
+      staff: sc.staff ? { user: { name: sc.staff.user.name } } : null,
+      kind: sc.kind,
+      weekdays: sc.weekdays,
+      specificDate: sc.specificDate,
+      startMinute: sc.startMinute,
+      validFrom: sc.validFrom,
+      validUntil: sc.validUntil,
+      note: sc.note,
+      reservations: sc.reservations.map((r) => ({ startAt: r.startAt })),
+    })),
+  );
+
+  const eventsByDayMap = expandSchedulesToMonth(
+    allSchedules,
+    monthInfo.year,
+    monthInfo.month - 1,
+  );
+  const eventsByDay: Record<number, ReturnType<typeof expandSchedulesToMonth> extends Map<number, infer V> ? V : never> = Object.fromEntries(eventsByDayMap);
+
+  const closedDays = closures.map((c) => c.date.getUTCDate());
+
+  const calendarLabels = {
+    closed: t("closed"),
+    badgeRecurring: ts("badgeRecurring"),
+    badgeOneOff: ts("badgeOneOff"),
+    capacityLabel: t("capacityLabel"),
+    enrolledLabel: t("enrolledLabel"),
+    durationLabel: t("durationLabel"),
+    startTimeLabel: t("startTimeLabel"),
+    endTimeLabel: t("endTimeLabel"),
+    staffLabel: t("staffLabel"),
+    staffNone: ts("staffNone"),
+    noteLabel: t("noteLabel"),
+    noEvents: t("noEventsForDay"),
+    unit: { min: t("unitMin"), people: t("unitPeople") },
+  };
 
   return (
     <div className="flex min-h-screen bg-white">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-zinc-100 bg-white lg:flex">
-        <div className="border-b border-zinc-100 px-6 py-6">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-violet-100 bg-violet-50 lg:flex">
+        <div className="border-b border-violet-100 px-6 py-6">
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
             {tn("studio")}
           </span>
@@ -61,7 +143,7 @@ export async function DashboardWhite({ lang, slug, gymId, businessName }: Props)
           <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
         </div>
         <SidebarNav tone="white" />
-        <div className="border-t border-zinc-100 px-3 py-4">
+        <div className="border-t border-violet-100 px-3 py-4">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
               {tn("logout")}
@@ -242,7 +324,14 @@ export async function DashboardWhite({ lang, slug, gymId, businessName }: Props)
             <SectionHead
               title={t("calendarTitle", { month: monthLabel })}
             />
-            <SkyCalendarGrid t={t} weekdays={weekdays} monthInfo={monthInfo} />
+            <CalendarMonth
+              weekdays={weekdays}
+              monthInfo={monthInfo}
+              eventsByDay={eventsByDay}
+              closedDays={closedDays}
+              tone="white"
+              labels={calendarLabels}
+            />
           </section>
 
           <section className="col-span-12 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200/60 xl:col-span-2">
@@ -347,65 +436,3 @@ function PastelKpi({
   );
 }
 
-function SkyCalendarGrid({
-  t,
-  weekdays,
-  monthInfo,
-}: {
-  t: (k: string, v?: Record<string, string | number>) => string;
-  weekdays: readonly string[];
-  monthInfo: ReturnType<typeof getManilaMonthInfo>;
-}) {
-  const { daysInMonth, firstWeekday, todayDay } = monthInfo;
-  return (
-    <div className="mt-4 grid grid-cols-7 gap-1 text-center">
-      {weekdays.map((w) => (
-        <span key={w} className="pb-2 text-[11px] font-medium text-zinc-500">
-          {w}
-        </span>
-      ))}
-      {Array.from({ length: firstWeekday }).map((_, i) => (
-        <div key={`pad-${i}`} />
-      ))}
-      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
-        if (MOCK_CLOSED_DAYS.has(day)) {
-          return (
-            <div
-              key={day}
-              className="relative min-h-[68px] rounded-md bg-zinc-200 p-2 text-left"
-            >
-              <div className="text-xs font-medium text-zinc-500">{day}</div>
-              <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-zinc-500">
-                {t("closed")}
-              </div>
-            </div>
-          );
-        }
-        const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
-        const isToday = day === todayDay;
-        return (
-          <div
-            key={day}
-            className={`min-h-[68px] rounded-md border border-sky-100 bg-white p-2 text-left ${
-              isToday ? "ring-2 ring-sky-700" : ""
-            }`}
-          >
-            <div className="text-xs font-medium text-ink">{day}</div>
-            {classes.length > 0 && (
-              <ul className="mt-1 space-y-0.5">
-                {classes.map((key) => (
-                  <li
-                    key={key}
-                    className="truncate rounded bg-rose-50 px-1.5 py-0.5 text-center text-[10px] font-medium text-rose-700 ring-1 ring-rose-200/70"
-                  >
-                    {t(`sampleGroupClass.${key}`)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
