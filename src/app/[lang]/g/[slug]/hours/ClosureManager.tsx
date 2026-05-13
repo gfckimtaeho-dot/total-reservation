@@ -61,25 +61,25 @@ const TONE = {
     kindOff: "bg-zinc-800 text-zinc-400",
   },
   white: {
-    section: "rounded-2xl bg-white ring-1 ring-zinc-200 p-6",
+    section: "rounded-2xl bg-sky-50 ring-1 ring-sky-200/50 p-6",
     title: "text-ink",
     subtle: "text-zinc-600",
     label: "text-ink",
-    cell: "border-zinc-200 hover:bg-zinc-50",
-    cellMuted: "border-zinc-100 text-zinc-300",
+    cell: "border-sky-200/60 bg-white hover:bg-sky-100",
+    cellMuted: "border-sky-100 text-zinc-300",
     cellToday: "ring-2 ring-sky-500",
-    cellWithClosure: "bg-rose-50 border-rose-200 text-rose-700",
-    cellWithShortened: "bg-amber-50 border-amber-200 text-amber-800",
+    cellWithClosure: "bg-rose-100 border-rose-300 text-rose-800",
+    cellWithShortened: "bg-amber-100 border-amber-300 text-amber-900",
     badge: "bg-rose-100 text-rose-700 ring-1 ring-rose-200",
     badgeShort: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
     modal: "bg-white text-ink",
     modalOverlay: "bg-black/40",
     input:
-      "h-10 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/20",
-    submit: "bg-ink text-white hover:bg-ink/90",
+      "h-10 rounded-md border border-sky-200 bg-white px-2 text-sm text-zinc-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20",
+    submit: "bg-violet-600 text-white hover:bg-violet-700",
     danger: "bg-rose-600 text-white hover:bg-rose-700",
     cancel: "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
-    kindOn: "bg-ink text-white",
+    kindOn: "bg-violet-600 text-white",
     kindOff: "bg-zinc-100 text-zinc-600",
   },
 } as const;
@@ -289,7 +289,9 @@ export function ClosureManager({
                 className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
                   tone === "black"
                     ? "border-white/5 bg-zinc-950/40"
-                    : "border-zinc-100"
+                    : tone === "white"
+                      ? "border-sky-200/60 bg-white"
+                      : "border-zinc-100"
                 }`}
               >
                 <div className="flex items-center gap-3">

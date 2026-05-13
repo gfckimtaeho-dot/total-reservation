@@ -44,7 +44,7 @@ const SIDEBAR_NAME = {
 const HEADER_BORDER = {
   normal: "border-amber-200/60",
   black: "border-white/5",
-  white: "border-zinc-100",
+  white: "border-violet-100",
 } as const;
 
 const TITLE = {

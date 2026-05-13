@@ -11,7 +11,8 @@ const BTN = {
   normal: "border border-amber-200/60 bg-white text-ink hover:border-ink",
   black:
     "border border-white/10 bg-zinc-800 text-zinc-200 hover:border-lime-300",
-  white: "border border-zinc-300 bg-white text-zinc-700 hover:border-ink",
+  white:
+    "border border-violet-200 bg-white text-zinc-700 hover:border-violet-500",
 } as const;
 
 export function RegenerateQrButton({

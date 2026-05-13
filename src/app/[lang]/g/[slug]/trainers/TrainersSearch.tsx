@@ -25,38 +25,40 @@ const TONE = {
     reset: "border-white/10 bg-zinc-800 text-zinc-300 hover:border-lime-300",
   },
   white: {
-    wrap: "bg-white ring-1 ring-zinc-200",
+    wrap: "bg-white ring-1 ring-violet-100",
     label: "text-ink/70",
     field:
-      "border-zinc-300 bg-white text-ink focus:border-ink focus:ring-ink/20",
-    submit: "bg-ink text-white hover:bg-ink/90",
-    reset: "border-zinc-300 bg-white text-zinc-600 hover:border-ink",
+      "border-violet-200 bg-white text-ink focus:border-violet-500 focus:ring-violet-500/20",
+    submit: "bg-violet-600 text-white hover:bg-violet-700",
+    reset: "border-violet-200 bg-white text-zinc-600 hover:border-violet-500",
   },
 } as const;
 
 const PILL_ACTIVE = {
   normal: "bg-band/40 text-ink ring-1 ring-ink",
   black: "bg-lime-300/20 text-lime-300 ring-1 ring-lime-300",
-  white: "bg-sky-100 text-sky-900 ring-1 ring-sky-700",
+  white: "bg-violet-100 text-violet-800 ring-1 ring-violet-600",
 } as const;
 
 const PILL_INACTIVE = {
   normal: "bg-white text-zinc-600 ring-1 ring-amber-200/60 hover:ring-ink/40",
   black:
     "bg-zinc-800 text-zinc-400 ring-1 ring-white/10 hover:ring-lime-300/40",
-  white: "bg-white text-zinc-600 ring-1 ring-zinc-200 hover:ring-ink/40",
+  white:
+    "bg-white text-zinc-600 ring-1 ring-violet-200 hover:ring-violet-500/40",
 } as const;
 
 const CHECK_ACTIVE = {
   normal: "border-ink bg-band/40 text-ink",
   black: "border-lime-300 bg-lime-300/10 text-lime-300",
-  white: "border-sky-700 bg-sky-100 text-sky-900",
+  white: "border-violet-600 bg-violet-100 text-violet-800",
 } as const;
 
 const CHECK_INACTIVE = {
   normal: "border-amber-200/60 bg-white text-zinc-600 hover:border-ink/40",
   black: "border-white/10 bg-zinc-800 text-zinc-400 hover:border-lime-300/40",
-  white: "border-zinc-300 bg-white text-zinc-600 hover:border-ink/40",
+  white:
+    "border-violet-200 bg-white text-zinc-600 hover:border-violet-500/40",
 } as const;
 
 export function TrainersSearch({

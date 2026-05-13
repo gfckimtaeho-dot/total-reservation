@@ -56,22 +56,34 @@ const TONE = {
     weekdayOff: "bg-zinc-700 text-zinc-400",
   },
   white: {
-    section: "rounded-2xl bg-white ring-1 ring-zinc-200 p-6",
+    // 섹션 bg는 인덱스에 따라 sky → amber → lime 로테이션 (WHITE_SECTIONS 사용).
+    // 여기 section 값은 placeholder — 실제 렌더 시 whiteSection(idx)로 덮어씀.
+    section: "rounded-2xl bg-sky-50 ring-1 ring-sky-200/50 p-6",
     sectionLabel: "text-ink/70",
     sectionTitle: "text-ink",
-    field: "border-zinc-300 bg-white text-ink focus:border-ink focus:ring-ink/20",
+    field:
+      "border-zinc-300 bg-white text-ink focus:border-violet-500 focus:ring-violet-500/20",
     text: "text-ink",
     subtext: "text-zinc-600",
-    pillActive: "bg-sky-100 text-sky-900 ring-1 ring-sky-700",
-    pillInactive: "bg-white text-zinc-600 ring-1 ring-zinc-200 hover:ring-ink/40",
-    submit: "bg-ink text-white hover:bg-ink/90",
-    cancel: "border border-zinc-300 bg-white text-zinc-700 hover:border-ink",
-    weekdayOn: "bg-sky-700 text-white",
+    pillActive: "bg-violet-100 text-violet-800 ring-1 ring-violet-600",
+    pillInactive:
+      "bg-white text-zinc-600 ring-1 ring-zinc-300 hover:ring-violet-400",
+    submit: "bg-violet-600 text-white hover:bg-violet-700",
+    cancel:
+      "border border-zinc-300 bg-white text-zinc-700 hover:border-violet-500",
+    weekdayOn: "bg-violet-600 text-white",
     weekdayOff: "bg-zinc-200 text-zinc-500",
   },
 } as const;
 
 const initialState: CreateTrainerState = {};
+
+// Dashboard White Pastel과 동일한 다색 섹션 카드 로테이션. 6개 섹션을 3색 순환.
+const WHITE_SECTIONS = [
+  "rounded-2xl bg-sky-50 ring-1 ring-sky-200/50 p-6",
+  "rounded-2xl bg-amber-50 ring-1 ring-amber-200/60 p-6",
+  "rounded-2xl bg-lime-50 ring-1 ring-lime-200/50 p-6",
+] as const;
 
 export type TrainerInitialValues = {
   name: string;
@@ -138,6 +150,8 @@ export function TrainerForm({
   const action = mode === "edit" ? updateTrainer : createTrainer;
   const [state, formAction, pending] = useActionState(action, initialState);
   const tk = TONE[tone];
+  const sectionClass = (idx: number) =>
+    tone === "white" ? WHITE_SECTIONS[idx % 3] : tk.section;
 
   useEffect(() => {
     if (state.success) {
@@ -180,7 +194,7 @@ export function TrainerForm({
       />
 
       {/* Section 1 — Photos */}
-      <section className={tk.section}>
+      <section className={sectionClass(0)}>
         <SectionHead
           tk={tk}
           eyebrow="01"
@@ -198,7 +212,7 @@ export function TrainerForm({
       </section>
 
       {/* Section 2 — Basic */}
-      <section className={tk.section}>
+      <section className={sectionClass(1)}>
         <SectionHead tk={tk} eyebrow="02" title={t("sectionBasic")} />
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <Field
@@ -276,7 +290,7 @@ export function TrainerForm({
       </section>
 
       {/* Section 3 — Role + Specialties */}
-      <section className={tk.section}>
+      <section className={sectionClass(2)}>
         <SectionHead tk={tk} eyebrow="03" title={t("sectionRoleSpec")} />
         <div className="mt-5 space-y-5">
           <div>
@@ -318,7 +332,7 @@ export function TrainerForm({
       </section>
 
       {/* Section 4 — Bio + Career */}
-      <section className={tk.section}>
+      <section className={sectionClass(3)}>
         <SectionHead tk={tk} eyebrow="04" title={t("sectionBio")} />
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <TextArea
@@ -343,7 +357,7 @@ export function TrainerForm({
       </section>
 
       {/* Section 5 — Schedule */}
-      <section className={tk.section}>
+      <section className={sectionClass(4)}>
         <SectionHead
           tk={tk}
           eyebrow="05"
@@ -373,7 +387,7 @@ export function TrainerForm({
       </section>
 
       {/* Section 6 — Memo */}
-      <section className={tk.section}>
+      <section className={sectionClass(5)}>
         <SectionHead tk={tk} eyebrow="06" title={t("sectionMemo")} />
         <div className="mt-5">
           <TextArea

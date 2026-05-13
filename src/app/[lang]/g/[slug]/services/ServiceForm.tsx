@@ -51,18 +51,18 @@ const TONE = {
     error: "text-rose-400",
   },
   white: {
-    card: "bg-white border-violet-100",
-    label: "text-violet-700",
+    card: "bg-lime-50 border-lime-200/50",
+    label: "text-lime-800",
     input:
-      "bg-white border-violet-200 text-ink focus:border-violet-500 focus:outline-none",
+      "bg-white border-lime-200 text-ink focus:border-lime-500 focus:outline-none",
     inputDisabled:
       "bg-zinc-50 text-zinc-400 border-zinc-100 cursor-not-allowed",
     button: "bg-violet-600 text-white hover:bg-violet-700",
-    radioActive: "bg-violet-600 text-white border-violet-600",
+    radioActive: "bg-lime-600 text-white border-lime-600",
     radioInactive:
-      "bg-white text-zinc-700 border-violet-200 hover:bg-violet-50",
-    preset: "bg-white text-zinc-700 border-violet-200 hover:bg-violet-50",
-    presetActive: "bg-violet-600 text-white border-violet-600",
+      "bg-white text-zinc-700 border-lime-200 hover:bg-lime-100",
+    preset: "bg-white text-zinc-700 border-lime-200 hover:bg-lime-100",
+    presetActive: "bg-lime-600 text-white border-lime-600",
     hint: "text-zinc-500",
     error: "text-rose-600",
   },

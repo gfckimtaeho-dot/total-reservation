@@ -61,19 +61,19 @@ const EYEBROW = {
 const TABLE_CARD = {
   normal: "bg-white/80 border-amber-200/60",
   black: "bg-zinc-900 border-white/5",
-  white: "bg-white border-violet-100",
+  white: "bg-sky-50 border-sky-200/60",
 } as const;
 
 const TABLE_HEAD = {
   normal: "text-ink/60 border-ink/10",
   black: "text-zinc-400 border-white/5",
-  white: "text-violet-700 border-violet-100",
+  white: "text-sky-800 border-sky-200/60",
 } as const;
 
 const TABLE_ROW = {
   normal: "border-ink/5",
   black: "border-white/5",
-  white: "border-zinc-100",
+  white: "border-sky-200/40",
 } as const;
 
 const MARGIN_TONE = {

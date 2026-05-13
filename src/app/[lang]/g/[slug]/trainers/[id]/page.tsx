@@ -15,7 +15,7 @@ import { LeaveManager } from "./LeaveManager";
 const PAGE_BG = {
   normal: "bg-amber-50/50",
   black: "bg-zinc-950 text-zinc-200",
-  white: "bg-white",
+  white: "bg-violet-50/40",
 } as const;
 
 const SIDEBAR_BG = {
@@ -45,13 +45,13 @@ const SIDEBAR_NAME = {
 const HEADER_BORDER = {
   normal: "border-amber-200/60",
   black: "border-white/5",
-  white: "border-zinc-100",
+  white: "border-violet-100",
 } as const;
 
 const SECTION = {
   normal: "rounded-2xl bg-white ring-1 ring-amber-200/60 p-6",
   black: "rounded-2xl bg-zinc-900 ring-1 ring-white/10 p-6",
-  white: "rounded-2xl bg-white ring-1 ring-zinc-200 p-6",
+  white: "rounded-2xl bg-white ring-1 ring-violet-100 p-6",
 } as const;
 
 const TITLE = {
@@ -69,7 +69,7 @@ const SUBTLE = {
 const PILL_TRAINER = {
   normal: "bg-band/60 text-ink",
   black: "bg-lime-300/20 text-lime-300",
-  white: "bg-sky-100 text-sky-900",
+  white: "bg-violet-100 text-violet-800",
 } as const;
 
 const PILL_MANAGER = {
@@ -81,7 +81,7 @@ const PILL_MANAGER = {
 const WEEKDAY_ON = {
   normal: "bg-emerald-500 text-white",
   black: "bg-lime-300 text-zinc-950",
-  white: "bg-sky-700 text-white",
+  white: "bg-violet-600 text-white",
 } as const;
 
 const WEEKDAY_OFF = {

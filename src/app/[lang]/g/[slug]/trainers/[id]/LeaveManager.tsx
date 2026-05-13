@@ -44,17 +44,17 @@ const TONE = {
     error: "text-red-400",
   },
   white: {
-    addBtn: "bg-ink text-white hover:bg-ink/90",
+    addBtn: "bg-violet-600 text-white hover:bg-violet-700",
     deleteBtn: "text-zinc-500 hover:text-red-600",
     modalBg: "bg-white",
-    modalRing: "ring-zinc-200",
+    modalRing: "ring-violet-100",
     title: "text-ink",
     label: "text-ink",
     subtle: "text-zinc-600",
     input:
-      "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/20",
-    cancelBtn: "text-zinc-600 hover:text-ink",
-    submitBtn: "bg-ink text-white hover:bg-ink/90",
+      "h-10 rounded-md border border-violet-200 bg-white px-3 text-sm text-zinc-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20",
+    cancelBtn: "text-zinc-600 hover:text-violet-600",
+    submitBtn: "bg-violet-600 text-white hover:bg-violet-700",
     error: "text-red-600",
   },
 } as const;

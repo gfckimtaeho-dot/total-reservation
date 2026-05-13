@@ -12,13 +12,13 @@ const TONE_BUTTON = {
   normal: "border border-amber-200/60 bg-white text-ink hover:border-ink",
   black:
     "border border-white/10 bg-zinc-800 text-zinc-100 hover:border-lime-300",
-  white: "border border-zinc-300 bg-white text-ink hover:border-ink",
+  white: "border border-violet-200 bg-white text-ink hover:border-violet-500",
 } as const;
 
 const TONE_POPOVER = {
   normal: "bg-white ring-1 ring-amber-200/60",
   black: "bg-zinc-900 ring-1 ring-white/10 [--rdp-accent-color:#bef264]",
-  white: "bg-white ring-1 ring-zinc-200",
+  white: "bg-white ring-1 ring-violet-100 [--rdp-accent-color:#7c3aed]",
 } as const;
 
 export function DobPicker({

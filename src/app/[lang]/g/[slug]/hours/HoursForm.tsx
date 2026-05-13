@@ -46,15 +46,15 @@ const TONE = {
     error: "border-red-400/40 bg-red-400/10 text-red-300",
   },
   white: {
-    section: "rounded-2xl bg-white ring-1 ring-zinc-200 p-6",
+    section: "rounded-2xl bg-amber-50 ring-1 ring-amber-200/60 p-6",
     title: "text-ink",
     subtle: "text-zinc-600",
     label: "text-ink",
-    on: "bg-sky-700 text-white",
+    on: "bg-violet-600 text-white",
     off: "bg-zinc-200 text-zinc-500",
     input:
-      "h-10 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/20 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
-    submit: "bg-ink text-white hover:bg-ink/90",
+      "h-10 rounded-md border border-amber-200 bg-white px-2 text-sm text-zinc-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+    submit: "bg-violet-600 text-white hover:bg-violet-700",
     success: "border-emerald-200 bg-emerald-50 text-emerald-800",
     error: "border-red-200 bg-red-50 text-red-700",
   },
@@ -153,7 +153,11 @@ export function HoursForm({
               <div
                 key={w}
                 className={`grid grid-cols-[3rem_5rem_1fr] items-center gap-3 rounded-md border px-3 py-3 ${
-                  tone === "black" ? "border-white/5 bg-zinc-950/40" : "border-zinc-100"
+                  tone === "black"
+                    ? "border-white/5 bg-zinc-950/40"
+                    : tone === "white"
+                      ? "border-amber-200/60 bg-white"
+                      : "border-zinc-100"
                 }`}
               >
                 <div

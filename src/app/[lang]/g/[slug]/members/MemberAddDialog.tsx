@@ -32,13 +32,14 @@ const TONE_TOKENS = {
   },
   white: {
     overlay: "bg-zinc-900/40",
-    panel: "bg-white ring-1 ring-zinc-200",
-    primaryBtn: "bg-ink text-white hover:bg-ink/90",
-    cancelBtn: "border border-zinc-300 bg-white text-zinc-700 hover:border-ink",
-    fieldBorder: "border-zinc-300",
-    fieldFocus: "focus:border-ink focus:ring-ink/20",
-    radioActive: "border-ink bg-sky-100",
-    radioInactive: "border-zinc-300 bg-white",
+    panel: "bg-white ring-1 ring-violet-100",
+    primaryBtn: "bg-violet-600 text-white hover:bg-violet-700",
+    cancelBtn:
+      "border border-violet-200 bg-white text-zinc-700 hover:border-violet-500",
+    fieldBorder: "border-violet-200",
+    fieldFocus: "focus:border-violet-500 focus:ring-violet-500/20",
+    radioActive: "border-violet-600 bg-violet-100",
+    radioInactive: "border-violet-200 bg-white",
   },
 } as const;
 

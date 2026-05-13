@@ -123,7 +123,7 @@ export function PhotoUploader({
     tone === "black"
       ? "border-white/10 bg-zinc-800 hover:border-lime-300/40"
       : tone === "white"
-        ? "border-zinc-300 bg-white hover:border-ink/40"
+        ? "border-zinc-300 bg-white hover:border-violet-400"
         : "border-amber-200/60 bg-white hover:border-ink/40";
   const labelText = tone === "black" ? "text-zinc-400" : "text-zinc-600";
 

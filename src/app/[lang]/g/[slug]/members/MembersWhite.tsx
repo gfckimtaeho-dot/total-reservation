@@ -34,7 +34,7 @@ export async function MembersWhite({
   const filtered = Boolean(q) || gender !== "all" || expiringSoon;
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-violet-50/40">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-violet-100 bg-violet-50 lg:flex">
         <div className="border-b border-violet-100 px-6 py-6">
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
@@ -56,7 +56,7 @@ export async function MembersWhite({
       </aside>
 
       <main className="flex-1 overflow-x-hidden">
-        <header className="flex items-center justify-between border-b border-zinc-100 px-8 py-5">
+        <header className="flex items-center justify-between border-b border-violet-100 px-8 py-5">
           <div>
             <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
               {t("eyebrow")}
@@ -104,14 +104,14 @@ export async function MembersWhite({
             gender={gender}
             expiringSoon={expiringSoon}
           />
-          <div className="overflow-hidden rounded-2xl bg-sky-50 p-2 ring-1 ring-sky-200/50">
-            <div className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-200">
+          <div className="overflow-hidden rounded-2xl bg-violet-50 p-2 ring-1 ring-violet-200/50">
+            <div className="overflow-hidden rounded-xl bg-white ring-1 ring-violet-100">
               {members.length === 0 ? (
                 <EmptyState filtered={filtered} t={t} />
               ) : (
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-zinc-200 bg-sky-50/60">
+                    <tr className="border-b border-violet-100 bg-violet-50/60">
                       <Th>{t("colName")}</Th>
                       <Th>{t("colAge")}</Th>
                       <Th>{t("colPhone")}</Th>
@@ -136,7 +136,7 @@ export async function MembersWhite({
           </div>
         </div>
 
-        <footer className="border-t border-zinc-100 px-8 py-5 text-xs text-zinc-500">
+        <footer className="border-t border-violet-100 px-8 py-5 text-xs text-zinc-500">
           예약가즈아 · /g/{slug} ·{" "}
           <Link
             href={`/${lang}/g/${slug}/dashboard`}
