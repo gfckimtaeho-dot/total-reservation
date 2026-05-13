@@ -92,6 +92,8 @@ export async function createService(
 
   revalidatePath(`/ko/g/${data.slug}/services`);
   revalidatePath(`/en/g/${data.slug}/services`);
+  revalidatePath(`/ko/g/${data.slug}/products`);
+  revalidatePath(`/en/g/${data.slug}/products`);
   return { ok: true, at: Date.now() };
 }
 
@@ -163,20 +165,54 @@ export async function updateService(
   const timeUnit: TimeUnit = data.durationMin % 60 === 0 ? "M60" : "M30";
   const capacity = data.type === "personal" ? 1 : data.capacity;
 
-  await prisma.service.update({
-    where: { id: data.serviceId },
-    data: {
-      name: data.name,
-      capacity,
-      timeUnit,
-      durationMin: data.durationMin,
-      pricePhp: data.pricePhp,
-      payoutPhp: data.payoutPhp,
-    },
+  // 가격·payout 변경 시 PriceChangeLog row 자동 생성. pricePhp와 payoutPhp는
+  // 별개 entity로 추적 — 사장 가격 vs 트레이너 지급은 매출/정산 산식에서
+  // 다른 의미라 분리 저장. 트랜잭션으로 update와 묶어 atomic.
+  const priceChanged = svc.pricePhp !== data.pricePhp;
+  const payoutChanged = svc.payoutPhp !== data.payoutPhp;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.service.update({
+      where: { id: data.serviceId },
+      data: {
+        name: data.name,
+        capacity,
+        timeUnit,
+        durationMin: data.durationMin,
+        pricePhp: data.pricePhp,
+        payoutPhp: data.payoutPhp,
+      },
+    });
+    if (priceChanged) {
+      await tx.priceChangeLog.create({
+        data: {
+          gymId,
+          entityType: "SERVICE_PRICE",
+          entityId: data.serviceId,
+          oldValuePhp: svc.pricePhp,
+          newValuePhp: data.pricePhp,
+          changedById: auth.id,
+        },
+      });
+    }
+    if (payoutChanged) {
+      await tx.priceChangeLog.create({
+        data: {
+          gymId,
+          entityType: "SERVICE_PAYOUT",
+          entityId: data.serviceId,
+          oldValuePhp: svc.payoutPhp,
+          newValuePhp: data.payoutPhp,
+          changedById: auth.id,
+        },
+      });
+    }
   });
 
   revalidatePath(`/ko/g/${data.slug}/services`);
   revalidatePath(`/en/g/${data.slug}/services`);
+  revalidatePath(`/ko/g/${data.slug}/products`);
+  revalidatePath(`/en/g/${data.slug}/products`);
   return { ok: true, at: Date.now() };
 }
 
@@ -211,5 +247,7 @@ export async function deleteService(
 
   revalidatePath(`/ko/g/${slug}/services`);
   revalidatePath(`/en/g/${slug}/services`);
+  revalidatePath(`/ko/g/${slug}/products`);
+  revalidatePath(`/en/g/${slug}/products`);
   return { ok: true };
 }

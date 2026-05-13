@@ -11,6 +11,7 @@ type ActiveKey =
   | "members"
   | "trainers"
   | "hours"
+  | "products"
   | "services"
   | "revenue"
   | "settings";
@@ -21,11 +22,13 @@ type Item = {
 };
 
 function items(lang: string, slug: string): Item[] {
+  // /services는 /products?tab=service로 흡수 — 사이드바에서 제거.
+  // (라우트는 유지 — 기존 북마크나 revalidatePath 호환)
   return [
     { key: "members", href: `/${lang}/g/${slug}/members` },
     { key: "trainers", href: `/${lang}/g/${slug}/trainers` },
     { key: "hours", href: `/${lang}/g/${slug}/hours` },
-    { key: "services", href: `/${lang}/g/${slug}/services` },
+    { key: "products", href: `/${lang}/g/${slug}/products` },
     { key: "revenue", href: null },
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
   ];
@@ -77,6 +80,7 @@ function parsePathname(
   else if (section === "members") key = "members";
   else if (section === "trainers") key = "trainers";
   else if (section === "hours") key = "hours";
+  else if (section === "products") key = "products";
   else if (section === "services") key = "services";
   else if (section === "revenue") key = "revenue";
   else if (section === "settings") key = "settings";
@@ -88,6 +92,7 @@ function keyFromHref(href: string): ActiveKey | null {
   if (href.endsWith("/members")) return "members";
   if (href.endsWith("/trainers")) return "trainers";
   if (href.endsWith("/hours")) return "hours";
+  if (href.endsWith("/products")) return "products";
   if (href.endsWith("/services")) return "services";
   if (href.endsWith("/settings")) return "settings";
   return null;
@@ -163,6 +168,7 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
           (n.key === "members" ||
             n.key === "trainers" ||
             n.key === "hours" ||
+            n.key === "products" ||
             n.key === "services" ||
             n.key === "settings") &&
           effectiveKey === n.key;

@@ -106,6 +106,30 @@ enum NotificationResult {
   FAILED
 }
 
+// 금액 변경 감사 로그 — 카탈로그 모델별 변경 추적. 신규 모델 추가 시 enum 확장.
+enum PriceChangeEntity {
+  MEMBERSHIP_PLAN_PRICE
+  SERVICE_PRICE
+  SERVICE_PAYOUT
+  PACKAGE_PLAN_PRICE
+  COMBO_PLAN_PRICE
+  PROMOTION_VALUE
+}
+
+// Promotion 적용 범위. 콤보는 자체 할인이라 promotion 적용 제외(의도적 누락).
+enum PromotionScope {
+  ALL
+  MEMBERSHIP_ONLY
+  PACKAGE_ONLY
+  SPECIFIC_MEMBERSHIP
+  SPECIFIC_PACKAGE
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
 enum NotificationChannelSetting {
   PUSH
   EMAIL
@@ -205,7 +229,11 @@ model Business {
   closures            BusinessClosure[]
   images              BusinessImage[]
   memberships         Membership[]
+  membershipPlans     MembershipPlan[]
   packages            Package[]
+  packagePlans        PackagePlan[]
+  comboPlans          ComboPlan[]
+  promotions          Promotion[]
   reservations        Reservation[]
   reservationLogs     ReservationLog[]
   qrTokens            QrToken[]
@@ -220,6 +248,7 @@ model Business {
   magicLinkTokens     MagicLinkToken[]
   inviteToken         InviteToken?
   scheduledClasses    ScheduledClass[]
+  priceChangeLogs     PriceChangeLog[]
 
   @@index([cityId, barangayId])
   @@index([status])
@@ -401,6 +430,7 @@ model Service {
 
   reservations Reservation[]
   packages     Package[]
+  packagePlans PackagePlan[]
   schedules    ScheduledClass[]
 
   @@index([gymId])
@@ -502,6 +532,126 @@ model Membership {
 
   @@index([gymId, userId])
   @@index([gymId, endDate])
+}
+
+// ─── MembershipPlan (회원권 카탈로그) ─────────────────────
+// 사장이 등록하는 회원권 상품 정의. 기간(일수) + 가격.
+// 판매 시 Membership 인스턴스로 발급 — 그 시점 pricePhp가 스냅샷으로 복사.
+// pricePhp 변경 시 PriceChangeLog row 자동 생성 (action 레이어에서 처리).
+model MembershipPlan {
+  id           String   @id @default(cuid())
+  gymId        String
+  business     Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name         String
+  durationDays Int
+  pricePhp     Int
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  combos       ComboPlan[]
+
+  @@index([gymId, active])
+}
+
+// ─── PackagePlan (횟수권 카탈로그) ──────────────────────────
+// 사장이 등록하는 횟수권 상품 정의. Service FK + 회수 + 총가.
+// 1회당 가격은 UI에서 totalPrice/sessionCount로 계산해 표시 (DB 저장 X).
+// 트레이너 지급은 Service.payoutPhp 동결 — 콤보 할인에 영향 받지 않음.
+// 판매 시 기존 Package 인스턴스 모델로 발급, pricePhp가 스냅샷으로 복사.
+model PackagePlan {
+  id           String   @id @default(cuid())
+  gymId        String
+  business     Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name         String
+  serviceId    String
+  service      Service  @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  sessionCount Int
+  pricePhp     Int
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  comboItems   ComboPackageItem[]
+
+  @@index([gymId, active])
+  @@index([gymId, serviceId])
+}
+
+// ─── ComboPlan (콤보 카탈로그) ──────────────────────────────
+// 멤버십 + 패키지 N개 묶음. 콤보 가격은 정상가 합계보다 작음(할인).
+// 트레이너 지급은 콤보 할인에 영향 받지 않음 — 콤보가 - 트레이너 지급 = 사장 마진.
+// 사장 마진 음수면 저장 차단(action 레이어에서 검증).
+model ComboPlan {
+  id               String          @id @default(cuid())
+  gymId            String
+  business         Business        @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name             String
+  membershipPlanId String?
+  membershipPlan   MembershipPlan? @relation(fields: [membershipPlanId], references: [id], onDelete: Restrict)
+  pricePhp         Int
+  active           Boolean         @default(true)
+  createdAt        DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @db.Timestamptz(3)
+
+  packageItems     ComboPackageItem[]
+
+  @@index([gymId, active])
+}
+
+// 콤보-패키지 조인. 한 콤보에 같은 PackagePlan 1개만 포함(중복 방지) — composite unique.
+model ComboPackageItem {
+  id            String      @id @default(cuid())
+  comboPlanId   String
+  comboPlan     ComboPlan   @relation(fields: [comboPlanId], references: [id], onDelete: Cascade)
+  packagePlanId String
+  packagePlan   PackagePlan @relation(fields: [packagePlanId], references: [id], onDelete: Restrict)
+
+  @@unique([comboPlanId, packagePlanId])
+  @@index([packagePlanId])
+}
+
+// ─── Promotion (이벤트 카탈로그) ────────────────────────────
+// 기간 한정 할인. 콤보에는 적용 안 됨(scope에 COMBO 옵션 없음 — 콤보 자체가 할인).
+// 회원에게 적용 시 Sale.totalPaid에서만 차감, 트레이너 지급은 영향 X.
+// 한 plan에 동시 적용 가능한 promotion이 여러 개일 때 — 가장 큰 할인 자동 선택 (action 레이어).
+model Promotion {
+  id            String         @id @default(cuid())
+  gymId         String
+  business      Business       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name          String
+  scope         PromotionScope
+  targetId      String?
+  discountType  DiscountType
+  discountValue Int
+  startsAt      DateTime       @db.Timestamptz(3)
+  endsAt        DateTime       @db.Timestamptz(3)
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+
+  @@index([gymId, active, startsAt, endsAt])
+  @@index([gymId, scope, targetId])
+}
+
+// ─── PriceChangeLog (금액 변경 감사 로그) ───────────────────
+// 가격·payout·할인 등 금액 변경은 모두 row 생성. entityType + entityId는
+// soft reference (FK 없음) — 여러 카탈로그 모델을 단일 테이블이 추적.
+// 매출 분쟁·세무 감사 시 "언제 누가 얼마에서 얼마로 바꿨나" 추적용.
+model PriceChangeLog {
+  id          String            @id @default(cuid())
+  gymId       String
+  business    Business          @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  entityType  PriceChangeEntity
+  entityId    String
+  oldValuePhp Int
+  newValuePhp Int
+  changedById String?
+  changedAt   DateTime          @default(now()) @db.Timestamptz(3)
+  note        String?
+
+  @@index([gymId, entityType, entityId])
+  @@index([gymId, changedAt])
 }
 
 model Package {
