@@ -3,13 +3,11 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  MOCK_CLOSED_DAYS,
-  MOCK_GROUP_CLASSES_BY_DAY,
-  MOCK_RESERVATIONS_TODAY,
+  type MonthInfo,
+  type TrainerEvent,
   fmtTime,
-  groupByHour,
-  type MockReservation,
-} from "../../../preview/_mock";
+  groupByStart,
+} from "@/lib/calendar/manila";
 import { AddReservationButton } from "./TrainerScheduleClient";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
@@ -26,14 +24,6 @@ const WEEKDAY_BY_INDEX = [
 
 type Weekday = (typeof WEEKDAY_BY_INDEX)[number];
 
-type MonthInfo = {
-  year: number;
-  month: number;
-  daysInMonth: number;
-  firstWeekday: number;
-  todayDay: number;
-};
-
 type Props = {
   lang: string;
   trainerName: string;
@@ -41,27 +31,9 @@ type Props = {
   monthLabel: string;
   monthInfo: MonthInfo;
   initialSelectedDay: number;
+  eventsByDay: Record<number, TrainerEvent[]>;
+  closedDays: number[];
 };
-
-function synthesizeReservations(
-  day: number,
-  trainerName: string,
-  translateClass: (key: string) => string,
-): MockReservation[] {
-  const keys = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
-  return keys.map((key, i) => ({
-    id: `${day}-${key}-${i}`,
-    startMin: (10 + i * 2) * 60,
-    endMin: (11 + i * 2) * 60,
-    customer: translateClass(key),
-    staff: trainerName,
-    service: translateClass(key),
-    serviceType: "GROUP",
-    capacity: 12,
-    enrolled: 6 + (day % 5),
-    status: "CONFIRMED",
-  }));
-}
 
 export function TrainerCalendarSchedule({
   lang,
@@ -70,17 +42,20 @@ export function TrainerCalendarSchedule({
   monthLabel,
   monthInfo,
   initialSelectedDay,
+  eventsByDay,
+  closedDays,
 }: Props) {
   const t = useTranslations("dashboard");
   const [selectedDay, setSelectedDay] = useState(initialSelectedDay);
 
   const offSet = new Set(weeklyOffDays);
+  const closedSet = new Set(closedDays);
   function weekdayOf(day: number): Weekday {
     const idx = (monthInfo.firstWeekday + (day - 1)) % 7;
     return WEEKDAY_BY_INDEX[idx];
   }
   function isOff(day: number): boolean {
-    return MOCK_CLOSED_DAYS.has(day) || offSet.has(weekdayOf(day));
+    return closedSet.has(day) || offSet.has(weekdayOf(day));
   }
 
   function selectDay(day: number) {
@@ -92,14 +67,10 @@ export function TrainerCalendarSchedule({
     }
   }
 
-  const reservations: MockReservation[] = isOff(selectedDay)
+  const dayEvents: TrainerEvent[] = isOff(selectedDay)
     ? []
-    : selectedDay === monthInfo.todayDay
-      ? MOCK_RESERVATIONS_TODAY.filter((r) => r.staff === trainerName)
-      : synthesizeReservations(selectedDay, trainerName, (key) =>
-          t(`sampleGroupClass.${key}`),
-        );
-  const buckets = groupByHour(reservations);
+    : (eventsByDay[selectedDay] ?? []);
+  const buckets = groupByStart(dayEvents);
 
   const selectedDate = new Date(
     Date.UTC(monthInfo.year, monthInfo.month - 1, selectedDay, 4, 0, 0),
@@ -128,7 +99,7 @@ export function TrainerCalendarSchedule({
           </h2>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-amber-300 ring-1 ring-amber-400/40">
-              {t("trainerScheduleCount", { count: reservations.length })}
+              {t("trainerScheduleCount", { count: dayEvents.length })}
             </span>
             {!isOff(selectedDay) && <AddReservationButton />}
           </div>
@@ -148,32 +119,29 @@ export function TrainerCalendarSchedule({
                   {fmtTime(b.startMin)}
                 </div>
                 <div className="grid gap-2">
-                  {b.items.map((r) => {
-                    const isGroup = r.serviceType === "GROUP";
-                    return (
-                      <div
-                        key={r.id}
-                        className="rounded-xl bg-zinc-900 p-3 ring-1 ring-amber-400/30"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-white">
-                            {r.customer}
+                  {b.items.map((r) => (
+                    <div
+                      key={r.id}
+                      className="rounded-xl bg-zinc-900 p-3 ring-1 ring-amber-400/30"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-white">
+                          {r.title}
+                        </span>
+                        {r.isGroup && (
+                          <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-950">
+                            {t("groupBadge", {
+                              enrolled: r.enrolled ?? 0,
+                              capacity: r.capacity ?? 0,
+                            })}
                           </span>
-                          {isGroup && (
-                            <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-950">
-                              {t("groupBadge", {
-                                enrolled: r.enrolled ?? 0,
-                                capacity: r.capacity ?? 0,
-                              })}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-1 text-xs text-zinc-400">
-                          {r.service}
-                        </div>
+                        )}
                       </div>
-                    );
-                  })}
+                      <div className="mt-1 text-xs text-zinc-400">
+                        {r.service}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </li>
             ))}
@@ -184,7 +152,7 @@ export function TrainerCalendarSchedule({
       {/* 월별 캘린더 */}
       <section className="rounded-2xl border border-amber-400/25 bg-black p-5">
         <h2 className="font-heading text-base tracking-tight text-white">
-          {t("calendarTitle", { month: monthLabel })}
+          {t("calendarTitle", { month: monthLabel, name: trainerName })}
         </h2>
         <p className="mt-1 text-[11px] text-zinc-500">
           {t("trainerCalendarHint")}
@@ -206,11 +174,8 @@ export function TrainerCalendarSchedule({
               const isToday = day === monthInfo.todayDay;
               const isSelected = day === selectedDay;
               const off = isOff(day);
-              const classes = MOCK_GROUP_CLASSES_BY_DAY[day] ?? [];
+              const dayCount = off ? 0 : (eventsByDay[day]?.length ?? 0);
 
-              // flex flex-col + items-start 로 날짜 숫자를 항상 좌상단으로 고정.
-              // button 요소는 기본 inline-block이라 자식 수에 따라 레이아웃이
-              // 미묘하게 흔들릴 수 있음 — flex-col로 강제 통일.
               const baseCell =
                 "relative flex h-16 flex-col items-start overflow-hidden rounded-md border p-1.5 text-left transition";
 
@@ -266,10 +231,9 @@ export function TrainerCalendarSchedule({
                   >
                     {day}
                   </div>
-                  {classes.length > 0 && (
+                  {dayCount > 0 && (
                     <div className="mt-1 truncate text-[9px] font-medium text-amber-300">
-                      {classes.map((k) => t(`sampleGroupClass.${k}`))[0]}
-                      {classes.length > 1 ? ` +${classes.length - 1}` : ""}
+                      {t("trainerScheduleCount", { count: dayCount })}
                     </div>
                   )}
                 </button>

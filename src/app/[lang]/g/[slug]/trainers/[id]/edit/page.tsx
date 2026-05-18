@@ -110,6 +110,10 @@ export default async function EditTrainerPage({
       | "FRI"
       | "SAT"
     )[],
+    workStartMin: staff.workStartMin,
+    workEndMin: staff.workEndMin,
+    breakStartMin: staff.breakStartMin,
+    breakEndMin: staff.breakEndMin,
     note: u.note ?? "",
     imageUrls: staff.images.map((img) => img.url),
   };

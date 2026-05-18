@@ -1,6 +1,12 @@
 import { getTheme } from "@/lib/theme";
 import { verifySession } from "@/lib/auth/dal";
-import { SidebarNav } from "./dashboard/SidebarNav";
+import { SidebarNav } from "./SidebarNav";
+
+// /dashboard 세그먼트 전용 로딩 — 부모 [slug]/loading.tsx 를 오버라이드.
+// 버그 수정: 부모 로딩은 getTheme() 기반이라 트레이너(테마=normal)일 때
+// suspend 시마다 normal 사장 대시보드 스켈레톤(사이드바+amber)이 깜빡였다가
+// 검정 트레이너 화면으로 복귀 → "normal 갔다가 돌아옴" 증상. role을 보고
+// 트레이너면 검정 스켈레톤을 렌더해 깜빡임 자체를 제거.
 
 const PAGE_BG = {
   normal: "bg-amber-50/50",
@@ -32,9 +38,6 @@ const SKELETON = {
   white: "bg-zinc-100",
 } as const;
 
-// 트레이너는 테마 쿠키가 보통 normal이라, 공용 로딩이 normal 사장 스켈레톤을
-// 깜빡였다 검정 트레이너 화면으로 복귀하는 "왔다 갔다" 증상을 냈다.
-// 어떤 라우트의 suspense든 트레이너면 검정 스켈레톤만 보이게 차단.
 function TrainerSkeleton() {
   return (
     <div className="flex min-h-screen flex-col bg-black text-zinc-100">
@@ -43,7 +46,7 @@ function TrainerSkeleton() {
           <div className="h-5 w-28 animate-pulse rounded bg-zinc-800/70" />
           <div className="mt-2 h-3 w-40 animate-pulse rounded bg-zinc-800/70" />
         </div>
-        <div className="h-7 w-28 animate-pulse rounded-md bg-zinc-800/70" />
+        <div className="h-7 w-20 animate-pulse rounded-md bg-zinc-800/70" />
       </header>
       <main className="flex-1 space-y-4 p-4">
         <div className="h-44 animate-pulse rounded-2xl bg-zinc-900 ring-1 ring-white/10" />
@@ -53,7 +56,7 @@ function TrainerSkeleton() {
   );
 }
 
-export default async function GymLoading() {
+export default async function DashboardLoading() {
   const user = await verifySession();
   if (user?.role === "TRAINER") return <TrainerSkeleton />;
 
@@ -65,8 +68,12 @@ export default async function GymLoading() {
       >
         <div className={`border-b px-6 py-6 ${SIDEBAR_BORDER[theme]}`}>
           <div className={`h-3 w-16 animate-pulse rounded ${SKELETON[theme]}`} />
-          <div className={`mt-2 h-5 w-32 animate-pulse rounded ${SKELETON[theme]}`} />
-          <div className={`mt-1 h-3 w-20 animate-pulse rounded ${SKELETON[theme]}`} />
+          <div
+            className={`mt-2 h-5 w-32 animate-pulse rounded ${SKELETON[theme]}`}
+          />
+          <div
+            className={`mt-1 h-3 w-20 animate-pulse rounded ${SKELETON[theme]}`}
+          />
         </div>
         <SidebarNav tone={theme} />
       </aside>
@@ -76,15 +83,25 @@ export default async function GymLoading() {
           className={`flex items-center justify-between border-b px-8 py-5 ${HEADER_BORDER[theme]}`}
         >
           <div>
-            <div className={`h-3 w-20 animate-pulse rounded ${SKELETON[theme]}`} />
-            <div className={`mt-2 h-6 w-40 animate-pulse rounded ${SKELETON[theme]}`} />
+            <div
+              className={`h-3 w-20 animate-pulse rounded ${SKELETON[theme]}`}
+            />
+            <div
+              className={`mt-2 h-6 w-40 animate-pulse rounded ${SKELETON[theme]}`}
+            />
           </div>
         </header>
 
         <div className="mx-auto w-full max-w-5xl space-y-5 p-6">
-          <div className={`h-32 animate-pulse rounded-2xl ${SKELETON[theme]}`} />
-          <div className={`h-48 animate-pulse rounded-2xl ${SKELETON[theme]}`} />
-          <div className={`h-64 animate-pulse rounded-2xl ${SKELETON[theme]}`} />
+          <div
+            className={`h-32 animate-pulse rounded-2xl ${SKELETON[theme]}`}
+          />
+          <div
+            className={`h-48 animate-pulse rounded-2xl ${SKELETON[theme]}`}
+          />
+          <div
+            className={`h-64 animate-pulse rounded-2xl ${SKELETON[theme]}`}
+          />
         </div>
       </main>
     </div>

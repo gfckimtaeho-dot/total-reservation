@@ -44,9 +44,24 @@ const createSchema = z.object({
   bio: z.string().optional().or(z.literal("")),
   career: z.string().optional().or(z.literal("")),
   weeklyOffDays: z.array(z.enum(WEEKDAYS)).optional().default([]),
+  workStart: z.string().optional().or(z.literal("")),
+  workEnd: z.string().optional().or(z.literal("")),
+  breakStart: z.string().optional().or(z.literal("")),
+  breakEnd: z.string().optional().or(z.literal("")),
   note: z.string().optional().or(z.literal("")),
   imageUrls: z.array(z.string().url()).max(5).optional().default([]),
 });
+
+// "HH:MM" → 자정 기준 분. 빈 값/형식 오류면 null (= gym 영업시간 따름).
+function timeToMin(s: string | undefined): number | null {
+  if (!s) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
 
 export type CreateTrainerState = {
   errors?: Record<string, string[] | undefined>;
@@ -72,6 +87,10 @@ export async function createTrainer(
     bio: formData.get("bio") ?? "",
     career: formData.get("career") ?? "",
     weeklyOffDays: formData.getAll("weeklyOffDays"),
+    workStart: formData.get("workStart") ?? "",
+    workEnd: formData.get("workEnd") ?? "",
+    breakStart: formData.get("breakStart") ?? "",
+    breakEnd: formData.get("breakEnd") ?? "",
     note: formData.get("note") ?? "",
     imageUrls: (() => {
       const raw = formData.get("imageUrls");
@@ -166,6 +185,10 @@ export async function createTrainer(
           specialties: d.specialties,
           customSpecialty: d.customSpecialty || null,
           weeklyOffDays: d.weeklyOffDays,
+          workStartMin: timeToMin(d.workStart),
+          workEndMin: timeToMin(d.workEnd),
+          breakStartMin: timeToMin(d.breakStart),
+          breakEndMin: timeToMin(d.breakEnd),
           photoUrl: d.imageUrls[0] ?? null,
         },
         select: { id: true },
@@ -216,6 +239,10 @@ export async function updateTrainer(
     bio: formData.get("bio") ?? "",
     career: formData.get("career") ?? "",
     weeklyOffDays: formData.getAll("weeklyOffDays"),
+    workStart: formData.get("workStart") ?? "",
+    workEnd: formData.get("workEnd") ?? "",
+    breakStart: formData.get("breakStart") ?? "",
+    breakEnd: formData.get("breakEnd") ?? "",
     note: formData.get("note") ?? "",
     imageUrls: (() => {
       const raw = formData.get("imageUrls");
@@ -314,6 +341,10 @@ export async function updateTrainer(
           specialties: d.specialties,
           customSpecialty: d.customSpecialty || null,
           weeklyOffDays: d.weeklyOffDays,
+          workStartMin: timeToMin(d.workStart),
+          workEndMin: timeToMin(d.workEnd),
+          breakStartMin: timeToMin(d.breakStart),
+          breakEndMin: timeToMin(d.breakEnd),
           photoUrl: d.imageUrls[0] ?? null,
         },
       });

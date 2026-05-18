@@ -113,17 +113,12 @@ function applyDiscount(
   return Math.max(0, basePrice - discountValue);
 }
 
-// datetime-local input은 "YYYY-MM-DDTHH:mm" 포맷. ISO string에서 잘라 변환.
-function toLocalInput(iso: string): string {
+// 이벤트 기간은 날짜 단위. ISO string에서 날짜 부분(YYYY-MM-DD)만 잘라 씀.
+// 기간 경계는 UTC 고정(00:00:00Z ~ 23:59:59.999Z, actions.ts)이라
+// slice가 TZ 무관하게 정확 — 편집 시 날짜 drift 없음.
+function toDateInput(iso: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "";
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  return iso.slice(0, 10);
 }
 
 export function PromotionForm({
@@ -156,11 +151,11 @@ export function PromotionForm({
   const formRef = useRef<HTMLFormElement>(null);
 
   // 기본값: 이름·범위·할인. 시작은 오늘, 종료는 30일 후 (UX 친화 기본값).
-  const todayLocal = toLocalInput(new Date().toISOString());
+  const todayLocal = toDateInput(new Date().toISOString());
   const monthLater = (() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
-    return toLocalInput(d.toISOString());
+    return toDateInput(d.toISOString());
   })();
 
   const [name, setName] = useState(promotion?.name ?? "");
@@ -173,10 +168,10 @@ export function PromotionForm({
     promotion ? String(promotion.discountValue) : "10",
   );
   const [startsAt, setStartsAt] = useState(
-    promotion?.startsAt ? toLocalInput(promotion.startsAt) : todayLocal,
+    promotion?.startsAt ? toDateInput(promotion.startsAt) : todayLocal,
   );
   const [endsAt, setEndsAt] = useState(
-    promotion?.endsAt ? toLocalInput(promotion.endsAt) : monthLater,
+    promotion?.endsAt ? toDateInput(promotion.endsAt) : monthLater,
   );
   const [active, setActive] = useState(promotion?.active ?? true);
 
@@ -400,7 +395,7 @@ export function PromotionForm({
               {t("startsAt")}
             </label>
             <NativePickerInput
-              type="datetime-local"
+              type="date"
               lang={lang}
               name="startsAt"
               required
@@ -419,7 +414,7 @@ export function PromotionForm({
               {t("endsAt")}
             </label>
             <NativePickerInput
-              type="datetime-local"
+              type="date"
               lang={lang}
               name="endsAt"
               required

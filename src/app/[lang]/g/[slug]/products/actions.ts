@@ -586,6 +586,19 @@ const promotionUpdateSchema = promotionCreateSchema.extend({
   ),
 });
 
+// 이벤트 기간은 날짜 단위 입력(YYYY-MM-DD). 시작일 00:00:00Z ~ 종료일
+// 23:59:59.999Z 로 박제 — 종료일 inclusive(그날 하루 종일 유효),
+// UTC 고정이라 dev/prod 일관 + 편집 시 날짜 drift 없음. 검증·생성·수정 공유.
+function periodBounds(startsAt: string, endsAt: string): {
+  s: Date;
+  e: Date;
+} {
+  return {
+    s: new Date(`${startsAt}T00:00:00.000Z`),
+    e: new Date(`${endsAt}T23:59:59.999Z`),
+  };
+}
+
 function validatePromotion(data: {
   scope: string;
   targetId?: string;
@@ -605,8 +618,7 @@ function validatePromotion(data: {
   if (data.discountType === "PERCENT" && data.discountValue > 100) {
     errors.discountValue = ["discountPercent"];
   }
-  const s = new Date(data.startsAt);
-  const e = new Date(data.endsAt);
+  const { s, e } = periodBounds(data.startsAt, data.endsAt);
   if (!Number.isFinite(s.getTime()) || !Number.isFinite(e.getTime())) {
     errors.startsAt = ["period"];
   } else if (e <= s) {
@@ -654,6 +666,7 @@ export async function createPromotion(
       ? (data.targetId ?? null)
       : null;
 
+  const { s: startsAt, e: endsAt } = periodBounds(data.startsAt, data.endsAt);
   await prisma.promotion.create({
     data: {
       gymId,
@@ -662,8 +675,8 @@ export async function createPromotion(
       targetId,
       discountType: data.discountType,
       discountValue: data.discountValue,
-      startsAt: new Date(data.startsAt),
-      endsAt: new Date(data.endsAt),
+      startsAt,
+      endsAt,
     },
   });
 
@@ -719,6 +732,7 @@ export async function updatePromotion(
       : null;
 
   const valueChanged = existing.discountValue !== data.discountValue;
+  const { s: startsAt, e: endsAt } = periodBounds(data.startsAt, data.endsAt);
 
   await prisma.$transaction(async (tx) => {
     await tx.promotion.update({
@@ -729,8 +743,8 @@ export async function updatePromotion(
         targetId,
         discountType: data.discountType,
         discountValue: data.discountValue,
-        startsAt: new Date(data.startsAt),
-        endsAt: new Date(data.endsAt),
+        startsAt,
+        endsAt,
         active: data.active,
       },
     });

@@ -130,6 +130,13 @@ enum DiscountType {
   FIXED
 }
 
+// 판매 단위 유형. 단품(멤버십/횟수권) 또는 콤보 묶음.
+enum SaleType {
+  MEMBERSHIP
+  PACKAGE
+  COMBO
+}
+
 enum NotificationChannelSetting {
   PUSH
   EMAIL
@@ -249,6 +256,7 @@ model Business {
   inviteToken         InviteToken?
   scheduledClasses    ScheduledClass[]
   priceChangeLogs     PriceChangeLog[]
+  sales               Sale[]
 
   @@index([cityId, barangayId])
   @@index([status])
@@ -291,6 +299,7 @@ model User {
   magicLinkTokens     MagicLinkToken[]
   sessions            Session[]
   accounts            Account[]
+  sales               Sale[]
 
   @@unique([email, gymId])
   @@index([gymId, role])
@@ -375,6 +384,15 @@ model Staff {
   specialties     Specialty[] @default([])
   customSpecialty String?
   weeklyOffDays   Weekday[]   @default([])
+  // 정기 출근 시간(자정 기준 분, Manila). 기본 10:00~22:00.
+  // 가용시간 = gym 영업시간 ∩ [workStartMin, workEndMin] − 휴무/휴가.
+  // "새벽 3시 PT" 방지 — 고객 예약 가능 창 산정의 트레이너 측 경계.
+  workStartMin    Int?        @default(600)
+  workEndMin      Int?        @default(1320)
+  // 트레이너 개인 휴게(자정 기준 분, Manila). 보통 없음(null). 있으면 그 구간
+  // 슬롯은 예약 불가 — 매장 영업시간 휴게와 별개로 추가 차감.
+  breakStartMin   Int?
+  breakEndMin     Int?
   createdAt       DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
 
@@ -528,10 +546,16 @@ model Membership {
   startDate DateTime @db.Date
   endDate   DateTime @db.Date
   pricePhp  Int
+  // 발급 원천 추적 — Sale 도입 전 인스턴스는 null. plan 삭제 시 매출은 Sale에 보존.
+  planId    String?
+  plan      MembershipPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  saleId    String?
+  sale      Sale?    @relation(fields: [saleId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([gymId, userId])
   @@index([gymId, endDate])
+  @@index([saleId])
 }
 
 // ─── MembershipPlan (회원권 카탈로그) ─────────────────────
@@ -550,6 +574,7 @@ model MembershipPlan {
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
   combos       ComboPlan[]
+  memberships  Membership[]
 
   @@index([gymId, active])
 }
@@ -573,6 +598,7 @@ model PackagePlan {
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
   comboItems   ComboPackageItem[]
+  packages     Package[]
 
   @@index([gymId, active])
   @@index([gymId, serviceId])
@@ -630,6 +656,8 @@ model Promotion {
   createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
 
+  sales         Sale[]
+
   @@index([gymId, active, startsAt, endsAt])
   @@index([gymId, scope, targetId])
 }
@@ -665,9 +693,53 @@ model Package {
   totalCount     Decimal  @db.Decimal(5, 1)
   remainingCount Decimal  @db.Decimal(5, 1)
   pricePhp       Int
+  // 결제 시점 Service.payoutPhp 스냅샷(frozen). 이후 Service.payoutPhp가 바뀌어도
+  // 이미 팔린 패키지의 트레이너 지급액은 불변. 기존 인스턴스 호환 위해 default 0.
+  payoutPhp      Int      @default(0)
+  // 발급 원천 추적 — Sale 도입 전 인스턴스는 null. plan 삭제 시 매출은 Sale에 보존.
+  planId         String?
+  plan           PackagePlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  saleId         String?
+  sale           Sale?    @relation(fields: [saleId], references: [id], onDelete: SetNull)
   createdAt      DateTime @default(now()) @db.Timestamptz(3)
 
+  reservations   Reservation[]
+
   @@index([gymId, userId])
+  @@index([saleId])
+}
+
+// ─── Sale (매출 단일 소스) ──────────────────────────────────
+// 한 건의 판매 = 멤버십/횟수권 단품 또는 콤보 묶음. 결제 시점의 금액 산식을
+// 전부 스냅샷으로 박제(immutable). 발급된 Membership/Package 인스턴스가
+// saleId로 이 row를 가리킴. 환불은 이 row를 수정하지 않고 별도 처리.
+// ownerRevenue = totalPaid − payoutLiability. 콤보는 음수면 애초에 저장 차단.
+model Sale {
+  id                   String     @id @default(cuid())
+  gymId                String
+  business             Business   @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId               String
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  saleType             SaleType
+  // 판매 원천 plan (soft ref — PriceChangeLog와 동일 패턴).
+  sourcePlanId         String
+  // 금액 산식 스냅샷(전부 결제 시점 박제)
+  listPricePhp         Int        // 정상가 합계
+  promotionId          String?
+  promotion            Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+  promotionDiscountPhp Int        @default(0)
+  totalPaidPhp         Int        // 실수령 = listPrice − promotionDiscount (콤보면 콤보가)
+  payoutLiabilityPhp   Int        @default(0) // 트레이너 지급 총액(frozen 합)
+  ownerRevenuePhp      Int        // totalPaid − payoutLiability
+  soldById             String?    // 판매 처리한 owner/staff User.id (soft ref)
+  createdAt            DateTime   @default(now()) @db.Timestamptz(3)
+
+  memberships          Membership[]
+  packages             Package[]
+
+  @@index([gymId, createdAt])
+  @@index([gymId, saleType])
+  @@index([userId])
 }
 
 // ─── Reservation ───────────────────────────────────────────
@@ -686,6 +758,12 @@ model Reservation {
   endAt            DateTime          @db.Timestamptz(3)
   status           ReservationStatus @default(PENDING_PAYMENT)
   depositConfirmed Boolean           @default(false)
+  // "수업 완료" 클릭 시각. status=COMPLETED 와 함께 기록. 정산 산식은 후속.
+  completedAt      DateTime?         @db.Timestamptz(3)
+  // 이 예약이 차감하는 PT권/횟수권 인스턴스. 완료 시 Package.remainingCount −= deduct.
+  // 권 삭제돼도 예약 원장은 보존(SetNull). 원본(totalCount)은 Package에서 불변.
+  packageId        String?
+  package          Package?          @relation(fields: [packageId], references: [id], onDelete: SetNull)
   // 정기 단체 수업에서 발생한 예약이면 그 schedule을 가리킴.
   // 1:1 자유 예약은 null. schedule 삭제 시 SetNull로 row는 보존.
   scheduledClassId String?

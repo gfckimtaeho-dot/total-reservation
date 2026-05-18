@@ -2,13 +2,8 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
-import {
-  formatManilaMonthLabel,
-  getManilaMonthInfo,
-} from "../../../preview/_mock";
-import { TrainerCalendarSchedule } from "./TrainerCalendarSchedule";
-import { HoursStatusCard } from "./HoursStatusCard";
-import { MyCheckInCard } from "./MyCheckInCard";
+import { loadTrainerCalendar } from "@/lib/calendar/trainerCalendarPro";
+import { TrainerCalendarPro } from "@/components/calendar/TrainerCalendarPro";
 
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
@@ -29,13 +24,10 @@ export async function DashboardTrainer({
   lang,
   slug,
   gymId,
-  userId,
   staffId,
   businessName,
   trainerName,
   accessToken,
-  selectedDay,
-  weeklyOffDays,
 }: Props) {
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
@@ -50,12 +42,9 @@ export async function DashboardTrainer({
       weekday: "long",
     },
   ).format(today);
-  const monthLabel = formatManilaMonthLabel(today, lang);
-  const monthInfo = getManilaMonthInfo(today);
-  const safeSelectedDay =
-    selectedDay >= 1 && selectedDay <= monthInfo.daysInMonth
-      ? selectedDay
-      : monthInfo.todayDay;
+
+  // 본인 담당 예약만(staffId 필터) + 매장 영업/근무일·트레이너 출근시간 가용창 반영.
+  const calendar = await loadTrainerCalendar(gymId, staffId, trainerName);
 
   const qrDataUrl = await QRCode.toDataURL(accessToken, {
     width: 320,
@@ -74,11 +63,19 @@ export async function DashboardTrainer({
             {businessName} · {todayDisplay}
           </div>
         </div>
-        <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-          <button className="rounded-md border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 transition hover:border-amber-400 hover:text-amber-300">
-            {tn("logout")}
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/${lang}/g/${slug}/showcase`}
+            className="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400 hover:text-zinc-950"
+          >
+            {t("trainerShowcaseBtn")}
+          </Link>
+          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
+            <button className="rounded-md border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 transition hover:border-amber-400 hover:text-amber-300">
+              {tn("logout")}
+            </button>
+          </form>
+        </div>
       </header>
 
       <main className="flex-1 space-y-4 p-4">
@@ -100,24 +97,7 @@ export async function DashboardTrainer({
           </p>
         </section>
 
-        <MyCheckInCard gymId={gymId} userId={userId} staffId={staffId} />
-
-        <HoursStatusCard
-          gymId={gymId}
-          lang={lang}
-          slug={slug}
-          tone="trainer"
-          canEdit={false}
-        />
-
-        <TrainerCalendarSchedule
-          lang={lang}
-          trainerName={trainerName}
-          weeklyOffDays={weeklyOffDays}
-          monthLabel={monthLabel}
-          monthInfo={monthInfo}
-          initialSelectedDay={safeSelectedDay}
-        />
+        <TrainerCalendarPro data={calendar} slug={slug} lang={lang} />
       </main>
 
       <footer className="border-t border-white/10 px-5 py-4 text-center text-[11px] text-zinc-500">

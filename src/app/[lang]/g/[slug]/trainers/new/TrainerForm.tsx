@@ -98,9 +98,21 @@ export type TrainerInitialValues = {
   bio: string;
   career: string;
   weeklyOffDays: Weekday[];
+  workStartMin: number | null;
+  workEndMin: number | null;
+  breakStartMin: number | null;
+  breakEndMin: number | null;
   note: string;
   imageUrls: string[];
 };
+
+// 분 ↔ "HH:MM" (native time input 포맷)
+function minToTime(min: number | null | undefined): string {
+  if (min == null) return "";
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(
+    min % 60,
+  ).padStart(2, "0")}`;
+}
 
 export function TrainerForm({
   slug,
@@ -131,6 +143,20 @@ export function TrainerForm({
   );
   const [offDays, setOffDays] = useState<Set<Weekday>>(
     new Set(iv?.weeklyOffDays ?? []),
+  );
+  // 기본 출근 10:00~22:00 — 신규 등록 + 미설정(null) 트레이너 모두 이 값으로.
+  const [workStart, setWorkStart] = useState(
+    iv?.workStartMin != null ? minToTime(iv.workStartMin) : "10:00",
+  );
+  const [workEnd, setWorkEnd] = useState(
+    iv?.workEndMin != null ? minToTime(iv.workEndMin) : "22:00",
+  );
+  // 휴게는 기본 없음(빈 값). 입력하면 그 구간 예약 불가.
+  const [breakStart, setBreakStart] = useState(
+    iv?.breakStartMin != null ? minToTime(iv.breakStartMin) : "",
+  );
+  const [breakEnd, setBreakEnd] = useState(
+    iv?.breakEndMin != null ? minToTime(iv.breakEndMin) : "",
   );
   const [role, setRole] = useState<"TRAINER" | "MANAGER">(iv?.role ?? "TRAINER");
   const [gender, setGender] = useState<"MALE" | "FEMALE">(iv?.gender ?? "MALE");
@@ -384,6 +410,58 @@ export function TrainerForm({
         {Array.from(offDays).map((w) => (
           <input key={w} type="hidden" name="weeklyOffDays" value={w} />
         ))}
+
+        <div className="mt-6">
+          <div className="text-xs font-medium opacity-70">
+            {t("workTimeLabel")}
+          </div>
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              type="time"
+              name="workStart"
+              lang={lang}
+              value={workStart}
+              onChange={(e) => setWorkStart(e.target.value)}
+              className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
+            />
+            <span className="text-sm opacity-60">~</span>
+            <input
+              type="time"
+              name="workEnd"
+              lang={lang}
+              value={workEnd}
+              onChange={(e) => setWorkEnd(e.target.value)}
+              className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
+            />
+          </div>
+          <p className="mt-1.5 text-xs opacity-60">{t("workTimeHint")}</p>
+        </div>
+
+        <div className="mt-5">
+          <div className="text-xs font-medium opacity-70">
+            {t("breakTimeLabel")}
+          </div>
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              type="time"
+              name="breakStart"
+              lang={lang}
+              value={breakStart}
+              onChange={(e) => setBreakStart(e.target.value)}
+              className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
+            />
+            <span className="text-sm opacity-60">~</span>
+            <input
+              type="time"
+              name="breakEnd"
+              lang={lang}
+              value={breakEnd}
+              onChange={(e) => setBreakEnd(e.target.value)}
+              className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
+            />
+          </div>
+          <p className="mt-1.5 text-xs opacity-60">{t("breakTimeHint")}</p>
+        </div>
       </section>
 
       {/* Section 6 — Memo */}

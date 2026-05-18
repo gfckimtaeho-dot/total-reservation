@@ -387,6 +387,46 @@ export default async function TrainerDetailPage({
                 );
               })}
             </div>
+
+            <h3
+              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${SUBTLE[theme]}`}
+            >
+              {t("detailWorkTime")}
+            </h3>
+            <p className={`mt-1 text-sm tabular-nums ${TITLE[theme]}`}>
+              {((m: number | null) =>
+                m == null
+                  ? "—"
+                  : `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(
+                      m % 60,
+                    ).padStart(2, "0")}`)(staff.workStartMin)}
+              {" ~ "}
+              {((m: number | null) =>
+                m == null
+                  ? "—"
+                  : `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(
+                      m % 60,
+                    ).padStart(2, "0")}`)(staff.workEndMin)}
+            </p>
+
+            <h3
+              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${SUBTLE[theme]}`}
+            >
+              {t("detailBreakTime")}
+            </h3>
+            <p className={`mt-1 text-sm tabular-nums ${TITLE[theme]}`}>
+              {staff.breakStartMin != null && staff.breakEndMin != null
+                ? `${String(Math.floor(staff.breakStartMin / 60)).padStart(
+                    2,
+                    "0",
+                  )}:${String(staff.breakStartMin % 60).padStart(2, "0")} ~ ${String(
+                    Math.floor(staff.breakEndMin / 60),
+                  ).padStart(2, "0")}:${String(staff.breakEndMin % 60).padStart(
+                    2,
+                    "0",
+                  )}`
+                : t("detailBreakNone")}
+            </p>
           </section>
 
           {/* Bio + Career */}

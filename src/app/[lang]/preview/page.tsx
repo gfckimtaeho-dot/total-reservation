@@ -85,6 +85,26 @@ export default async function PreviewIndex({
         ))}
       </ul>
 
+      <div className="mt-8 rounded-2xl border-2 border-ink bg-white p-5">
+        <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
+          상품 소개 (고객 대면 · 태블릿)
+        </span>
+        <Link
+          href={`/${lang}/preview/showcase`}
+          className="mt-2 flex flex-col gap-1.5"
+        >
+          <span className="font-heading text-lg tracking-tight text-ink">
+            Showcase — 회원권~이벤트 가로 5패널
+          </span>
+          <span className="text-sm text-zinc-600">
+            트레이너가 태블릿으로 고객에게 보여주는 풀스크린 발표 모드. 좌우 스와이프(scroll-snap). 상단 토글로 Dark Cinematic ⇄ Editorial Light 실시간 비교. 실데이터(stronghealth).
+          </span>
+          <span className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-ink/60">
+            /preview/showcase →
+          </span>
+        </Link>
+      </div>
+
       <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-5">
         <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
           추가 시안
