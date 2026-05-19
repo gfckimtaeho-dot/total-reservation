@@ -2,12 +2,28 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { createMember, type CreateMemberState } from "./actions";
+import {
+  createMember,
+  updateMember,
+  type CreateMemberState,
+} from "./actions";
 import { DobPicker } from "./DobPicker";
 
 const initialState: CreateMemberState = {};
 
 type Tone = "normal" | "black" | "white";
+
+export type EditMember = {
+  id: string;
+  name: string;
+  gender: "MALE" | "FEMALE" | null;
+  phone: string | null;
+  email: string | null;
+  dob: string | null;
+  emergencyContactPhone: string | null;
+  note: string | null;
+  locale: "en" | "ko";
+};
 
 const TONE_TOKENS = {
   normal: {
@@ -47,15 +63,20 @@ export function MemberAddDialog({
   slug,
   tone,
   lang,
+  mode = "create",
+  member,
 }: {
   slug: string;
   tone: Tone;
   lang: string;
+  mode?: "create" | "edit";
+  member?: EditMember;
 }) {
   const t = useTranslations("memberAdd");
+  const isEdit = mode === "edit";
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
-    createMember,
+    isEdit ? updateMember : createMember,
     initialState,
   );
   const tk = TONE_TOKENS[tone];
@@ -68,13 +89,23 @@ export function MemberAddDialog({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`inline-flex h-10 items-center rounded-md px-4 text-sm font-medium transition ${tk.primaryBtn}`}
-      >
-        + {t("title")}
-      </button>
+      {isEdit ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`h-8 rounded-md px-3 text-xs transition ${tk.cancelBtn}`}
+        >
+          {t("rowEdit")}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`inline-flex h-10 items-center rounded-md px-4 text-sm font-medium transition ${tk.primaryBtn}`}
+        >
+          + {t("title")}
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -87,11 +118,14 @@ export function MemberAddDialog({
           >
             <h2 className="font-heading text-xl tracking-tight">
               <span className={tone === "black" ? "text-white" : "text-ink"}>
-                {t("title")}
+                {isEdit ? t("editTitle") : t("title")}
               </span>
             </h2>
             <form action={formAction} className="mt-5 space-y-4">
               <input type="hidden" name="slug" value={slug} />
+              {isEdit && member && (
+                <input type="hidden" name="memberId" value={member.id} />
+              )}
 
               <Field
                 tk={tk}
@@ -100,6 +134,7 @@ export function MemberAddDialog({
                 name="name"
                 required
                 errors={state.errors?.name}
+                defaultValue={member?.name ?? ""}
               />
 
               <div>
@@ -118,10 +153,39 @@ export function MemberAddDialog({
                         type="radio"
                         name="gender"
                         value={g}
-                        defaultChecked={i === 0}
+                        defaultChecked={
+                          member?.gender ? member.gender === g : i === 0
+                        }
                         className="h-4 w-4 accent-ink"
                       />
                       {g === "MALE" ? t("genderMale") : t("genderFemale")}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span
+                  className={`text-sm font-medium ${tone === "black" ? "text-zinc-200" : "text-zinc-800"}`}
+                >
+                  {t("language")} <span className="text-rose-500">*</span>
+                </span>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(["en", "ko"] as const).map((lc, i) => (
+                    <label
+                      key={lc}
+                      className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition has-[:checked]:${tk.radioActive} ${tk.radioInactive}`}
+                    >
+                      <input
+                        type="radio"
+                        name="locale"
+                        value={lc}
+                        defaultChecked={
+                          member?.locale ? member.locale === lc : i === 0
+                        }
+                        className="h-4 w-4 accent-ink"
+                      />
+                      {lc === "en" ? t("langEnglish") : t("langKorean")}
                     </label>
                   ))}
                 </div>
@@ -136,6 +200,7 @@ export function MemberAddDialog({
                 placeholder={t("phonePlaceholder")}
                 errors={state.errors?.phone}
                 hint={t("phoneHint")}
+                defaultValue={member?.phone ?? ""}
               />
 
               <DobPicker
@@ -143,6 +208,9 @@ export function MemberAddDialog({
                 lang={lang}
                 label={t("dob")}
                 tone={tone}
+                initialDate={
+                  member?.dob ? new Date(member.dob) : undefined
+                }
               />
               {state.errors?.dob && (
                 <span className="text-xs text-rose-500">
@@ -159,6 +227,7 @@ export function MemberAddDialog({
                 placeholder={t("emailPlaceholder")}
                 errors={state.errors?.email}
                 hint={t("emailHint")}
+                defaultValue={member?.email ?? ""}
               />
 
               <Field
@@ -168,6 +237,7 @@ export function MemberAddDialog({
                 name="emergencyContactPhone"
                 placeholder={t("emergencyPlaceholder")}
                 errors={state.errors?.emergencyContactPhone}
+                defaultValue={member?.emergencyContactPhone ?? ""}
               />
 
               <label className="flex flex-col gap-1.5">
@@ -180,6 +250,7 @@ export function MemberAddDialog({
                   name="note"
                   rows={3}
                   placeholder={t("notePlaceholder")}
+                  defaultValue={member?.note ?? ""}
                   className={`rounded-md border ${tk.fieldBorder} px-3 py-2 text-sm transition focus:outline-none focus:ring-2 ${tk.fieldFocus}`}
                 />
                 {state.errors?.note && (
@@ -188,6 +259,13 @@ export function MemberAddDialog({
                   </span>
                 )}
               </label>
+
+              {state.errors &&
+                Object.keys(state.errors).length > 0 && (
+                  <p className="text-sm font-medium text-rose-500">
+                    {t("formHasErrors")}
+                  </p>
+                )}
 
               <div className="flex items-center justify-end gap-2 border-t border-zinc-100 pt-5 dark:border-white/10">
                 <button
@@ -202,7 +280,13 @@ export function MemberAddDialog({
                   disabled={pending}
                   className={`h-10 rounded-md px-5 text-sm font-medium transition disabled:opacity-60 ${tk.primaryBtn}`}
                 >
-                  {pending ? t("submitting") : t("submit")}
+                  {pending
+                    ? isEdit
+                      ? t("editSubmitting")
+                      : t("submitting")
+                    : isEdit
+                      ? t("editSubmit")
+                      : t("submit")}
                 </button>
               </div>
             </form>
@@ -224,6 +308,7 @@ function Field({
   errors,
   hint,
   lang,
+  defaultValue,
 }: {
   tk: (typeof TONE_TOKENS)[Tone];
   tone: Tone;
@@ -235,6 +320,7 @@ function Field({
   errors?: string[];
   hint?: string;
   lang?: string;
+  defaultValue?: string;
 }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -249,6 +335,7 @@ function Field({
         name={name}
         placeholder={placeholder}
         lang={lang}
+        defaultValue={defaultValue}
         aria-invalid={Boolean(errors)}
         className={`h-11 rounded-md border ${tk.fieldBorder} px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.fieldFocus}`}
       />

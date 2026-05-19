@@ -188,23 +188,30 @@ enum ScheduleKind {
 // ─── PSGC Location (글로벌 마스터) ────────────────────────
 
 model City {
-  id        String     @id @default(cuid())
-  psgcCode  String     @unique
+  id        String   @id @default(cuid())
+  psgcCode  String   @unique
   name      String
-  createdAt DateTime   @default(now()) @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
-  barangays Barangay[]
-  businesses Business[]
+  barangays   Barangay[]
+  businesses  Business[]
+  updatedAt   DateTime   @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 }
 
 model Barangay {
-  id        String @id @default(cuid())
-  psgcCode  String @unique
-  name      String
-  cityId    String
-  city      City   @relation(fields: [cityId], references: [id])
+  id       String @id @default(cuid())
+  psgcCode String @unique
+  name     String
+  cityId   String
+  city     City   @relation(fields: [cityId], references: [id])
 
-  businesses Business[]
+  businesses  Business[]
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime   @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([cityId])
 }
@@ -223,10 +230,10 @@ model Business {
   status       BusinessStatus   @default(TRIAL)
   cityId       String
   barangayId   String
-  city         City           @relation(fields: [cityId], references: [id])
-  barangay     Barangay       @relation(fields: [barangayId], references: [id])
-  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime       @updatedAt @db.Timestamptz(3)
+  city         City             @relation(fields: [cityId], references: [id])
+  barangay     Barangay         @relation(fields: [barangayId], references: [id])
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
 
   users               User[]
   staff               Staff[]
@@ -257,6 +264,8 @@ model Business {
   scheduledClasses    ScheduledClass[]
   priceChangeLogs     PriceChangeLog[]
   sales               Sale[]
+  createdById         String?
+  updatedById         String?
 
   @@index([cityId, barangayId])
   @@index([status])
@@ -265,24 +274,25 @@ model Business {
 // ─── User (가맹점 스코프, admin만 gymId NULL) ─────────────
 
 model User {
-  id           String     @id @default(cuid())
-  gymId        String?
-  business     Business?  @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  email        String?
-  passwordHash String?
-  name         String
-  phone        String?
-  gender       Gender?
-  dob          DateTime?  @db.Date
-  note         String?
+  id                    String     @id @default(cuid())
+  gymId                 String?
+  business              Business?  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  email                 String?
+  passwordHash          String?
+  name                  String
+  phone                 String?
+  gender                Gender?
+  dob                   DateTime?  @db.Date
+  note                  String?
   emergencyContactPhone String?
-  role         Role       @default(CUSTOMER)
-  status       UserStatus @default(PENDING)
-  locale       Locale     @default(ko)
+  role                  Role       @default(CUSTOMER)
+  status                UserStatus @default(PENDING)
+  active                Boolean    @default(true)
+  locale                Locale     @default(ko)
   // 영구 출입 토큰. 사장이 트레이너 관리에서 "재발급" 시 새 값으로 교체.
-  accessToken  String?    @unique
-  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+  accessToken           String?    @unique
+  createdAt             DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime   @updatedAt @db.Timestamptz(3)
 
   staff               Staff?
   memberships         Membership[]
@@ -300,6 +310,8 @@ model User {
   sessions            Session[]
   accounts            Account[]
   sales               Sale[]
+  createdById         String?
+  updatedById         String?
 
   @@unique([email, gymId])
   @@index([gymId, role])
@@ -307,29 +319,33 @@ model User {
 }
 
 model Session {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token      String   @unique
-  expiresAt  DateTime @db.Timestamptz(3)
-  ipAddress  String?
-  userAgent  String?
-  rememberMe Boolean  @default(false)
-  createdAt  DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String   @unique
+  expiresAt   DateTime @db.Timestamptz(3)
+  ipAddress   String?
+  userAgent   String?
+  rememberMe  Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model Account {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  providerId String
-  accountId  String
-  createdAt  DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId  String
+  accountId   String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@unique([providerId, accountId])
   @@index([userId])
@@ -348,6 +364,9 @@ model MagicLinkToken {
   expiresAt    DateTime         @db.Timestamptz(3)
   usedAt       DateTime?        @db.Timestamptz(3)
   createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById  String?
+  updatedById  String?
 
   @@index([targetUserId, purpose])
   @@index([expiresAt])
@@ -365,6 +384,9 @@ model InviteToken {
   createdBusinessId    String?   @unique
   createdBusiness      Business? @relation(fields: [createdBusinessId], references: [id])
   createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById          String?
+  updatedById          String?
 
   @@index([expiresAt])
 }
@@ -400,31 +422,39 @@ model Staff {
   images           StaffImage[]
   leaves           StaffLeave[]
   scheduledClasses ScheduledClass[]
+  createdById      String?
+  updatedById      String?
 
   @@index([gymId, role])
 }
 
 model StaffImage {
-  id        String   @id @default(cuid())
-  staffId   String
-  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  url       String
-  position  Int      @default(0)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  id          String   @id @default(cuid())
+  staffId     String
+  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  url         String
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([staffId, position])
 }
 
 model StaffLeave {
-  id        String   @id @default(cuid())
-  staffId   String
-  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  gymId     String
-  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  startDate DateTime @db.Date
-  endDate   DateTime @db.Date
-  reason    String?
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  id          String   @id @default(cuid())
+  staffId     String
+  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  gymId       String
+  business    Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  startDate   DateTime @db.Date
+  endDate     DateTime @db.Date
+  reason      String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([staffId])
   @@index([gymId, endDate])
@@ -450,6 +480,8 @@ model Service {
   packages     Package[]
   packagePlans PackagePlan[]
   schedules    ScheduledClass[]
+  createdById  String?
+  updatedById  String?
 
   @@index([gymId])
 }
@@ -485,6 +517,8 @@ model ScheduledClass {
   updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
 
   reservations Reservation[]
+  createdById  String?
+  updatedById  String?
 
   @@index([gymId, serviceId])
   @@index([gymId, active])
@@ -502,6 +536,10 @@ model BusinessHours {
   closeMinute   Int
   breakStartMin Int?
   breakEndMin   Int?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById   String?
+  updatedById   String?
 
   @@unique([gymId, weekday])
 }
@@ -519,18 +557,24 @@ model BusinessClosure {
   closeMinute Int?
   reason      String?
   createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@unique([gymId, date])
   @@index([gymId, date])
 }
 
 model BusinessImage {
-  id        String   @id @default(cuid())
-  gymId     String
-  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  url       String
-  position  Int      @default(0)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  id          String   @id @default(cuid())
+  gymId       String
+  business    Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  url         String
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([gymId, position])
 }
@@ -538,20 +582,23 @@ model BusinessImage {
 // ─── Membership / Package ──────────────────────────────────
 
 model Membership {
-  id        String   @id @default(cuid())
-  gymId     String
-  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  startDate DateTime @db.Date
-  endDate   DateTime @db.Date
-  pricePhp  Int
+  id          String          @id @default(cuid())
+  gymId       String
+  business    Business        @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate   DateTime        @db.Date
+  endDate     DateTime        @db.Date
+  pricePhp    Int
   // 발급 원천 추적 — Sale 도입 전 인스턴스는 null. plan 삭제 시 매출은 Sale에 보존.
-  planId    String?
-  plan      MembershipPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
-  saleId    String?
-  sale      Sale?    @relation(fields: [saleId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  planId      String?
+  plan        MembershipPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  saleId      String?
+  sale        Sale?           @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([gymId, userId])
   @@index([gymId, endDate])
@@ -573,8 +620,10 @@ model MembershipPlan {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
-  combos       ComboPlan[]
-  memberships  Membership[]
+  combos      ComboPlan[]
+  memberships Membership[]
+  createdById String?
+  updatedById String?
 
   @@index([gymId, active])
 }
@@ -597,8 +646,10 @@ model PackagePlan {
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 
-  comboItems   ComboPackageItem[]
-  packages     Package[]
+  comboItems  ComboPackageItem[]
+  packages    Package[]
+  createdById String?
+  updatedById String?
 
   @@index([gymId, active])
   @@index([gymId, serviceId])
@@ -620,7 +671,9 @@ model ComboPlan {
   createdAt        DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime        @updatedAt @db.Timestamptz(3)
 
-  packageItems     ComboPackageItem[]
+  packageItems ComboPackageItem[]
+  createdById  String?
+  updatedById  String?
 
   @@index([gymId, active])
 }
@@ -632,6 +685,10 @@ model ComboPackageItem {
   comboPlan     ComboPlan   @relation(fields: [comboPlanId], references: [id], onDelete: Cascade)
   packagePlanId String
   packagePlan   PackagePlan @relation(fields: [packagePlanId], references: [id], onDelete: Restrict)
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime    @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById   String?
+  updatedById   String?
 
   @@unique([comboPlanId, packagePlanId])
   @@index([packagePlanId])
@@ -656,7 +713,9 @@ model Promotion {
   createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
 
-  sales         Sale[]
+  sales       Sale[]
+  createdById String?
+  updatedById String?
 
   @@index([gymId, active, startsAt, endsAt])
   @@index([gymId, scope, targetId])
@@ -677,33 +736,40 @@ model PriceChangeLog {
   changedById String?
   changedAt   DateTime          @default(now()) @db.Timestamptz(3)
   note        String?
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([gymId, entityType, entityId])
   @@index([gymId, changedAt])
 }
 
 model Package {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   gymId          String
-  business       Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  business       Business     @relation(fields: [gymId], references: [id], onDelete: Cascade)
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceId      String
-  service        Service  @relation(fields: [serviceId], references: [id])
-  totalCount     Decimal  @db.Decimal(5, 1)
-  remainingCount Decimal  @db.Decimal(5, 1)
+  service        Service      @relation(fields: [serviceId], references: [id])
+  totalCount     Decimal      @db.Decimal(5, 1)
+  remainingCount Decimal      @db.Decimal(5, 1)
   pricePhp       Int
   // 결제 시점 Service.payoutPhp 스냅샷(frozen). 이후 Service.payoutPhp가 바뀌어도
   // 이미 팔린 패키지의 트레이너 지급액은 불변. 기존 인스턴스 호환 위해 default 0.
-  payoutPhp      Int      @default(0)
+  payoutPhp      Int          @default(0)
   // 발급 원천 추적 — Sale 도입 전 인스턴스는 null. plan 삭제 시 매출은 Sale에 보존.
   planId         String?
   plan           PackagePlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   saleId         String?
-  sale           Sale?    @relation(fields: [saleId], references: [id], onDelete: SetNull)
-  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  sale           Sale?        @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
 
-  reservations   Reservation[]
+  reservations Reservation[]
+  updatedAt    DateTime      @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById  String?
+  updatedById  String?
 
   @@index([gymId, userId])
   @@index([saleId])
@@ -724,18 +790,21 @@ model Sale {
   // 판매 원천 plan (soft ref — PriceChangeLog와 동일 패턴).
   sourcePlanId         String
   // 금액 산식 스냅샷(전부 결제 시점 박제)
-  listPricePhp         Int        // 정상가 합계
+  listPricePhp         Int // 정상가 합계
   promotionId          String?
   promotion            Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
   promotionDiscountPhp Int        @default(0)
-  totalPaidPhp         Int        // 실수령 = listPrice − promotionDiscount (콤보면 콤보가)
+  totalPaidPhp         Int // 실수령 = listPrice − promotionDiscount (콤보면 콤보가)
   payoutLiabilityPhp   Int        @default(0) // 트레이너 지급 총액(frozen 합)
-  ownerRevenuePhp      Int        // totalPaid − payoutLiability
-  soldById             String?    // 판매 처리한 owner/staff User.id (soft ref)
+  ownerRevenuePhp      Int // totalPaid − payoutLiability
+  soldById             String? // 판매 처리한 owner/staff User.id (soft ref)
   createdAt            DateTime   @default(now()) @db.Timestamptz(3)
 
-  memberships          Membership[]
-  packages             Package[]
+  memberships Membership[]
+  packages    Package[]
+  updatedAt   DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([gymId, createdAt])
   @@index([gymId, saleType])
@@ -771,7 +840,9 @@ model Reservation {
   createdAt        DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
 
-  logs ReservationLog[]
+  logs        ReservationLog[]
+  createdById String?
+  updatedById String?
 
   @@index([gymId, status, startAt])
   @@index([gymId, staffId, startAt])
@@ -787,6 +858,10 @@ model ReservationLog {
   action        ReservationLogAction
   actorUserId   String?
   occurredAt    DateTime             @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime             @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById   String?
+  updatedById   String?
 
   @@index([reservationId])
   @@index([gymId, occurredAt])
@@ -806,22 +881,30 @@ model QrToken {
   expiresAt DateTime  @db.Timestamptz(3)
   usedAt    DateTime? @db.Timestamptz(3)
 
-  accessLogs AccessLog[]
+  accessLogs  AccessLog[]
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([gymId, userId])
   @@index([expiresAt])
 }
 
 model AccessLog {
-  id         String       @id @default(cuid())
-  gymId      String
-  business   Business     @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  qrTokenId  String?
-  qrToken    QrToken?     @relation(fields: [qrTokenId], references: [id])
-  result     AccessResult
-  occurredAt DateTime     @default(now()) @db.Timestamptz(3)
+  id          String       @id @default(cuid())
+  gymId       String
+  business    Business     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qrTokenId   String?
+  qrToken     QrToken?     @relation(fields: [qrTokenId], references: [id])
+  result      AccessResult
+  occurredAt  DateTime     @default(now()) @db.Timestamptz(3)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([gymId, occurredAt])
   @@index([gymId, userId, occurredAt])
@@ -830,26 +913,33 @@ model AccessLog {
 // ─── Trust ─────────────────────────────────────────────────
 
 model TrustScore {
-  id        String   @id @default(cuid())
-  gymId     String
-  business  Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  score     Int      @default(100)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  id          String   @id @default(cuid())
+  gymId       String
+  business    Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score       Int      @default(100)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@unique([gymId, userId])
 }
 
 model TrustEvent {
-  id         String         @id @default(cuid())
-  gymId      String
-  business   Business       @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind       TrustEventKind
-  delta      Int
-  occurredAt DateTime       @default(now()) @db.Timestamptz(3)
+  id          String         @id @default(cuid())
+  gymId       String
+  business    Business       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        TrustEventKind
+  delta       Int
+  occurredAt  DateTime       @default(now()) @db.Timestamptz(3)
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime       @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([gymId, userId, occurredAt])
 }
@@ -865,6 +955,10 @@ model UserDeletion {
   requestedAt DateTime           @default(now()) @db.Timestamptz(3)
   scheduledAt DateTime           @db.Timestamptz(3)
   status      UserDeletionStatus @default(PENDING)
+  createdAt   DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime           @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([scheduledAt, status])
 }
@@ -872,11 +966,14 @@ model UserDeletion {
 // ─── Notifications ─────────────────────────────────────────
 
 model BusinessNotificationSetting {
-  id        String                     @id @default(cuid())
-  gymId     String                     @unique
-  business  Business                   @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  channel   NotificationChannelSetting @default(PUSH)
-  updatedAt DateTime                   @updatedAt @db.Timestamptz(3)
+  id          String                     @id @default(cuid())
+  gymId       String                     @unique
+  business    Business                   @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  channel     NotificationChannelSetting @default(PUSH)
+  updatedAt   DateTime                   @updatedAt @db.Timestamptz(3)
+  createdAt   DateTime                   @default(now()) @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 }
 
 model UserNotificationSetting {
@@ -886,16 +983,22 @@ model UserNotificationSetting {
   pushEnabled  Boolean  @default(true)
   emailEnabled Boolean  @default(true)
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  createdById  String?
+  updatedById  String?
 }
 
 model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint  String   @unique
-  p256dhKey String
-  authKey   String
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint    String   @unique
+  p256dhKey   String
+  authKey     String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([userId])
 }
@@ -911,6 +1014,10 @@ model NotificationLog {
   result          NotificationResult
   fallback        Boolean             @default(false)
   sentAt          DateTime            @default(now()) @db.Timestamptz(3)
+  createdAt       DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime            @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById     String?
+  updatedById     String?
 
   @@index([gymId, sentAt])
   @@index([recipientUserId, sentAt])
@@ -919,13 +1026,16 @@ model NotificationLog {
 // ─── Subscription / Payment (가맹점 구독료) ────────────────
 
 model Subscription {
-  id        String           @id @default(cuid())
-  gymId     String           @unique
-  business  Business         @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  plan      SubscriptionPlan @default(TRIAL)
-  startDate DateTime         @db.Timestamptz(3)
-  endDate   DateTime         @db.Timestamptz(3)
-  updatedAt DateTime         @updatedAt @db.Timestamptz(3)
+  id          String           @id @default(cuid())
+  gymId       String           @unique
+  business    Business         @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  plan        SubscriptionPlan @default(TRIAL)
+  startDate   DateTime         @db.Timestamptz(3)
+  endDate     DateTime         @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([endDate])
 }
@@ -939,6 +1049,9 @@ model Payment {
   confirmedAt DateTime? @db.Timestamptz(3)
   memo        String?
   createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
 
   @@index([gymId, paidAt])
 }

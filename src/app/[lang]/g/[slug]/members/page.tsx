@@ -78,6 +78,9 @@ export default async function GymMembersPage({
         dob: true,
         note: true,
         status: true,
+        active: true,
+        emergencyContactPhone: true,
+        locale: true,
         memberships: {
           orderBy: { endDate: "desc" },
           take: 1,
@@ -131,6 +134,10 @@ export default async function GymMembersPage({
       phone: r.phone,
       email: r.email,
       age: r.dob ? differenceInYears(today, r.dob) : null,
+      dob: r.dob ? r.dob.toISOString().slice(0, 10) : null,
+      emergencyContactPhone: r.emergencyContactPhone,
+      locale: r.locale as "en" | "ko",
+      active: r.active,
       note: r.note,
       status: r.status as MemberView["status"],
       nextExpiry: latestExpiry

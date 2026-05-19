@@ -116,6 +116,7 @@ export default async function EditTrainerPage({
     breakEndMin: staff.breakEndMin,
     note: u.note ?? "",
     imageUrls: staff.images.map((img) => img.url),
+    locale: u.locale,
   };
 
   return (

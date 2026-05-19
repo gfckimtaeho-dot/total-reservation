@@ -50,6 +50,8 @@ const createSchema = z.object({
   breakEnd: z.string().optional().or(z.literal("")),
   note: z.string().optional().or(z.literal("")),
   imageUrls: z.array(z.string().url()).max(5).optional().default([]),
+  // 등록 시 선택한 모국어 → User.locale. 기본 영어(폼 기본 선택값과 일치).
+  locale: z.enum(["ko", "en"]).default("en"),
 });
 
 // "HH:MM" → 자정 기준 분. 빈 값/형식 오류면 null (= gym 영업시간 따름).
@@ -81,6 +83,7 @@ export async function createTrainer(
     email: formData.get("email") ?? "",
     dob: formData.get("dob") ?? "",
     emergencyContactPhone: formData.get("emergencyContactPhone") ?? "",
+    locale: formData.get("locale") ?? "en",
     role: formData.get("role"),
     specialties: formData.getAll("specialties"),
     customSpecialty: formData.get("customSpecialty") ?? "",
@@ -170,6 +173,7 @@ export async function createTrainer(
           note: d.note || null,
           role: d.role,
           status: "PENDING",
+          locale: d.locale,
           accessToken: generateAccessToken(),
         },
         select: { id: true },
@@ -233,6 +237,7 @@ export async function updateTrainer(
     email: formData.get("email") ?? "",
     dob: formData.get("dob") ?? "",
     emergencyContactPhone: formData.get("emergencyContactPhone") ?? "",
+    locale: formData.get("locale") ?? "en",
     role: formData.get("role"),
     specialties: formData.getAll("specialties"),
     customSpecialty: formData.get("customSpecialty") ?? "",
@@ -330,6 +335,7 @@ export async function updateTrainer(
           emergencyContactPhone: d.emergencyContactPhone || null,
           note: d.note || null,
           role: d.role,
+          locale: d.locale,
         },
       });
       await tx.staff.update({
@@ -467,37 +473,40 @@ export async function copyTrainerActivationUrl(
   return { ok: true, url };
 }
 
-export async function deleteTrainer(
+// 하드 삭제 폐기 — 예약/실적 이력 보존 위해 활성/비활성 토글로 대체.
+export async function setTrainerActive(
   formData: FormData,
 ): Promise<{ ok: boolean; message?: string }> {
   const slug = String(formData.get("slug") ?? "");
   const staffId = String(formData.get("staffId") ?? "");
+  const active = String(formData.get("active") ?? "") === "true";
   try {
     const auth = await requireGymStaff(slug);
     const gymId = auth.business!.id;
 
     const staff = await prisma.staff.findFirst({
       where: { id: staffId, gymId },
-      include: {
-        user: { select: { id: true } },
-        images: { select: { url: true } },
-      },
+      select: { user: { select: { id: true } } },
     });
     if (!staff) return { ok: false, message: "트레이너를 찾을 수 없습니다" };
 
-    // Blob 사진 정리 (best-effort)
-    await Promise.all(staff.images.map((i) => deleteStaffImageUrl(i.url)));
-
-    // User 삭제 → cascade로 Staff·StaffImage·StaffLeave·Sessions 모두 정리
-    await prisma.user.delete({ where: { id: staff.user.id } });
+    // 비활성 → accessToken 제거(기존 QR 즉시 무효).
+    // 재활성 → 새 accessToken 발급(새 QR 지급).
+    await prisma.user.update({
+      where: { id: staff.user.id },
+      data: {
+        active,
+        accessToken: active ? generateAccessToken() : null,
+      },
+    });
 
     revalidatePath(`/ko/g/${slug}/trainers`);
     revalidatePath(`/en/g/${slug}/trainers`);
     return { ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[deleteTrainer] failed:", message, err);
-    return { ok: false, message: `삭제 실패: ${message}` };
+    console.error("[setTrainerActive] failed:", message, err);
+    return { ok: false, message: `상태 변경 실패: ${message}` };
   }
 }
 

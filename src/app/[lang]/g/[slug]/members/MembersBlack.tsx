@@ -122,7 +122,13 @@ export async function MembersBlack({
                 </thead>
                 <tbody>
                   {members.map((m) => (
-                    <MemberRow key={m.id} slug={slug} member={m} tone="black" />
+                    <MemberRow
+                      key={m.id}
+                      slug={slug}
+                      member={m}
+                      tone="black"
+                      lang={lang}
+                    />
                   ))}
                 </tbody>
               </table>

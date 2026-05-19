@@ -127,6 +127,7 @@ export async function MembersNormal({
                       slug={slug}
                       member={m}
                       tone="normal"
+                      lang={lang}
                     />
                   ))}
                 </tbody>

@@ -104,6 +104,7 @@ export type TrainerInitialValues = {
   breakEndMin: number | null;
   note: string;
   imageUrls: string[];
+  locale?: "en" | "ko";
 };
 
 // 분 ↔ "HH:MM" (native time input 포맷)
@@ -160,6 +161,8 @@ export function TrainerForm({
   );
   const [role, setRole] = useState<"TRAINER" | "MANAGER">(iv?.role ?? "TRAINER");
   const [gender, setGender] = useState<"MALE" | "FEMALE">(iv?.gender ?? "MALE");
+  // 등록 시 모국어 선택 → User.locale. 기본 영어(스펙: default English).
+  const [locale, setLocale] = useState<"en" | "ko">(iv?.locale ?? "en");
   // Controlled text fields — auto-reset 방지 (등록 실패 시 입력값 보존).
   const [fields, setFields] = useState({
     name: iv?.name ?? "",
@@ -312,6 +315,31 @@ export function TrainerForm({
             value={fields.emergencyContactPhone}
             onChange={(v) => set("emergencyContactPhone", v)}
           />
+          <div className="flex flex-col gap-1.5">
+            <span className={`text-sm font-medium ${tk.text}`}>
+              {t("language")} <span className="text-rose-500">*</span>
+            </span>
+            <div className="flex gap-2">
+              {(["en", "ko"] as const).map((lc) => (
+                <label
+                  key={lc}
+                  className="flex flex-1 cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition has-checked:border-ink"
+                >
+                  <input
+                    type="radio"
+                    name="locale"
+                    value={lc}
+                    checked={locale === lc}
+                    onChange={() => setLocale(lc)}
+                    className="h-4 w-4 accent-ink"
+                  />
+                  <span className={tk.text}>
+                    {lc === "en" ? t("langEnglish") : t("langKorean")}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

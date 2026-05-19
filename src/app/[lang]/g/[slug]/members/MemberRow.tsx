@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   copyActivationUrl,
-  deleteMember,
+  setMemberActive,
   sendActivationEmail,
 } from "./actions";
+import { MemberAddDialog } from "./MemberAddDialog";
 
 type Tone = "normal" | "black" | "white";
 
@@ -65,6 +67,10 @@ export type MemberView = {
   phone: string | null;
   email: string | null;
   age: number | null;
+  dob: string | null;
+  emergencyContactPhone: string | null;
+  locale: "en" | "ko";
+  active: boolean;
   note: string | null;
   status: "PENDING" | "ACTIVE" | "WITHDRAWN" | "ANONYMIZED";
   nextExpiry: string | null;
@@ -76,12 +82,15 @@ export function MemberRow({
   slug,
   member,
   tone,
+  lang,
 }: {
   slug: string;
   member: MemberView;
   tone: Tone;
+  lang: string;
 }) {
   const t = useTranslations("members");
+  const router = useRouter();
   const tk = TONE_TOKENS[tone];
   const [feedback, setFeedback] = useState<{
     kind: "ok" | "err";
@@ -126,18 +135,24 @@ export function MemberRow({
     });
   }
 
-  function onDelete() {
-    if (!confirm(t("rowDeleteConfirm", { name: member.name }))) return;
+  function onToggleActive() {
     startTransition(async () => {
       const fd = new FormData();
       fd.append("slug", slug);
       fd.append("memberId", member.id);
-      await deleteMember(fd);
+      fd.append("active", member.active ? "false" : "true");
+      await setMemberActive(fd);
+      router.refresh();
     });
   }
 
   return (
-    <tr className={`border-b ${tk.rowBorder} ${tk.rowHover}`}>
+    <tr
+      className={`cursor-pointer border-b ${tk.rowBorder} ${tk.rowHover}`}
+      onClick={() =>
+        router.push(`/${lang}/g/${slug}/members/${member.id}`)
+      }
+    >
       <td className="px-4 py-3 text-left">
         <div className="flex items-center gap-1.5">
           <span className={`font-medium ${tk.text}`}>{member.name}</span>
@@ -154,6 +169,11 @@ export function MemberRow({
               className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${tk.pillPending}`}
             >
               {t("pendingPill")}
+            </span>
+          )}
+          {!member.active && (
+            <span className="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
+              {t("inactivePill")}
             </span>
           )}
         </div>
@@ -212,7 +232,10 @@ export function MemberRow({
           <span className={tk.subtext}>-</span>
         )}
       </td>
-      <td className="px-4 py-3 text-left">
+      <td
+        className="px-4 py-3 text-left"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -235,13 +258,32 @@ export function MemberRow({
           >
             {copied ? t("rowCopied") : t("rowCopyUrl")}
           </button>
+          <MemberAddDialog
+            slug={slug}
+            tone={tone}
+            lang={lang}
+            mode="edit"
+            member={{
+              id: member.id,
+              name: member.name,
+              gender: member.gender,
+              phone: member.phone,
+              email: member.email,
+              dob: member.dob,
+              emergencyContactPhone: member.emergencyContactPhone,
+              note: member.note,
+              locale: member.locale,
+            }}
+          />
           <button
             type="button"
-            onClick={onDelete}
+            onClick={onToggleActive}
             disabled={pending}
-            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btnDanger}`}
+            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${
+              member.active ? tk.btnDanger : tk.btnPrimary
+            }`}
           >
-            {t("rowDelete")}
+            {member.active ? t("rowDeactivate") : t("rowActivate")}
           </button>
         </div>
         {feedback && (

@@ -128,6 +128,7 @@ export async function MembersWhite({
                         slug={slug}
                         member={m}
                         tone="white"
+                        lang={lang}
                       />
                     ))}
                   </tbody>

@@ -528,7 +528,10 @@
     "rowSendTooltip": "Auto-send activation URL via Gmail",
     "rowSendTooltipNoEmail": "No email — copy URL and share via chat/SMS",
     "rowSendOk": "Email sent → {email}",
-    "rowCopyOk": "URL copied — share via chat/SMS"
+    "rowCopyOk": "URL copied — share via chat/SMS",
+    "rowActivate": "Activate",
+    "rowDeactivate": "Deactivate",
+    "inactivePill": "Inactive"
   },
   "memberAdd": {
     "title": "Add member",
@@ -550,7 +553,15 @@
     "notePlaceholder": "Back issues, pregnancy, allergies, etc. — what trainers / therapists should know",
     "cancel": "Cancel",
     "submit": "Add member",
-    "submitting": "Adding..."
+    "submitting": "Adding...",
+    "language": "Language",
+    "langEnglish": "English",
+    "langKorean": "Korean",
+    "editTitle": "Edit Member",
+    "editSubmit": "Save",
+    "editSubmitting": "Saving...",
+    "rowEdit": "Edit",
+    "formHasErrors": "Please check the highlighted fields above"
   },
   "activate": {
     "studioLabel": "/g/{slug}",
@@ -674,7 +685,13 @@
       "YOGA": "Yoga",
       "PILATES": "Pilates",
       "DANCE": "Dance"
-    }
+    },
+    "labelLanguage": "Language",
+    "langEnglish": "English",
+    "langKorean": "Korean",
+    "rowActivate": "Activate",
+    "rowDeactivate": "Deactivate",
+    "inactivePill": "Inactive"
   },
   "trainerAdd": {
     "title": "Add trainer",
@@ -726,7 +743,10 @@
     "editTitle": "Edit trainer",
     "editBack": "← Back to detail",
     "editSubmit": "Save changes",
-    "editSubmitting": "Saving..."
+    "editSubmitting": "Saving...",
+    "language": "Language",
+    "langEnglish": "English",
+    "langKorean": "Korean"
   },
   "me": {
     "header": "My membership",
@@ -742,7 +762,15 @@
     "genderFemale": "F",
     "pwaCardTitle": "📌 Add this app to your phone",
     "pwaCardBody": "Browser menu → \"Add to Home Screen\" lets you open the app in one tap. iPhone (Safari): Share → Add to Home Screen. Android (Chrome): Menu → Add to Home Screen.",
-    "logout": "Log out"
+    "logout": "Log out",
+    "qrButton": "Access QR",
+    "qrTitle": "Access QR",
+    "qrHint": "Hold up to the entrance scanner",
+    "qrExpires": "Valid until {date}",
+    "qrLoading": "Issuing...",
+    "qrNoAccessTitle": "Cannot issue access QR",
+    "qrNoAccessBody": "No valid membership and no reservation today. Please ask the front desk.",
+    "qrClose": "Close"
   },
   "services": {
     "pageTitle": "Services",
@@ -1017,5 +1045,37 @@
     "empty": "No completed sessions.",
     "refundTitle": "Refund deduction (this month)",
     "refundPendingNote": "When a refund occurs, 50% is deducted from each of the owner and trainer payout and shown here. (Connected after refund feature ships)"
+  },
+  "memberDetail": {
+    "eyebrow": "MEMBER",
+    "back": "Back to list",
+    "basicHeading": "Basic Info",
+    "labelGender": "Gender",
+    "labelAge": "Age",
+    "labelDob": "Date of Birth",
+    "labelPhone": "Phone",
+    "labelEmail": "Email",
+    "labelEmergency": "Emergency Contact",
+    "labelLanguage": "Language",
+    "labelStatus": "Status",
+    "labelJoined": "Joined",
+    "labelNote": "Note",
+    "genderMale": "Male",
+    "genderFemale": "Female",
+    "langEnglish": "English",
+    "langKorean": "Korean",
+    "statusActive": "Active",
+    "statusPending": "Pending",
+    "statusWithdrawn": "Withdrawn",
+    "noValue": "-",
+    "packagesHeading": "Session Packages",
+    "packagesNone": "No session packages",
+    "membershipsHeading": "Memberships",
+    "membershipsNone": "No memberships",
+    "colService": "Service",
+    "colRemaining": "Remaining / Total",
+    "colPlan": "Plan",
+    "colPeriod": "Period",
+    "ageUnit": "{age} yrs"
   }
 }

@@ -528,7 +528,10 @@
     "rowSendTooltip": "Gmail로 활성화 URL 자동 발송",
     "rowSendTooltipNoEmail": "이메일 없음 — URL 복사로 전달",
     "rowSendOk": "이메일 발송 → {email}",
-    "rowCopyOk": "URL 복사됨 — 카톡·SMS로 전달"
+    "rowCopyOk": "URL 복사됨 — 카톡·SMS로 전달",
+    "rowActivate": "활성화",
+    "rowDeactivate": "비활성화",
+    "inactivePill": "비활성"
   },
   "memberAdd": {
     "title": "회원 추가",
@@ -550,7 +553,15 @@
     "notePlaceholder": "허리 디스크, 임산부, 알러지 등 — 트레이너·테라피스트가 봐야 할 정보",
     "cancel": "취소",
     "submit": "회원 추가",
-    "submitting": "등록 중..."
+    "submitting": "등록 중...",
+    "language": "사용 언어",
+    "langEnglish": "English",
+    "langKorean": "한국어",
+    "editTitle": "회원 정보 수정",
+    "editSubmit": "저장",
+    "editSubmitting": "저장 중...",
+    "rowEdit": "수정",
+    "formHasErrors": "입력값을 확인해 주세요 (위 빨간 표시 항목)"
   },
   "activate": {
     "studioLabel": "/g/{slug}",
@@ -612,7 +623,7 @@
     "rowSending": "발송 중...",
     "rowCopyUrl": "URL 복사",
     "rowCopied": "✓ 복사됨",
-    "rowEdit": "편집",
+    "rowEdit": "수정",
     "rowDelete": "삭제",
     "detailTitle": "트레이너 정보",
     "detailBack": "← 목록으로",
@@ -674,7 +685,13 @@
       "YOGA": "요가",
       "PILATES": "필라테스",
       "DANCE": "댄스"
-    }
+    },
+    "labelLanguage": "사용 언어",
+    "langEnglish": "English",
+    "langKorean": "한국어",
+    "rowActivate": "활성화",
+    "rowDeactivate": "비활성화",
+    "inactivePill": "비활성"
   },
   "trainerAdd": {
     "title": "트레이너 추가",
@@ -726,7 +743,10 @@
     "editTitle": "트레이너 수정",
     "editBack": "← 상세로",
     "editSubmit": "수정 저장",
-    "editSubmitting": "저장 중..."
+    "editSubmitting": "저장 중...",
+    "language": "사용 언어",
+    "langEnglish": "English",
+    "langKorean": "한국어"
   },
   "me": {
     "header": "내 회원증",
@@ -742,7 +762,15 @@
     "genderFemale": "여",
     "pwaCardTitle": "📌 폰 홈 화면에 추가하세요",
     "pwaCardBody": "브라우저 메뉴 → \"홈 화면에 추가\"를 누르면 앱처럼 한 번 클릭으로 들어옵니다. iPhone(Safari): 공유 버튼 → 홈 화면에 추가. Android(Chrome): 메뉴 → 홈 화면에 추가.",
-    "logout": "로그아웃"
+    "logout": "로그아웃",
+    "qrButton": "출입 QR",
+    "qrTitle": "출입 QR",
+    "qrHint": "입구 스캐너에 비춰 주세요",
+    "qrExpires": "{date} 까지 유효",
+    "qrLoading": "발급 중...",
+    "qrNoAccessTitle": "출입 QR을 발급할 수 없습니다",
+    "qrNoAccessBody": "유효한 회원권이 없고 오늘 예약도 없습니다. 프런트에 문의해 주세요.",
+    "qrClose": "닫기"
   },
   "services": {
     "pageTitle": "서비스 등록",
@@ -1017,5 +1045,37 @@
     "empty": "완료된 세션이 없습니다.",
     "refundTitle": "이번 달 환불 차감",
     "refundPendingNote": "환불 발생 시 사장님·트레이너 지급액에서 각각 50% 차감되어 여기에 표시됩니다. (환불 기능 도입 후 연결)"
+  },
+  "memberDetail": {
+    "eyebrow": "회원",
+    "back": "목록으로",
+    "basicHeading": "기본 정보",
+    "labelGender": "성별",
+    "labelAge": "나이",
+    "labelDob": "생년월일",
+    "labelPhone": "연락처",
+    "labelEmail": "이메일",
+    "labelEmergency": "비상 연락처",
+    "labelLanguage": "사용 언어",
+    "labelStatus": "상태",
+    "labelJoined": "등록일",
+    "labelNote": "메모",
+    "genderMale": "남성",
+    "genderFemale": "여성",
+    "langEnglish": "English",
+    "langKorean": "한국어",
+    "statusActive": "활성",
+    "statusPending": "미활성",
+    "statusWithdrawn": "탈퇴",
+    "noValue": "-",
+    "packagesHeading": "보유 횟수권",
+    "packagesNone": "보유한 횟수권이 없습니다",
+    "membershipsHeading": "회원권",
+    "membershipsNone": "보유한 회원권이 없습니다",
+    "colService": "서비스",
+    "colRemaining": "잔여 / 총",
+    "colPlan": "상품",
+    "colPeriod": "기간",
+    "ageUnit": "{age}세"
   }
 }

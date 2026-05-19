@@ -98,6 +98,7 @@ export default async function GymTrainersPage({
           phone: true,
           email: true,
           status: true,
+          active: true,
         },
       },
       images: {
@@ -136,6 +137,7 @@ export default async function GymTrainersPage({
       weeklyOffDays: r.weeklyOffDays as Weekday[],
       todayStatus,
       status: r.user.status as TrainerView["status"],
+      active: r.user.active,
     };
   });
 

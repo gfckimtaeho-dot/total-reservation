@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   copyTrainerActivationUrl,
-  deleteTrainer,
+  setTrainerActive,
   sendTrainerActivationEmail,
 } from "./actions";
 
@@ -97,6 +97,7 @@ export type TrainerView = {
   weeklyOffDays: Weekday[];
   todayStatus: "WORKING" | "REGULAR_OFF" | "PERSONAL_OFF";
   status: "PENDING" | "ACTIVE" | "WITHDRAWN" | "ANONYMIZED";
+  active: boolean;
 };
 
 export function TrainerRow({
@@ -156,21 +157,21 @@ export function TrainerRow({
     });
   }
 
-  function onDelete() {
-    if (!confirm(t("rowDeleteConfirm", { name: trainer.name }))) return;
+  function onToggleActive() {
     startTransition(async () => {
       try {
         const fd = new FormData();
         fd.append("slug", slug);
         fd.append("staffId", trainer.staffId);
-        const res = await deleteTrainer(fd);
+        fd.append("active", trainer.active ? "false" : "true");
+        const res = await setTrainerActive(fd);
         if (res && !res.ok) {
-          showFeedback("err", res.message ?? "삭제 실패");
+          showFeedback("err", res.message ?? "상태 변경 실패");
           return;
         }
         router.refresh();
       } catch (err) {
-        const m = err instanceof Error ? err.message : "삭제 실패";
+        const m = err instanceof Error ? err.message : "상태 변경 실패";
         showFeedback("err", m);
       }
     });
@@ -223,6 +224,11 @@ export function TrainerRow({
             className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${tk.statusOff}`}
           >
             PEND
+          </span>
+        )}
+        {!trainer.active && (
+          <span className="ml-1.5 rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
+            {t("inactivePill")}
           </span>
         )}
       </td>
@@ -292,11 +298,13 @@ export function TrainerRow({
           </Link>
           <button
             type="button"
-            onClick={onDelete}
+            onClick={onToggleActive}
             disabled={pending}
-            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btnDanger}`}
+            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${
+              trainer.active ? tk.btnDanger : tk.btnPrimary
+            }`}
           >
-            {t("rowDelete")}
+            {trainer.active ? t("rowDeactivate") : t("rowActivate")}
           </button>
         </div>
         {feedback && (

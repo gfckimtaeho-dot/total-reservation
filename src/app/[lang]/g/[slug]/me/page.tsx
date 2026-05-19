@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import { requireGymCustomer } from "@/lib/auth/dal";
+import { MeAccessQr } from "./MeAccessQr";
 
 export default async function CustomerHomePage({
   params,
@@ -51,6 +52,8 @@ export default async function CustomerHomePage({
 
       <main className="flex-1">
         <div className="mx-auto w-full max-w-3xl space-y-4 px-6 py-12">
+          <MeAccessQr slug={slug} />
+
           <div className="rounded-2xl border border-amber-200/60 bg-white p-6">
             <h2 className="font-heading text-xl tracking-tight text-ink">
               {t("myInfo")}

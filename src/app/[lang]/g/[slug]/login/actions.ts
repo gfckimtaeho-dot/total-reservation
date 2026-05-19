@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { verifyPassword } from "@/lib/auth/password";
@@ -149,6 +150,17 @@ export async function gymLogin(
   }
 
   await issueSession(user.id, user.role, rememberMe === "on");
+
+  // 등록 때 고른 모국어(User.locale)를 NEXT_LOCALE 쿠키로 → 아래 redirect 는
+  // 로케일 없는 경로라 proxy.ts(next-intl)가 이 쿠키를 읽어 /{locale}/... 로
+  // 프리픽스를 붙인다. 결과: 로그인 즉시 본인 언어 대시보드로 진입.
+  const cookieStore = await cookies();
+  cookieStore.set("NEXT_LOCALE", user.locale, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+
   const target =
     user.role === "CUSTOMER"
       ? `/g/${slug}/me`

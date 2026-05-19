@@ -32,6 +32,17 @@ const createSchema = z.object({
   dob: z.string().optional().or(z.literal("")),
   note: z.string().optional().or(z.literal("")),
   emergencyContactPhone: z.string().optional().or(z.literal("")),
+  // 등록 시 선택한 모국어 → User.locale. 기본 영어(폼 기본 선택값과 일치).
+  locale: z.enum(["ko", "en"]).default("en"),
+});
+
+// 수정은 등록보다 느슨하게: 기존 임포트 고객은 phone 이 없을 수 있다
+// (User.phone 은 스키마상 nullable). 등록 시엔 프런트가 받으므로 strict 유지,
+// 수정에서만 phone 을 optional 로 완화 — 안 그러면 phone 없는 회원은
+// 언어만 바꾸려 해도 저장이 막힌다(이번 박서연 케이스).
+const updateSchema = createSchema.extend({
+  memberId: z.string().min(1),
+  phone: z.string().optional().or(z.literal("")),
 });
 
 export type CreateMemberState = {
@@ -52,6 +63,7 @@ export async function createMember(
     dob: formData.get("dob") ?? "",
     note: formData.get("note") ?? "",
     emergencyContactPhone: formData.get("emergencyContactPhone") ?? "",
+    locale: formData.get("locale") ?? "en",
   });
   if (!parsed.success) {
     return {
@@ -70,6 +82,7 @@ export async function createMember(
     dob,
     note,
     emergencyContactPhone,
+    locale,
   } = parsed.data;
 
   const auth = await requireGymStaff(slug);
@@ -127,6 +140,7 @@ export async function createMember(
         : null,
       role: "CUSTOMER",
       status: "PENDING",
+      locale,
     },
     select: { id: true },
   });
@@ -134,6 +148,117 @@ export async function createMember(
   revalidatePath(`/ko/g/${slug}/members`);
   revalidatePath(`/en/g/${slug}/members`);
   return { success: { id: created.id } };
+}
+
+export async function updateMember(
+  _prev: CreateMemberState,
+  formData: FormData,
+): Promise<CreateMemberState> {
+  const parsed = updateSchema.safeParse({
+    memberId: formData.get("memberId"),
+    slug: formData.get("slug"),
+    name: formData.get("name"),
+    gender: formData.get("gender"),
+    phone: formData.get("phone"),
+    email: formData.get("email") ?? "",
+    dob: formData.get("dob") ?? "",
+    note: formData.get("note") ?? "",
+    emergencyContactPhone: formData.get("emergencyContactPhone") ?? "",
+    locale: formData.get("locale") ?? "en",
+  });
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[] | undefined
+      >,
+    };
+  }
+  const {
+    memberId,
+    slug,
+    name,
+    gender,
+    phone,
+    email,
+    dob,
+    note,
+    emergencyContactPhone,
+    locale,
+  } = parsed.data;
+
+  const auth = await requireGymStaff(slug);
+  const gymId = auth.business!.id;
+
+  const te = await getTranslations("errors");
+
+  // 수정 대상이 이 매장의 고객인지 확인 (다른 매장/역할 보호)
+  const target = await prisma.user.findFirst({
+    where: { id: memberId, gymId, role: "CUSTOMER" },
+    select: { id: true },
+  });
+  if (!target) {
+    return { errors: { name: ["회원을 찾을 수 없습니다"] } };
+  }
+
+  // 본인 제외 중복 검사 (phone 이 있을 때만 — 수정은 phone optional)
+  if (phone) {
+    const phoneClash = await prisma.user.findFirst({
+      where: { gymId, phone, NOT: { id: memberId } },
+      select: { id: true, role: true, name: true },
+    });
+    if (phoneClash) {
+      return {
+        errors: {
+          phone: [
+            te("phoneTakenBy", {
+              role: te(ROLE_KEY[phoneClash.role]),
+              name: phoneClash.name,
+            }),
+          ],
+        },
+      };
+    }
+  }
+
+  if (email) {
+    const emailClash = await prisma.user.findFirst({
+      where: { gymId, email, NOT: { id: memberId } },
+      select: { id: true, role: true, name: true },
+    });
+    if (emailClash) {
+      return {
+        errors: {
+          email: [
+            te("emailTakenBy", {
+              role: te(ROLE_KEY[emailClash.role]),
+              name: emailClash.name,
+            }),
+          ],
+        },
+      };
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: memberId },
+    data: {
+      name,
+      gender,
+      phone: phone ? phone : null,
+      email: email ? email : null,
+      dob: dob ? new Date(dob) : null,
+      note: note ? note : null,
+      emergencyContactPhone: emergencyContactPhone
+        ? emergencyContactPhone
+        : null,
+      locale,
+    },
+  });
+
+  revalidatePath(`/ko/g/${slug}/members`);
+  revalidatePath(`/en/g/${slug}/members`);
+  return { success: { id: memberId } };
 }
 
 async function buildActivationUrl(
@@ -223,15 +348,25 @@ export async function copyActivationUrl(
   return { ok: true, url };
 }
 
-export async function deleteMember(formData: FormData) {
+// 하드 삭제 폐기 — 매출/예약 이력 보존 위해 활성/비활성 토글로 대체.
+export async function setMemberActive(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const memberId = String(formData.get("memberId") ?? "");
+  const active = String(formData.get("active") ?? "") === "true";
   const auth = await requireGymStaff(slug);
   const gymId = auth.business!.id;
 
-  await prisma.user.deleteMany({
+  await prisma.user.updateMany({
     where: { id: memberId, gymId, role: "CUSTOMER" },
+    data: { active },
   });
+  // 비활성 시 발급돼 있던 임시 출입 토큰 즉시 무효화(QR 삭제).
+  // 재활성은 별도 처리 불필요 — 다음 출입 QR 요청 시 새로 발급된다.
+  if (!active) {
+    await prisma.qrToken.deleteMany({ where: { userId: memberId, gymId } });
+  }
   revalidatePath(`/ko/g/${slug}/members`);
   revalidatePath(`/en/g/${slug}/members`);
+  revalidatePath(`/ko/g/${slug}/members/${memberId}`);
+  revalidatePath(`/en/g/${slug}/members/${memberId}`);
 }

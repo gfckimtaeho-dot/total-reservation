@@ -77,6 +77,36 @@ export function manilaMonthUtcRange(info: MonthInfo): {
   return { start, end };
 }
 
+// Manila 기준 "오늘" 날짜의 UTC 자정 Date.
+// Membership.endDate(@db.Date) 비교용 — endDate >= 이 값이면 오늘까지 유효,
+// 즉 endDate < 이 값이면 만료(만료일 다음날부터 비활성).
+export function manilaTodayUtcMidnight(now: Date = new Date()): Date {
+  const fmt = (opts: Intl.DateTimeFormatOptions) =>
+    parseInt(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Manila",
+        ...opts,
+      }).format(now),
+      10,
+    );
+  const y = fmt({ year: "numeric" });
+  const m = fmt({ month: "numeric" });
+  const d = fmt({ day: "numeric" });
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+// Manila 기준 "오늘" 하루의 UTC 범위 [start, end).
+// Reservation.startAt(@db.Timestamptz) 가 오늘인지 쿼리할 때 사용.
+export function manilaTodayRange(now: Date = new Date()): {
+  start: Date;
+  end: Date;
+} {
+  const mid = manilaTodayUtcMidnight(now); // UTC 자정 = Manila 08:00
+  const start = new Date(mid.getTime() - MANILA_OFFSET_MS); // Manila 00:00
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+}
+
 export function fmtTime(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;

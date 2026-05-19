@@ -126,6 +126,7 @@ export default async function TrainerDetailPage({
           emergencyContactPhone: true,
           note: true,
           status: true,
+          locale: true,
           createdAt: true,
         },
       },
@@ -350,6 +351,14 @@ export default async function TrainerDetailPage({
               <Row
                 label={t("labelEmergency")}
                 value={u.emergencyContactPhone ?? t("noValue")}
+                title={TITLE[theme]}
+                subtle={SUBTLE[theme]}
+              />
+              <Row
+                label={t("labelLanguage")}
+                value={
+                  u.locale === "en" ? t("langEnglish") : t("langKorean")
+                }
                 title={TITLE[theme]}
                 subtle={SUBTLE[theme]}
               />
