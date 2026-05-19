@@ -55,6 +55,25 @@ export default async function IntakePage({
       : Promise.resolve(null),
   ]);
 
+  // 현재 기간 안 + 활성 프로모션 — 장바구니 할인 미리보기용(실제 적용은
+  // 발급 시 서버가 동일 산식으로 재계산: @/lib/catalog/promo).
+  const now = new Date();
+  const promotions = await prisma.promotion.findMany({
+    where: {
+      gymId,
+      active: true,
+      startsAt: { lte: now },
+      endsAt: { gte: now },
+    },
+    select: {
+      id: true,
+      scope: true,
+      targetId: true,
+      discountType: true,
+      discountValue: true,
+    },
+  });
+
   return (
     <IntakeFlow
       slug={slug}
@@ -77,6 +96,7 @@ export default async function IntakePage({
           ...c.packageItems.map((it) => it.packagePlan.name),
         ],
       }))}
+      promotions={promotions}
     />
   );
 }

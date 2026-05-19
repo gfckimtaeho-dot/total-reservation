@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
+import { pickBestPromo } from "@/lib/catalog/promo";
 
 // 신규 고객 등록 + 서비스(권) 발급 + 예약 추가. 트레이너가 직접 처리
 // (사장은 운영 바빠 거의 안 함). 발급 = Sale 1건 + Package/Membership 인스턴스
@@ -66,8 +67,276 @@ export async function searchCustomers(input: {
   return { ok: true, data: rows };
 }
 
-// 서비스 발급 — PackagePlan(횟수권) 또는 MembershipPlan(기간권).
-// Sale 스냅샷 + 인스턴스 생성. 가격/payout 은 plan·service 에서 박제.
+// 팝오버용 — 그 고객의 서비스별 잔여 횟수(단체 수업 권 포함, 같은 서비스
+// 여러 권은 합산). 잔여 = remainingCount(완료 시 차감됨), 완료 = total−remaining.
+export async function customerRemaining(input: {
+  slug: string;
+  customerUserId: string;
+}): Promise<R> {
+  const auth = await requireGymStaff(input.slug);
+  const gymId = auth.business!.id;
+  const pkgs = await prisma.package.findMany({
+    where: { gymId, userId: input.customerUserId },
+    select: {
+      totalCount: true,
+      remainingCount: true,
+      service: { select: { name: true } },
+    },
+  });
+  const bySvc = new Map<
+    string,
+    { service: string; total: number; remaining: number }
+  >();
+  for (const p of pkgs) {
+    const name = p.service?.name ?? "-";
+    const cur = bySvc.get(name) ?? { service: name, total: 0, remaining: 0 };
+    cur.total += Number(p.totalCount);
+    cur.remaining += Number(p.remainingCount);
+    bySvc.set(name, cur);
+  }
+  return { ok: true, data: [...bySvc.values()] };
+}
+
+type IssueItem = {
+  kind: "PACKAGE" | "MEMBERSHIP" | "COMBO";
+  planId: string;
+};
+
+type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+// 회원권 시작일 = 이어붙이기 정책. 기존 활성(미만료) 회원권 중 가장 늦은
+// 종료일이 미래면 그 날부터 새 기간을 연속 부착(남은 일자 보존 + 신규 기간).
+// 모두 만료/없으면 오늘부터. 시간기반 이용권이라 plan 종류 무관 누적.
+async function nextMembershipStart(
+  tx: TxClient,
+  gymId: string,
+  userId: string,
+): Promise<Date> {
+  const now = new Date();
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const latest = await tx.membership.findFirst({
+    where: { gymId, userId, endDate: { gte: today } },
+    orderBy: { endDate: "desc" },
+    select: { endDate: true },
+  });
+  return latest && latest.endDate.getTime() > today.getTime()
+    ? latest.endDate
+    : today;
+}
+
+// 발급 시 자동적용할 프로모션 1건 선택. 기간(startsAt~endsAt) 안 + active +
+// scope 가 이 라인(회원권/횟수권·plan)에 해당하는 것 중 **할인액 최대 1건**.
+// 중첩 없음. 할인은 owner 수익에서만 차감(트레이너 payout 불변 — 보호 룰).
+// 콤보는 scope enum 에 없어 대상 아님(번들가 그대로).
+async function pickPromotion(
+  tx: TxClient,
+  gymId: string,
+  lineKind: "MEMBERSHIP" | "PACKAGE",
+  planId: string,
+  listPricePhp: number,
+): Promise<{ id: string; discountPhp: number } | null> {
+  const now = new Date();
+  const promos = await tx.promotion.findMany({
+    where: {
+      gymId,
+      active: true,
+      startsAt: { lte: now },
+      endsAt: { gte: now },
+    },
+    select: {
+      id: true,
+      scope: true,
+      targetId: true,
+      discountType: true,
+      discountValue: true,
+    },
+  });
+  return pickBestPromo(promos, lineKind, planId, listPricePhp);
+}
+
+// 발급 단일 소스 — 한 트랜잭션 안에서 Sale 1행 + 인스턴스 생성.
+// issueService(1건)·issueCart(N건) 가 공유한다. 가격/payout 산식이 여기
+// 한 곳에만 있어 매출 스냅샷이 절대 갈라지지 않음([[feedback-money-audit-log]]).
+// 잘못된 plan 이면 throw → 호출부 트랜잭션 전체 롤백.
+async function createSaleLine(
+  tx: TxClient,
+  ctx: { gymId: string; customerId: string; soldById: string },
+  item: IssueItem,
+): Promise<void> {
+  const { gymId, customerId, soldById } = ctx;
+
+  if (item.kind === "PACKAGE") {
+    const plan = await tx.packagePlan.findFirst({
+      where: { id: item.planId, gymId },
+      include: { service: { select: { payoutPhp: true } } },
+    });
+    if (!plan) throw new Error("횟수권 상품을 찾을 수 없습니다");
+    const perPayout = plan.service.payoutPhp;
+    const payoutLiab = perPayout * plan.sessionCount;
+    const promo = await pickPromotion(
+      tx,
+      gymId,
+      "PACKAGE",
+      plan.id,
+      plan.pricePhp,
+    );
+    const discount = promo?.discountPhp ?? 0;
+    const totalPaid = plan.pricePhp - discount;
+    const s = await tx.sale.create({
+      data: {
+        gymId,
+        userId: customerId,
+        saleType: "PACKAGE",
+        sourcePlanId: plan.id,
+        listPricePhp: plan.pricePhp,
+        promotionId: promo?.id,
+        promotionDiscountPhp: discount,
+        totalPaidPhp: totalPaid,
+        // 할인은 owner 수익에서만 차감 — 트레이너 payout 불변(보호 룰).
+        payoutLiabilityPhp: payoutLiab,
+        ownerRevenuePhp: totalPaid - payoutLiab,
+        soldById,
+      },
+      select: { id: true },
+    });
+    await tx.package.create({
+      data: {
+        gymId,
+        userId: customerId,
+        serviceId: plan.serviceId,
+        totalCount: plan.sessionCount,
+        remainingCount: plan.sessionCount,
+        pricePhp: plan.pricePhp,
+        payoutPhp: perPayout,
+        planId: plan.id,
+        saleId: s.id,
+      },
+    });
+    return;
+  }
+
+  if (item.kind === "COMBO") {
+    const combo = await tx.comboPlan.findFirst({
+      where: { id: item.planId, gymId },
+      include: {
+        membershipPlan: true,
+        packageItems: {
+          include: {
+            packagePlan: {
+              include: { service: { select: { payoutPhp: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!combo) throw new Error("콤보 상품을 찾을 수 없습니다");
+    const items = combo.packageItems.map((it) => it.packagePlan);
+    const listPrice =
+      (combo.membershipPlan?.pricePhp ?? 0) +
+      items.reduce((sum, p) => sum + p.pricePhp, 0);
+    const payoutLiab = items.reduce(
+      (sum, p) => sum + p.service.payoutPhp * p.sessionCount,
+      0,
+    );
+    const s = await tx.sale.create({
+      data: {
+        gymId,
+        userId: customerId,
+        saleType: "COMBO",
+        sourcePlanId: combo.id,
+        listPricePhp: listPrice,
+        promotionDiscountPhp: 0,
+        totalPaidPhp: combo.pricePhp,
+        payoutLiabilityPhp: payoutLiab,
+        ownerRevenuePhp: combo.pricePhp - payoutLiab,
+        soldById,
+      },
+      select: { id: true },
+    });
+    if (combo.membershipPlan) {
+      const mStart = await nextMembershipStart(tx, gymId, customerId);
+      await tx.membership.create({
+        data: {
+          gymId,
+          userId: customerId,
+          startDate: mStart,
+          endDate: new Date(
+            mStart.getTime() + combo.membershipPlan.durationDays * 86400000,
+          ),
+          pricePhp: combo.membershipPlan.pricePhp,
+          planId: combo.membershipPlan.id,
+          saleId: s.id,
+        },
+      });
+    }
+    for (const pp of items) {
+      await tx.package.create({
+        data: {
+          gymId,
+          userId: customerId,
+          serviceId: pp.serviceId,
+          totalCount: pp.sessionCount,
+          remainingCount: pp.sessionCount,
+          pricePhp: pp.pricePhp,
+          payoutPhp: pp.service.payoutPhp,
+          planId: pp.id,
+          saleId: s.id,
+        },
+      });
+    }
+    return;
+  }
+
+  // MEMBERSHIP
+  const plan = await tx.membershipPlan.findFirst({
+    where: { id: item.planId, gymId },
+  });
+  if (!plan) throw new Error("회원권 상품을 찾을 수 없습니다");
+  // 이어붙이기: 기존 활성 회원권 잔여기간 뒤에 신규 기간 부착.
+  const start = await nextMembershipStart(tx, gymId, customerId);
+  const end = new Date(start.getTime() + plan.durationDays * 86400000);
+  const promo = await pickPromotion(
+    tx,
+    gymId,
+    "MEMBERSHIP",
+    plan.id,
+    plan.pricePhp,
+  );
+  const discount = promo?.discountPhp ?? 0;
+  const totalPaid = plan.pricePhp - discount;
+  const s = await tx.sale.create({
+    data: {
+      gymId,
+      userId: customerId,
+      saleType: "MEMBERSHIP",
+      sourcePlanId: plan.id,
+      listPricePhp: plan.pricePhp,
+      promotionId: promo?.id,
+      promotionDiscountPhp: discount,
+      totalPaidPhp: totalPaid,
+      payoutLiabilityPhp: 0,
+      // 회원권 payout 0 → owner 수익 = 실수령액(할인 반영).
+      ownerRevenuePhp: totalPaid,
+      soldById,
+    },
+    select: { id: true },
+  });
+  await tx.membership.create({
+    data: {
+      gymId,
+      userId: customerId,
+      startDate: start,
+      endDate: end,
+      pricePhp: plan.pricePhp,
+      planId: plan.id,
+      saleId: s.id,
+    },
+  });
+}
+
+// 단건 발급 — PackagePlan(횟수권)/MembershipPlan(기간권)/ComboPlan(콤보).
 export async function issueService(input: {
   slug: string;
   customerUserId: string;
@@ -83,166 +352,57 @@ export async function issueService(input: {
   });
   if (!cust) return { ok: false, error: "고객을 찾을 수 없습니다" };
 
-  if (input.kind === "PACKAGE") {
-    const plan = await prisma.packagePlan.findFirst({
-      where: { id: input.planId, gymId },
-      include: { service: { select: { payoutPhp: true } } },
-    });
-    if (!plan) return { ok: false, error: "횟수권 상품을 찾을 수 없습니다" };
-    const perPayout = plan.service.payoutPhp;
-    const sale = await prisma.$transaction(async (tx) => {
-      const s = await tx.sale.create({
-        data: {
-          gymId,
-          userId: cust.id,
-          saleType: "PACKAGE",
-          sourcePlanId: plan.id,
-          listPricePhp: plan.pricePhp,
-          promotionDiscountPhp: 0,
-          totalPaidPhp: plan.pricePhp,
-          payoutLiabilityPhp: perPayout * plan.sessionCount,
-          ownerRevenuePhp: plan.pricePhp - perPayout * plan.sessionCount,
-          soldById: auth.id,
-        },
-        select: { id: true },
-      });
-      await tx.package.create({
-        data: {
-          gymId,
-          userId: cust.id,
-          serviceId: plan.serviceId,
-          totalCount: plan.sessionCount,
-          remainingCount: plan.sessionCount,
-          pricePhp: plan.pricePhp,
-          payoutPhp: perPayout,
-          planId: plan.id,
-          saleId: s.id,
-        },
-      });
-      return s;
-    });
-    rev(input.slug);
-    return { ok: true, data: { saleId: sale.id } };
-  }
-
-  if (input.kind === "COMBO") {
-    const combo = await prisma.comboPlan.findFirst({
-      where: { id: input.planId, gymId },
-      include: {
-        membershipPlan: true,
-        packageItems: {
-          include: {
-            packagePlan: {
-              include: { service: { select: { payoutPhp: true } } },
-            },
-          },
-        },
-      },
-    });
-    if (!combo) return { ok: false, error: "콤보 상품을 찾을 수 없습니다" };
-    const items = combo.packageItems.map((it) => it.packagePlan);
-    const listPrice =
-      (combo.membershipPlan?.pricePhp ?? 0) +
-      items.reduce((s, p) => s + p.pricePhp, 0);
-    const payoutLiab = items.reduce(
-      (s, p) => s + p.service.payoutPhp * p.sessionCount,
-      0,
+  try {
+    await prisma.$transaction((tx) =>
+      createSaleLine(
+        tx,
+        { gymId, customerId: cust.id, soldById: auth.id },
+        { kind: input.kind, planId: input.planId },
+      ),
     );
-    const now = new Date();
-    const start = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-    );
-    await prisma.$transaction(async (tx) => {
-      const s = await tx.sale.create({
-        data: {
-          gymId,
-          userId: cust.id,
-          saleType: "COMBO",
-          sourcePlanId: combo.id,
-          listPricePhp: listPrice,
-          promotionDiscountPhp: 0,
-          totalPaidPhp: combo.pricePhp,
-          payoutLiabilityPhp: payoutLiab,
-          ownerRevenuePhp: combo.pricePhp - payoutLiab,
-          soldById: auth.id,
-        },
-        select: { id: true },
-      });
-      if (combo.membershipPlan) {
-        await tx.membership.create({
-          data: {
-            gymId,
-            userId: cust.id,
-            startDate: start,
-            endDate: new Date(
-              start.getTime() +
-                combo.membershipPlan.durationDays * 86400000,
-            ),
-            pricePhp: combo.membershipPlan.pricePhp,
-            planId: combo.membershipPlan.id,
-            saleId: s.id,
-          },
-        });
-      }
-      for (const pp of items) {
-        await tx.package.create({
-          data: {
-            gymId,
-            userId: cust.id,
-            serviceId: pp.serviceId,
-            totalCount: pp.sessionCount,
-            remainingCount: pp.sessionCount,
-            pricePhp: pp.pricePhp,
-            payoutPhp: pp.service.payoutPhp,
-            planId: pp.id,
-            saleId: s.id,
-          },
-        });
-      }
-    });
-    rev(input.slug);
-    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message || "발급 실패" };
   }
-
-  const plan = await prisma.membershipPlan.findFirst({
-    where: { id: input.planId, gymId },
-  });
-  if (!plan) return { ok: false, error: "회원권 상품을 찾을 수 없습니다" };
-  const now = new Date();
-  const start = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-  const end = new Date(start.getTime() + plan.durationDays * 86400000);
-  await prisma.$transaction(async (tx) => {
-    const s = await tx.sale.create({
-      data: {
-        gymId,
-        userId: cust.id,
-        saleType: "MEMBERSHIP",
-        sourcePlanId: plan.id,
-        listPricePhp: plan.pricePhp,
-        promotionDiscountPhp: 0,
-        totalPaidPhp: plan.pricePhp,
-        payoutLiabilityPhp: 0,
-        ownerRevenuePhp: plan.pricePhp,
-        soldById: auth.id,
-      },
-      select: { id: true },
-    });
-    await tx.membership.create({
-      data: {
-        gymId,
-        userId: cust.id,
-        startDate: start,
-        endDate: end,
-        pricePhp: plan.pricePhp,
-        planId: plan.id,
-        saleId: s.id,
-      },
-    });
-  });
   rev(input.slug);
   return { ok: true };
+}
+
+// 장바구니 발급 — 회원권/횟수권/콤보를 즉석으로 여러 건 담아 한 번에.
+// 라인마다 독립 Sale 1행(saleType 별)으로 한 트랜잭션 동시 생성 →
+// 항목별 plan·payout 스냅샷 보존(환불·만료·정산 추적 단위). 하나라도
+// 실패하면 전체 롤백(부분 발급 금지).
+export async function issueCart(input: {
+  slug: string;
+  customerUserId: string;
+  items: IssueItem[];
+}): Promise<R> {
+  const auth = await requireGymStaff(input.slug);
+  const gymId = auth.business!.id;
+
+  if (!input.items.length)
+    return { ok: false, error: "담긴 상품이 없습니다" };
+
+  const cust = await prisma.user.findFirst({
+    where: { id: input.customerUserId, gymId, role: "CUSTOMER" },
+    select: { id: true },
+  });
+  if (!cust) return { ok: false, error: "고객을 찾을 수 없습니다" };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const item of input.items) {
+        await createSaleLine(
+          tx,
+          { gymId, customerId: cust.id, soldById: auth.id },
+          item,
+        );
+      }
+    });
+  } catch (e) {
+    return { ok: false, error: (e as Error).message || "발급 실패" };
+  }
+  rev(input.slug);
+  return { ok: true, data: { count: input.items.length } };
 }
 
 // 예약 추가 — FIFO 로 잔여>0 인 그 서비스 권을 골라 연결. 권 없으면 차단.

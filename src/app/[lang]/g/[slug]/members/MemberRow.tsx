@@ -169,6 +169,18 @@ export function MemberRow({
       <td className={`px-4 py-3 text-right text-sm tabular-nums ${tk.text}`}>
         {member.phone ?? "-"}
       </td>
+      <td className={`px-4 py-3 text-left text-sm ${tk.text}`}>
+        {member.email ? (
+          <span
+            className="block max-w-[180px] truncate"
+            title={member.email}
+          >
+            {member.email}
+          </span>
+        ) : (
+          <span className={tk.subtext}>-</span>
+        )}
+      </td>
       <td className="px-4 py-3 text-center text-sm">
         {member.nextExpiry ? (
           <span

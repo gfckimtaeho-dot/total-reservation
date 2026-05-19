@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createMember } from "../members/actions";
 import {
   searchCustomers,
-  issueService,
+  issueCart,
 } from "../dashboard/service-actions";
+import {
+  pickBestPromo,
+  type PromoLike,
+} from "@/lib/catalog/promo";
 
 type Membership = {
   id: string;
@@ -37,6 +41,7 @@ export function IntakeFlow({
   memberships,
   packages,
   combos,
+  promotions,
 }: {
   slug: string;
   lang: string;
@@ -44,6 +49,7 @@ export function IntakeFlow({
   memberships: Membership[];
   packages: Pkg[];
   combos: Combo[];
+  promotions: PromoLike[];
 }) {
   const t = useTranslations("trainerCal");
   const [pending, start] = useTransition();
@@ -54,8 +60,62 @@ export function IntakeFlow({
   );
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Cust[]>([]);
+  const [searched, setSearched] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [issuedN, setIssuedN] = useState(0);
+
+  // 즉석 장바구니 — 회원권/횟수권/콤보를 여러 건 담아 한 번에 발급.
+  // 라인마다 독립 Sale 1행으로 서버에서 한 트랜잭션 처리(issueCart).
+  type CartLine = {
+    uid: string;
+    kind: "MEMBERSHIP" | "PACKAGE" | "COMBO";
+    planId: string;
+    name: string;
+    pricePhp: number;
+  };
+  const [cart, setCart] = useState<CartLine[]>([]);
+  // uid 는 리스트 key·삭제용일 뿐(암호화 불필요). HTTP+LAN IP 태블릿은
+  // secure context 가 아니라 crypto.randomUUID 가 없어 throw → 단순 카운터.
+  const uidRef = useRef(0);
+  // 라인 할인(미리보기) — 서버 발급과 동일한 @/lib/catalog/promo 산식.
+  // 콤보는 프로모션 대상 아님(번들가 그대로).
+  function lineDiscount(l: CartLine): number {
+    if (l.kind === "COMBO") return 0;
+    const b = pickBestPromo(promotions, l.kind, l.planId, l.pricePhp);
+    return b?.discountPhp ?? 0;
+  }
+  const cartListTotal = cart.reduce((s, l) => s + l.pricePhp, 0);
+  const cartTotal = cart.reduce(
+    (s, l) => s + l.pricePhp - lineDiscount(l),
+    0,
+  );
+  const cartSaved = cartListTotal - cartTotal;
+  function addToCart(line: Omit<CartLine, "uid">) {
+    setErr(null);
+    uidRef.current += 1;
+    const uid = `c${uidRef.current}`;
+    setCart((c) => [...c, { ...line, uid }]);
+  }
+  function removeFromCart(uid: string) {
+    setCart((c) => c.filter((x) => x.uid !== uid));
+  }
+  function doIssueCart() {
+    if (!cust || cart.length === 0) return;
+    setErr(null);
+    start(async () => {
+      const r = await issueCart({
+        slug,
+        customerUserId: cust.id,
+        items: cart.map(({ kind, planId }) => ({ kind, planId })),
+      });
+      if (r.ok) {
+        setIssuedN(cart.length);
+        setCart([]);
+        setDone(true);
+      } else setErr(r.error || t("actionFailed"));
+    });
+  }
 
   // 신규 등록 폼 (사장님 createMember 와 동일 필드)
   const [f, setF] = useState({
@@ -71,11 +131,35 @@ export function IntakeFlow({
   const peso = (n: number) => `₱${n.toLocaleString()}`;
 
   function doSearch() {
+    const term = q.trim();
     start(async () => {
-      const r = await searchCustomers({ slug, q });
+      const r = await searchCustomers({ slug, q: term });
+      setSearched(true);
       if (r.ok) setResults((r.data as Cust[]) ?? []);
+      else setResults([]);
     });
   }
+
+  // 입력하면 자동 검색(디바운스 300ms). 작은 검색 버튼/Enter 의존 제거 —
+  // 태블릿에서 "검색이 안 된다"는 혼동 방지.
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length === 0) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    const id = setTimeout(() => {
+      start(async () => {
+        const r = await searchCustomers({ slug, q: term });
+        setSearched(true);
+        if (r.ok) setResults((r.data as Cust[]) ?? []);
+        else setResults([]);
+      });
+    }, 300);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, slug]);
 
   function doCreate() {
     setErr(null);
@@ -101,21 +185,6 @@ export function IntakeFlow({
     });
   }
 
-  function doIssue(kind: "MEMBERSHIP" | "PACKAGE" | "COMBO", planId: string) {
-    if (!cust) return;
-    setErr(null);
-    start(async () => {
-      const r = await issueService({
-        slug,
-        customerUserId: cust.id,
-        kind,
-        planId,
-      });
-      if (r.ok) setDone(true);
-      else setErr(r.error || t("actionFailed"));
-    });
-  }
-
   const field =
     "w-full rounded-md border border-white/15 bg-zinc-950 px-3 py-2 text-sm";
   const tabBtn = (on: boolean) =>
@@ -127,7 +196,7 @@ export function IntakeFlow({
 
   return (
     <div className="min-h-[100dvh] bg-black p-4 text-zinc-100">
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto max-w-xl pb-28 lg:max-w-5xl lg:pb-0">
         <div className="flex items-center justify-between">
           <h1 className="font-heading text-lg text-white">
             {t("intakeTitle")}
@@ -145,7 +214,7 @@ export function IntakeFlow({
         {done ? (
           <div className="mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-6 text-center">
             <p className="text-lg font-semibold text-emerald-300">
-              ✓ {t("issuedOk")}
+              ✓ {t("issuedCount", { count: issuedN })}
             </p>
             <p className="mt-1 text-sm text-zinc-300">{cust?.name}</p>
             <div className="mt-5 flex justify-center gap-2">
@@ -165,9 +234,10 @@ export function IntakeFlow({
             </div>
           </div>
         ) : (
-          <>
+          <div className="mt-4 lg:grid lg:grid-cols-[1fr_340px] lg:items-start lg:gap-4">
+            <div className="space-y-4">
             {/* 1. 고객 */}
-            <section className="mt-4 rounded-2xl border border-amber-400/25 bg-zinc-900 p-4">
+            <section className="rounded-2xl border border-amber-400/25 bg-zinc-900 p-4">
               <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">
                 {t("stepCustomer")}
               </h2>
@@ -232,6 +302,22 @@ export function IntakeFlow({
                         </button>
                       </div>
                       <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+                        {pending && (
+                          <li className="px-1 py-2 text-xs text-zinc-500">
+                            {t("searchTyping")}
+                          </li>
+                        )}
+                        {!pending &&
+                          results.length === 0 &&
+                          (searched ? (
+                            <li className="px-1 py-2 text-xs text-zinc-500">
+                              {t("noResults")}
+                            </li>
+                          ) : (
+                            <li className="px-1 py-2 text-xs text-zinc-500">
+                              {t("searchHint")}
+                            </li>
+                          ))}
                         {results.map((c) => (
                           <li key={c.id}>
                             <button
@@ -388,10 +474,17 @@ export function IntakeFlow({
                             <button
                               type="button"
                               disabled={pending}
-                              onClick={() => doIssue("MEMBERSHIP", m.id)}
+                              onClick={() =>
+                                addToCart({
+                                  kind: "MEMBERSHIP",
+                                  planId: m.id,
+                                  name: m.name,
+                                  pricePhp: m.pricePhp,
+                                })
+                              }
                               className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 disabled:opacity-40"
                             >
-                              {t("issueBtn")}
+                              {t("addToCart")}
                             </button>
                           </span>
                         </li>
@@ -424,10 +517,17 @@ export function IntakeFlow({
                             <button
                               type="button"
                               disabled={pending}
-                              onClick={() => doIssue("PACKAGE", p.id)}
+                              onClick={() =>
+                                addToCart({
+                                  kind: "PACKAGE",
+                                  planId: p.id,
+                                  name: p.name,
+                                  pricePhp: p.pricePhp,
+                                })
+                              }
                               className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 disabled:opacity-40"
                             >
-                              {t("issueBtn")}
+                              {t("addToCart")}
                             </button>
                           </span>
                         </li>
@@ -456,10 +556,17 @@ export function IntakeFlow({
                               <button
                                 type="button"
                                 disabled={pending}
-                                onClick={() => doIssue("COMBO", c.id)}
+                                onClick={() =>
+                                  addToCart({
+                                    kind: "COMBO",
+                                    planId: c.id,
+                                    name: c.name,
+                                    pricePhp: c.pricePhp,
+                                  })
+                                }
                                 className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 disabled:opacity-40"
                               >
-                                {t("issueBtn")}
+                                {t("addToCart")}
                               </button>
                             </span>
                           </div>
@@ -472,7 +579,128 @@ export function IntakeFlow({
                 </ul>
               </section>
             )}
-          </>
+            </div>
+
+            {cust && (
+              <aside className="mt-4 lg:sticky lg:top-4 lg:mt-0">
+                <section className="rounded-2xl border border-emerald-400/30 bg-zinc-900 p-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/90">
+                      {t("cartTitle")}
+                      {cart.length > 0 ? ` · ${cart.length}` : ""}
+                    </h2>
+                    {cart.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setCart([])}
+                        className="text-xs text-zinc-500 hover:text-rose-300"
+                      >
+                        {t("cartClear")}
+                      </button>
+                    )}
+                  </div>
+                  {cart.length === 0 ? (
+                    <p className="mt-3 text-sm text-zinc-500">
+                      {t("cartEmpty")}
+                    </p>
+                  ) : (
+                    <>
+                      <ul className="mt-3 space-y-2">
+                        {cart.map((l) => (
+                          <li
+                            key={l.uid}
+                            className="flex items-center justify-between gap-2 rounded-lg border border-white/10 p-2.5"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-medium text-white">
+                                {l.name}
+                              </span>
+                              <span className="text-[11px] text-zinc-500">
+                                {t(
+                                  l.kind === "MEMBERSHIP"
+                                    ? "tabMembership"
+                                    : l.kind === "PACKAGE"
+                                      ? "tabPackage"
+                                      : "tabCombo",
+                                )}
+                              </span>
+                            </span>
+                            <span className="flex shrink-0 items-center gap-2">
+                              {(() => {
+                                const d = lineDiscount(l);
+                                return d > 0 ? (
+                                  <span className="text-right">
+                                    <span className="block text-[11px] tabular-nums text-zinc-500 line-through">
+                                      {peso(l.pricePhp)}
+                                    </span>
+                                    <span className="block text-sm font-semibold tabular-nums text-emerald-300">
+                                      {peso(l.pricePhp - d)}
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span className="tabular-nums text-sm text-amber-300">
+                                    {peso(l.pricePhp)}
+                                  </span>
+                                );
+                              })()}
+                              <button
+                                type="button"
+                                aria-label={t("cartClear")}
+                                onClick={() => removeFromCart(l.uid)}
+                                className="rounded-md border border-white/15 px-2 py-1 text-xs text-zinc-400 hover:border-rose-400/50 hover:text-rose-300"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-3 border-t border-white/10 pt-3">
+                        {cartSaved > 0 && (
+                          <div className="mb-1 flex items-center justify-between text-xs text-emerald-300">
+                            <span>{t("cartSavedLabel")}</span>
+                            <span className="tabular-nums">
+                              − {peso(cartSaved)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-zinc-400">
+                            {t("cartTotal")}
+                          </span>
+                          <span className="tabular-nums text-base font-semibold text-amber-300">
+                            {peso(cartTotal)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={doIssueCart}
+                        className="mt-3 hidden w-full rounded-lg border border-emerald-400/50 bg-emerald-400/20 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/30 disabled:opacity-40 lg:block"
+                      >
+                        {t("cartIssueBtn", { count: cart.length })}
+                      </button>
+                    </>
+                  )}
+                </section>
+              </aside>
+            )}
+
+            {cart.length > 0 && (
+              <div className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-400/30 bg-zinc-950/95 p-3 backdrop-blur lg:hidden">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={doIssueCart}
+                  className="flex w-full items-center justify-between rounded-lg border border-emerald-400/50 bg-emerald-400/20 px-4 py-3 text-sm font-semibold text-emerald-200 disabled:opacity-40"
+                >
+                  <span>{t("cartIssueBtn", { count: cart.length })}</span>
+                  <span className="tabular-nums">{peso(cartTotal)}</span>
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

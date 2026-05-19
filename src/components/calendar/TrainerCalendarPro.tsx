@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type {
@@ -16,7 +16,10 @@ import Link from "next/link";
 import {
   searchCustomers,
   addReservation,
+  customerRemaining,
 } from "@/app/[lang]/g/[slug]/dashboard/service-actions";
+
+type Remaining = { service: string; total: number; remaining: number };
 
 const WD_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const WD_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -63,11 +66,22 @@ export function TrainerCalendarPro({
   const [pending, startTransition] = useTransition();
   const [selIdx, setSelIdx] = useState(data.todayIdx);
   const [picked, setPicked] = useState<Picked | null>(null);
+  // 클릭한 예약 고객의 서비스별 잔여(단체 포함). null=로딩중.
+  const [rem, setRem] = useState<Remaining[] | null>(null);
   const [moving, setMoving] = useState(false);
+  // 이동 확인 — native confirm(화면 하단/중앙) 대신 탭한 셀 옆 박스.
+  const [moveConfirm, setMoveConfirm] = useState<{
+    g: GridDay;
+    slotMin: number;
+    ax: number;
+    ay: number;
+    when: string;
+  } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [cq, setCq] = useState("");
   const [cresults, setCresults] = useState<Cust[]>([]);
+  const [csearched, setCsearched] = useState(false);
 
   const todayKey = keyNum(
     data.today.year,
@@ -99,7 +113,9 @@ export function TrainerCalendarPro({
 
   function reset() {
     setPicked(null);
+    setRem(null);
     setMoving(false);
+    setMoveConfirm(null);
     setErr(null);
   }
   function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
@@ -120,14 +136,38 @@ export function TrainerCalendarPro({
     setModal(null);
     setCq("");
     setCresults([]);
+    setCsearched(false);
     setErr(null);
   }
   function doSearch() {
     startTransition(async () => {
-      const r = await searchCustomers({ slug, q: cq });
+      const r = await searchCustomers({ slug, q: cq.trim() });
+      setCsearched(true);
       if (r.ok) setCresults((r.data as Cust[]) ?? []);
+      else setCresults([]);
     });
   }
+
+  // 입력 시 자동 검색(디바운스 300ms) — addRes 모달 열렸을 때만.
+  useEffect(() => {
+    if (modal?.t !== "addRes") return;
+    const term = cq.trim();
+    if (term.length === 0) {
+      setCresults([]);
+      setCsearched(false);
+      return;
+    }
+    const id = setTimeout(() => {
+      startTransition(async () => {
+        const r = await searchCustomers({ slug, q: term });
+        setCsearched(true);
+        if (r.ok) setCresults((r.data as Cust[]) ?? []);
+        else setCresults([]);
+      });
+    }, 300);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cq, slug, modal?.t]);
   function doAddRes(custId: string) {
     if (modal?.t !== "addRes") return;
     const { g, slotMin } = modal;
@@ -166,20 +206,42 @@ export function TrainerCalendarPro({
       ax: r.left + r.width / 2,
       ay: r.bottom,
     });
+    // 그 고객 서비스별 잔여(단체 포함) 조회 — 팝오버에 표시.
+    setRem(null);
+    if (ev.customerId) {
+      startTransition(async () => {
+        const res = await customerRemaining({
+          slug,
+          customerUserId: ev.customerId!,
+        });
+        setRem(res.ok ? ((res.data as Remaining[]) ?? []) : []);
+      });
+    } else {
+      setRem([]);
+    }
   }
 
-  function onFreeTap(g: GridDay, slotMin: number) {
+  function onFreeTap(g: GridDay, slotMin: number, el: HTMLElement) {
     if (!moving || !picked) return;
     if (slotIsPast(g, slotMin)) {
       setErr(t("errPast"));
       return;
     }
-    const when = `${g.month}/${g.day} ${hm(slotMin)}`;
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(t("confirmMove", { name: picked.name, when }))
-    )
-      return;
+    setErr(null);
+    const r = el.getBoundingClientRect();
+    setMoveConfirm({
+      g,
+      slotMin,
+      ax: r.left + r.width / 2,
+      ay: r.bottom,
+      when: `${g.month}/${g.day} ${hm(slotMin)}`,
+    });
+  }
+
+  function confirmMoveNow() {
+    if (!moveConfirm || !picked) return;
+    const { g, slotMin } = moveConfirm;
+    setMoveConfirm(null);
     run(() =>
       rescheduleReservation({
         slug,
@@ -220,12 +282,6 @@ export function TrainerCalendarPro({
           {selLabel} {t("scheduleSuffix")}
         </h2>
         <div className="flex items-center gap-1">
-          <Link
-            href={`/${lang}/g/${slug}/intake`}
-            className="mr-1 flex h-8 items-center rounded-md border border-emerald-400/40 bg-emerald-400/10 px-2.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-400 hover:text-zinc-950"
-          >
-            {t("goIntake")}
-          </Link>
           <button
             type="button"
             onClick={() => setSelIdx((i) => clampSel(i - 1))}
@@ -408,13 +464,15 @@ export function TrainerCalendarPro({
                       <button
                         key={ci}
                         type="button"
+                        title={target ? t("moveHereTitle") : undefined}
                         disabled={pending || (!target && !canAdd)}
-                        onClick={() => {
-                          if (moving) onFreeTap(g, slotMin);
+                        onClick={(e) => {
+                          if (moving) onFreeTap(g, slotMin, e.currentTarget);
                           else if (canAdd) {
                             setErr(null);
                             setCq("");
                             setCresults([]);
+                            setCsearched(false);
                             setModal({ t: "addRes", g, slotMin });
                           }
                         }}
@@ -426,7 +484,15 @@ export function TrainerCalendarPro({
                               : "bg-zinc-800/60 text-zinc-700"
                         }`}
                       >
-                        {target ? t("tapToMoveHere") : canAdd ? "+" : "·"}
+                        {target ? (
+                          <span className="text-base font-bold leading-none">
+                            {t("tapToMoveHere")}
+                          </span>
+                        ) : canAdd ? (
+                          "+"
+                        ) : (
+                          "·"
+                        )}
                       </button>
                     );
                   }
@@ -465,6 +531,61 @@ export function TrainerCalendarPro({
           })}
         </div>
       </div>
+
+      {/* 이동 확인 — 탭한 빈 슬롯 바로 옆 (손·시선 이동 최소화) */}
+      {moveConfirm && picked && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setMoveConfirm(null)}
+          />
+          {(() => {
+            const W = 248;
+            const vw =
+              typeof window !== "undefined" ? window.innerWidth : 1024;
+            const vh =
+              typeof window !== "undefined" ? window.innerHeight : 768;
+            const left = Math.min(
+              Math.max(8, moveConfirm.ax - W / 2),
+              vw - W - 8,
+            );
+            const placeAbove = moveConfirm.ay + 150 > vh;
+            const top = placeAbove
+              ? Math.max(8, moveConfirm.ay - 40 - 138)
+              : moveConfirm.ay + 8;
+            return (
+              <div
+                className="fixed z-50 rounded-xl border border-amber-400/50 bg-zinc-900 p-4 shadow-xl"
+                style={{ left, top, width: W }}
+              >
+                <p className="text-sm text-zinc-200">
+                  {t("confirmMove", {
+                    name: picked.name,
+                    when: moveConfirm.when,
+                  })}
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMoveConfirm(null)}
+                    className="rounded-lg border border-white/15 py-2.5 text-sm text-zinc-300 transition hover:bg-white/10"
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={confirmMoveNow}
+                    className="rounded-lg border border-amber-400/50 bg-amber-400/20 py-2.5 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/30 disabled:opacity-40"
+                  >
+                    {t("confirmOk")}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </>
+      )}
 
       {/* 셀 옆 팝오버 — 클릭한 예약 위치에 바로 액션 표시 */}
       {picked && !moving && (
@@ -507,6 +628,41 @@ export function TrainerCalendarPro({
                       </span>
                     )}
                   </div>
+                </div>
+                <div className="mt-3 rounded-lg border border-white/10 bg-zinc-950/60 p-2.5">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+                    {t("remainHeading")}
+                  </div>
+                  {rem === null ? (
+                    <div className="mt-1 text-xs text-zinc-500">
+                      {t("remainLoading")}
+                    </div>
+                  ) : rem.length === 0 ? (
+                    <div className="mt-1 text-xs text-zinc-500">
+                      {t("remainNone")}
+                    </div>
+                  ) : (
+                    <ul className="mt-1 space-y-0.5">
+                      {rem.map((x) => (
+                        <li
+                          key={x.service}
+                          className="flex items-center justify-between text-xs"
+                        >
+                          <span className="text-zinc-300">{x.service}</span>
+                          <span className="tabular-nums">
+                            <span className="font-semibold text-amber-300">
+                              {t("remainLeft", { n: x.remaining })}
+                            </span>
+                            <span className="ml-2 text-zinc-500">
+                              {t("remainDone", {
+                                n: x.total - x.remaining,
+                              })}
+                            </span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 {!picked.completed && (
                   <div className="mt-4 grid grid-cols-3 gap-2">
@@ -602,11 +758,22 @@ export function TrainerCalendarPro({
                       </button>
                     </li>
                   ))}
-                  {cresults.length === 0 && (
+                  {pending && (
                     <li className="text-xs text-zinc-500">
-                      {t("searchHint")}
+                      {t("searchTyping")}
                     </li>
                   )}
+                  {!pending &&
+                    cresults.length === 0 &&
+                    (csearched ? (
+                      <li className="text-xs text-zinc-500">
+                        {t("noResults")}
+                      </li>
+                    ) : (
+                      <li className="text-xs text-zinc-500">
+                        {t("searchHint")}
+                      </li>
+                    ))}
                 </ul>
                 <div className="mt-4 flex justify-end">
                   <button

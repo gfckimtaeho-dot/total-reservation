@@ -114,6 +114,7 @@ export async function MembersNormal({
                     <Th>{t("colName")}</Th>
                     <Th>{t("colAge")}</Th>
                     <Th>{t("colPhone")}</Th>
+                    <Th>{t("colEmail")}</Th>
                     <Th>{t("colExpiry")}</Th>
                     <Th>{t("colRemaining")}</Th>
                     <Th>{t("colActions")}</Th>
