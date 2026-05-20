@@ -63,18 +63,44 @@
 - 등록·결제 모두 트레이너 가능
 - 가입 흐름은 [auth.md](./auth.md)의 "고객 (트레이너가 태블릿에서 등록)" 참조
 
-## 고객 마이페이지
+## 고객 마이페이지 (/me)
 
-- 내 예약 목록 (월별 캘린더)
-- 예약 상태: 입금 대기 / 확정 / 완료 / 취소 / 거절
-- 당일 예약 확인 (홈에 강조)
-- 본인 정보 수정 (이름·전화번호)
-- 본인 신뢰도 점수·등급
-- 출입 QR (멤버십 활성 시)
-- 알림 설정:
-  - 푸시 ON / OFF
-  - 이메일 ON / OFF
-  - (둘 다 OFF 시 어떤 알림도 못 받음)
+### 디자인 컨셉 (2026-05-20 확정)
+- V5 Pastel Glass 베이스 + V8 Sunset Gradient 캘린더/upcoming mix
+- zinc-950 + rose/emerald/sky 라디얼 backdrop, 글래스 카드(bg-white/5 + backdrop-blur-xl)
+- 캘린더 sunset 그라데 chip: PT=orange, 단체=purple, 둘다=그라데, 오늘=full sunset fill
+- 다가오는 예약 한 줄 형식 "MM-DD HH:MM [단체 ]{서비스} {담당}"
+- preview 시안 10개(`/preview/me/v1~v10`) 비교 후 V5+V8 확정. 다른 시안은 reference 보존
+
+### 화면 구성 (위에서 아래)
+- 헤더 1곳: 매장명 + 회원명 + 오늘 날짜 + 로그아웃
+- 휴무 배너 (당일이 CLOSED일 때만)
+- 오늘의 일정 히어로 — 한 줄 "18:00 PT Kevin 트레이너", 끝시간 미표시
+- 출입 QR 큰 버튼 — 흰 배경 + zinc-950 진한 글자 + rose ring + sunset glow (가시성 최우선)
+- 회원권 / 횟수권 카드 2열, 만료 D-7 amber 강조
+- 1:1 횟수권 카드에 "예약" 버튼 → /me/reservations/new?pkg=<id>
+- 5주 미니 캘린더
+- 단체 수업 일정 섹션 (단체 권 보유 시만): 14일 occurrence + "등록" 버튼 + 정원/등록됨/마감 pill
+- 다가오는 예약 리스트 (1:1만 변경/취소)
+- 빈 상태 (권 0개): "발급된 권 없음 - 프런트 문의"
+- PWA 안내 (dismissible + 삼성 인터넷 절차 포함, standalone 자동 숨김)
+- "내 정보" 카드 미설치 (헤더 중복)
+
+### 액션
+- 예약 신규 (1:1): /me/reservations/new?pkg=<권id> → 권 검증 + 담당 트레이너 빈 슬롯 picker → CONFIRMED
+- 예약 변경 (1:1): /me/reservations/[id]/move → 담당 트레이너 빈 슬롯 → 같은 staff 충돌 검증. 내일 이후만, 당일은 전화 안내.
+- 예약 취소 (1:1): 내일 이후만. Package.remainingCount totalCount cap 복구. 당일은 전화 안내.
+- 단체 수업 등록: 본인 단체 권 + 14일 안 occurrence. 정원/중복 검증. 가장 오래된 단체 권 FIFO 매칭. 완료 시 차감.
+- 출입 QR: 큰 버튼 → 모달. requestAccessQr 액션이 그 1명 실시간 판정(유효 회원권 또는 오늘 예약).
+
+### 알림 설정
+- 푸시 ON / OFF
+- 이메일 ON / OFF
+- (둘 다 OFF 시 어떤 알림도 못 받음)
+
+### 신뢰도/기본 정보
+- 본인 신뢰도 점수·등급 노출
+- 본인 정보 수정 (이름·전화번호 — 별도 라우트, /me에서는 표시 안 함)
 
 ## 비회원 정책
 

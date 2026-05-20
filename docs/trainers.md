@@ -125,6 +125,33 @@ model StaffLeave {
 - 트레이너 정기 휴무 (`Staff.weeklyOffDays`에 그 요일이 있을 때)
 - (예정) 트레이너 개인 휴무 (`StaffLeave` 기간) — 사장이 등록할 화면 추후 추가
 
+## 트레이너 dashboard 디자인 (2026-05-20 확정)
+
+- V8 Sunset Gradient 컨셉 — purple→sunset orange/coral 그라데. preview 시안 10개(`/preview/trainer/v1~v10`) 비교 후 V8 채택. 다른 시안은 reference 보존.
+- 라디얼 backdrop 3개: purple 상단, orange 우중단, fuchsia 좌하단
+- 헤더 매장명 = orange→pink bg-clip-text 그라데
+- 액션 4개 차등: 내 프로필(orange/pink 옅음) / 발급(orange→pink 솔리드 + shadow) / 실적(pink/purple 옅음) / 로그아웃(zinc)
+- QR 카드: sunset 그라데 ring 카드(p-[1.5px] 외곽 + 안쪽 zinc-950)
+- 슬롯 그리드: amber 토큰 전체 orange로 시프트. booked 셀은 orange→pink→purple 그라데 fill + pink-400/40 ring. 완료는 emerald 유지(완료 의미).
+
+## /intake 발급 화면 (트레이너 풀스크린 전용)
+
+사장/매니저는 /intake로 직접 접근 시 /members로 redirect. 사장 발급은 회원 상세에 임베드한 OwnerIssuePanel 사용(트레이너 IntakeFlow와 분리, 사장 톤 3가지).
+
+### 고객 선택 흐름 (3단계)
+1. **내 담당 고객** — 본인 staff.id가 Package.assignedStaffId인 user distinct, 최근순 10명/페이지. `listMyAssignedCustomers` 액션.
+2. **전체 고객 조회** — 검색 input + 빈 q이면 최근 등록 순 자동 list + "더 보기 (10명씩)" 페이징. `listRecentCustomers` 액션.
+3. **서비스 발급** — 선택된 고객(picked banner) → 카탈로그 3탭(회원권/횟수권/콤보) + 장바구니 + 발급 버튼
+
+### 고객 row 디자인
+- 이름 + 연락처 (위)
+- 보유 서비스 chip (아래): 잔여 횟수 합산 표시. 1:1=amber, 단체=purple. 예 "PT 3회" / "단체 요가 2회".
+
+### Package.assignedStaffId
+- 발급 시 자동 지정: 발급자가 트레이너면 그 Staff.id, 사장 단독 발급은 null(고객 측 예약 잡기에서 "프런트 문의" 폴백)
+- SetNull onDelete (트레이너 비활성 시 자동 null)
+- 백필 완료 (scripts/backfill-package-assigned-staff.ts) — 이후 발급분부터 자동 채워짐
+
 ## 미구현 (다음 작업 후보)
 
 - 휴가 등록 모달 (server action은 actions.ts에 있음, UI만 추가)

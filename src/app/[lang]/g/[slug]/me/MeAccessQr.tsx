@@ -25,9 +25,19 @@ export function MeAccessQr({ slug }: { slug: string }) {
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center justify-center rounded-2xl bg-ink px-6 py-6 text-lg font-semibold text-white transition hover:bg-ink/90"
+        className="flex w-full items-center justify-between rounded-2xl bg-white px-6 py-5 text-left text-zinc-950 shadow-[0_8px_32px_-12px_rgba(251,146,60,0.5)] ring-2 ring-rose-300/60 transition hover:bg-rose-50"
       >
-        {t("qrButton")}
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-500">
+            tap to scan
+          </div>
+          <div className="mt-0.5 font-heading text-2xl font-bold tracking-tight text-zinc-950">
+            {t("qrButton")}
+          </div>
+        </div>
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-950 text-3xl text-white">
+          ▦
+        </div>
       </button>
 
       {open && (

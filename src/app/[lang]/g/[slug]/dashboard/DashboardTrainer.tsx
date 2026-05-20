@@ -20,6 +20,8 @@ type Props = {
   weeklyOffDays: Weekday[];
 };
 
+// V8 Sunset Gradient 적용 — purple → sunset orange 라디얼 backdrop +
+// 그라데 ring 카드 + 액션 4개 중 발급만 솔리드 그라데.
 export async function DashboardTrainer({
   lang,
   slug,
@@ -43,7 +45,6 @@ export async function DashboardTrainer({
     },
   ).format(today);
 
-  // 본인 담당 예약만(staffId 필터) + 매장 영업/근무일·트레이너 출근시간 가용창 반영.
   const calendar = await loadTrainerCalendar(gymId, staffId, trainerName);
 
   const qrDataUrl = await QRCode.toDataURL(accessToken, {
@@ -53,72 +54,80 @@ export async function DashboardTrainer({
   });
 
   return (
-    <div className="flex min-h-screen flex-col bg-black text-zinc-100">
-      <header className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
+      <div className="pointer-events-none absolute inset-x-0 -top-20 h-[40rem] bg-gradient-to-b from-purple-700/30 via-pink-500/15 to-transparent" />
+      <div className="pointer-events-none absolute -right-40 top-1/4 h-[28rem] w-[28rem] rounded-full bg-orange-500/25 blur-3xl" />
+      <div className="pointer-events-none absolute -left-32 bottom-0 h-[26rem] w-[26rem] rounded-full bg-fuchsia-600/20 blur-3xl" />
+
+      <header className="relative flex items-center justify-between border-b border-white/5 px-5 py-4">
         <div>
           <h1 className="font-heading text-lg tracking-tight text-white">
             {trainerName}
           </h1>
-          <div className="mt-0.5 text-[11px] text-amber-300/70">
+          <div className="mt-0.5 bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-[11px] font-semibold uppercase tracking-[0.18em] text-transparent">
             {businessName} · {todayDisplay}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* 언어 전환 토글 제거 — 등록 시 고른 모국어(User.locale)가
-              로그인 시 자동 적용된다(login/actions.ts → NEXT_LOCALE 쿠키). */}
           <Link
             href={`/${lang}/g/${slug}/showcase`}
-            className="rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400 hover:text-zinc-950"
+            className="rounded-full bg-gradient-to-r from-orange-500/20 to-pink-500/20 px-3 py-1.5 text-xs font-semibold text-orange-100 ring-1 ring-orange-400/40 transition hover:from-orange-500/30 hover:to-pink-500/30"
           >
             {t("trainerShowcaseBtn")}
           </Link>
           <Link
             href={`/${lang}/g/${slug}/intake`}
-            className="rounded-md border border-emerald-400/40 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-400 hover:text-zinc-950"
+            className="rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-3 py-1.5 text-xs font-bold text-white shadow-[0_4px_18px_-6px_rgba(251,146,60,0.6)] transition hover:brightness-110"
           >
             {t("trainerIntakeBtn")}
           </Link>
           <Link
             href={`/${lang}/g/${slug}/performance`}
-            className="rounded-md border border-sky-400/40 bg-sky-400/10 px-3 py-1.5 text-xs font-semibold text-sky-300 transition hover:bg-sky-400 hover:text-zinc-950"
+            className="rounded-full bg-gradient-to-r from-pink-500/20 to-purple-500/20 px-3 py-1.5 text-xs font-semibold text-pink-100 ring-1 ring-pink-400/40 transition hover:from-pink-500/30 hover:to-purple-500/30"
           >
             {t("trainerPerfBtn")}
           </Link>
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="rounded-md border border-white/10 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 transition hover:border-amber-400 hover:text-amber-300">
+            <button className="rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-400 ring-1 ring-white/10 transition hover:text-white">
               {tn("logout")}
             </button>
           </form>
         </div>
       </header>
 
-      <main className="flex-1 space-y-4 p-4">
-        {/* QR — 핸드폰만 */}
-        <section className="flex flex-col items-center rounded-2xl border border-amber-400/25 bg-black p-5 md:hidden">
-          <h2 className="font-heading text-base tracking-tight text-white">
-            {t("trainerQrTitle")}
-          </h2>
-          <div className="mt-3 rounded-xl bg-white p-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qrDataUrl}
-              alt="Access QR"
-              className="block h-36 w-36"
-            />
+      <main className="relative flex-1 space-y-4 p-4">
+        {/* QR — 핸드폰만, V8 sunset 그라데 ring */}
+        <section className="relative flex flex-col items-center overflow-hidden rounded-3xl p-[1.5px] md:hidden">
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500" />
+          <div className="relative w-full rounded-[calc(1.5rem-1.5px)] bg-zinc-950 p-5">
+            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-500/40 blur-3xl" />
+            <div className="relative flex flex-col items-center">
+              <h2 className="bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text font-heading text-base tracking-tight text-transparent">
+                {t("trainerQrTitle")}
+              </h2>
+              <div className="mt-3 rounded-xl bg-white p-2.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrDataUrl}
+                  alt="Access QR"
+                  className="block h-36 w-36"
+                />
+              </div>
+              <p className="mt-3 whitespace-pre-line text-center text-[11px] leading-relaxed text-zinc-400">
+                {t("trainerQrHint")}
+              </p>
+            </div>
           </div>
-          <p className="mt-3 whitespace-pre-line text-center text-[11px] leading-relaxed text-zinc-400">
-            {t("trainerQrHint")}
-          </p>
         </section>
 
         <TrainerCalendarPro data={calendar} slug={slug} lang={lang} />
       </main>
 
-      <footer className="border-t border-white/10 px-5 py-4 text-center text-[11px] text-zinc-500">
+      <footer className="relative border-t border-white/5 px-5 py-4 text-center text-[11px] text-zinc-500">
         예약가즈아 · /g/{slug} ·{" "}
         <Link
           href={`/${lang}/g/${slug}/me`}
-          className="underline-offset-2 hover:text-amber-300 hover:underline"
+          className="bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-transparent underline-offset-2 hover:underline"
         >
           {t("trainerProfileLink")}
         </Link>

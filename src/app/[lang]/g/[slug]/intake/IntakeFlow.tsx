@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createMember } from "../members/actions";
 import {
-  searchCustomers,
+  listRecentCustomers,
+  listMyAssignedCustomers,
   issueCart,
 } from "../dashboard/service-actions";
 import {
@@ -32,7 +33,12 @@ type Combo = {
   pricePhp: number;
   parts: string[];
 };
-type Cust = { id: string; name: string; phone?: string | null };
+type Cust = {
+  id: string;
+  name: string;
+  phone?: string | null;
+  services?: { name: string; isGroup: boolean; remaining: number }[];
+};
 
 export function IntakeFlow({
   slug,
@@ -42,6 +48,7 @@ export function IntakeFlow({
   packages,
   combos,
   promotions,
+  embedded = false,
 }: {
   slug: string;
   lang: string;
@@ -50,6 +57,9 @@ export function IntakeFlow({
   packages: Pkg[];
   combos: Combo[];
   promotions: PromoLike[];
+  // embedded=true: 사장 dashboard chrome 안에 임베드(헤더/back link/outer bg 제거).
+  // 트레이너는 dashboard 자체가 풀스크린이라 embedded=false로 outer 자체 chrome.
+  embedded?: boolean;
 }) {
   const t = useTranslations("trainerCal");
   const [pending, start] = useTransition();
@@ -61,6 +71,14 @@ export function IntakeFlow({
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Cust[]>([]);
   const [searched, setSearched] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const PAGE = 10;
+  // "2. 내 담당 고객" 섹션 state (embedded=false, 즉 트레이너 풀스크린 일 때만 의미)
+  const [myResults, setMyResults] = useState<Cust[]>([]);
+  const [myHasMore, setMyHasMore] = useState(false);
+  const [myOffset, setMyOffset] = useState(0);
+  const [myLoading, setMyLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [issuedN, setIssuedN] = useState(0);
@@ -133,30 +151,109 @@ export function IntakeFlow({
   function doSearch() {
     const term = q.trim();
     start(async () => {
-      const r = await searchCustomers({ slug, q: term });
+      const r = await listRecentCustomers({
+        slug,
+        q: term,
+        limit: PAGE,
+        offset: 0,
+      });
       setSearched(true);
-      if (r.ok) setResults((r.data as Cust[]) ?? []);
-      else setResults([]);
+      if (r.ok) {
+        const d = r.data as { rows: Cust[]; hasMore: boolean };
+        setResults(d.rows);
+        setHasMore(d.hasMore);
+        setOffset(0);
+      } else {
+        setResults([]);
+        setHasMore(false);
+      }
     });
   }
 
-  // 입력하면 자동 검색(디바운스 300ms). 작은 검색 버튼/Enter 의존 제거 —
-  // 태블릿에서 "검색이 안 된다"는 혼동 방지.
+  function loadMore() {
+    const term = q.trim();
+    const next = offset + PAGE;
+    start(async () => {
+      const r = await listRecentCustomers({
+        slug,
+        q: term,
+        limit: PAGE,
+        offset: next,
+      });
+      if (r.ok) {
+        const d = r.data as { rows: Cust[]; hasMore: boolean };
+        setResults((prev) => [...prev, ...d.rows]);
+        setHasMore(d.hasMore);
+        setOffset(next);
+      }
+    });
+  }
+
+  function loadMoreMy() {
+    const next = myOffset + PAGE;
+    setMyLoading(true);
+    (async () => {
+      const r = await listMyAssignedCustomers({
+        slug,
+        limit: PAGE,
+        offset: next,
+      });
+      if (r.ok) {
+        const d = r.data as { rows: Cust[]; hasMore: boolean };
+        setMyResults((prev) => [...prev, ...d.rows]);
+        setMyHasMore(d.hasMore);
+        setMyOffset(next);
+      }
+      setMyLoading(false);
+    })();
+  }
+
+  // 트레이너 풀스크린(embedded=false) 일 때만 "내 담당 고객" mount-load.
+  useEffect(() => {
+    if (embedded) return;
+    setMyLoading(true);
+    (async () => {
+      const r = await listMyAssignedCustomers({
+        slug,
+        limit: PAGE,
+        offset: 0,
+      });
+      if (r.ok) {
+        const d = r.data as { rows: Cust[]; hasMore: boolean };
+        setMyResults(d.rows);
+        setMyHasMore(d.hasMore);
+        setMyOffset(0);
+      }
+      setMyLoading(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, slug]);
+
+  // q 변경 시 자동 로드 — 빈 q 도 첫 페이지(최근 등록 순) 표시.
+  // 빈 입력은 즉시(=초기 list 노출), 검색어는 300ms 디바운스.
   useEffect(() => {
     const term = q.trim();
-    if (term.length === 0) {
-      setResults([]);
-      setSearched(false);
-      return;
-    }
+    const delay = term.length === 0 ? 0 : 300;
     const id = setTimeout(() => {
       start(async () => {
-        const r = await searchCustomers({ slug, q: term });
+        const r = await listRecentCustomers({
+          slug,
+          q: term,
+          limit: PAGE,
+          offset: 0,
+        });
         setSearched(true);
-        if (r.ok) setResults((r.data as Cust[]) ?? []);
-        else setResults([]);
+        if (r.ok) {
+          const d = r.data as { rows: Cust[]; hasMore: boolean };
+          setResults(d.rows);
+          setHasMore(d.hasMore);
+          setOffset(0);
+        } else {
+          setResults([]);
+          setHasMore(false);
+        }
       });
-    }, 300);
+    }, delay);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, slug]);
@@ -194,20 +291,68 @@ export function IntakeFlow({
         : "border border-white/15 text-zinc-300 hover:bg-white/5"
     }`;
 
-  return (
-    <div className="min-h-[100dvh] bg-black p-4 text-zinc-100">
-      <div className="mx-auto max-w-xl pb-28 lg:max-w-5xl lg:pb-0">
-        <div className="flex items-center justify-between">
-          <h1 className="font-heading text-lg text-white">
-            {t("intakeTitle")}
-          </h1>
-          <Link
-            href={`/${lang}/g/${slug}/dashboard`}
-            className="rounded-md border border-white/15 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5"
-          >
-            ← {t("goDashboard")}
-          </Link>
+  // 고객 row 렌더 — 이름/연락처 + 보유 서비스 chip(잔여>0). 두 list 공용.
+  function renderCustRow(c: Cust) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCust({ id: c.id, name: c.name })}
+        className="flex w-full flex-col gap-1 rounded-md border border-white/15 px-3 py-2 text-left text-sm hover:border-amber-400/50 hover:bg-amber-400/10"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium text-white">{c.name}</span>
+          <span className="text-xs text-zinc-500">{c.phone ?? ""}</span>
         </div>
+        {c.services && c.services.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {c.services.map((s, i) => {
+              const remainStr =
+                s.remaining % 1 === 0
+                  ? String(s.remaining)
+                  : s.remaining.toFixed(1);
+              const unit = lang === "en" ? "" : "회";
+              const groupLabel = lang === "en" ? "Group " : "단체 ";
+              const text = `${s.isGroup ? groupLabel : ""}${s.name} ${remainStr}${unit}`;
+              return (
+                <span
+                  key={i}
+                  className={
+                    "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums " +
+                    (s.isGroup
+                      ? "bg-purple-500/15 text-purple-200 ring-1 ring-purple-400/30"
+                      : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30")
+                  }
+                >
+                  {text}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </button>
+    );
+  }
+
+  const outerCls = embedded
+    ? "p-4 text-zinc-100"
+    : "min-h-[100dvh] bg-black p-4 text-zinc-100";
+
+  return (
+    <div className={outerCls}>
+      <div className="mx-auto max-w-xl pb-28 lg:max-w-5xl lg:pb-0">
+        {!embedded && (
+          <div className="flex items-center justify-between">
+            <h1 className="font-heading text-lg text-white">
+              {t("intakeTitle")}
+            </h1>
+            <Link
+              href={`/${lang}/g/${slug}/dashboard`}
+              className="rounded-md border border-white/15 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5"
+            >
+              ← {t("goDashboard")}
+            </Link>
+          </div>
+        )}
 
         {err && <p className="mt-3 text-sm text-rose-400">{err}</p>}
 
@@ -225,43 +370,81 @@ export function IntakeFlow({
               >
                 {t("issueAnother")}
               </button>
-              <Link
-                href={`/${lang}/g/${slug}/dashboard`}
-                className="rounded-md border border-white/15 px-4 py-2 text-sm text-zinc-300"
-              >
-                {t("goDashboard")}
-              </Link>
+              {!embedded && (
+                <Link
+                  href={`/${lang}/g/${slug}/dashboard`}
+                  className="rounded-md border border-white/15 px-4 py-2 text-sm text-zinc-300"
+                >
+                  {t("goDashboard")}
+                </Link>
+              )}
             </div>
           </div>
         ) : (
           <div className="mt-4 lg:grid lg:grid-cols-[1fr_340px] lg:items-start lg:gap-4">
             <div className="space-y-4">
-            {/* 1. 고객 */}
+            {/* 선택된 고객 banner — cust 선택 후 stepCatalog 위에 small 표시 */}
+            {!embedded && cust && (
+              <div className="flex items-center justify-between rounded-2xl border border-amber-400/25 bg-zinc-900 px-4 py-3">
+                <span className="text-sm">
+                  <span className="text-zinc-500">
+                    {t("pickedCustomer")}:{" "}
+                  </span>
+                  <span className="font-semibold text-white">{cust.name}</span>
+                </span>
+                {!preset && (
+                  <button
+                    type="button"
+                    onClick={() => setCust(null)}
+                    className="rounded-md border border-white/15 px-2.5 py-1 text-xs text-zinc-400"
+                  >
+                    {t("changeCustomer")}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 1. 내 담당 고객 — 본인이 담당 트레이너로 발급된 권의 고객들. 트레이너 전용. */}
+            {!embedded && !cust && (
+              <section className="rounded-2xl border border-amber-400/25 bg-zinc-900 p-4">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">
+                  {t("stepMyCustomers")}
+                </h2>
+                <ul className="mt-3 space-y-1">
+                  {myLoading && myResults.length === 0 && (
+                    <li className="px-1 py-2 text-xs text-zinc-500">
+                      {t("searchTyping")}
+                    </li>
+                  )}
+                  {!myLoading && myResults.length === 0 && (
+                    <li className="px-1 py-2 text-xs text-zinc-500">
+                      {t("myCustomersNone")}
+                    </li>
+                  )}
+                  {myResults.map((c) => (
+                    <li key={c.id}>{renderCustRow(c)}</li>
+                  ))}
+                </ul>
+                {myHasMore && (
+                  <button
+                    type="button"
+                    disabled={myLoading}
+                    onClick={loadMoreMy}
+                    className="mt-2 w-full rounded-md border border-white/15 py-2 text-xs text-zinc-300 hover:border-amber-400/50 hover:bg-amber-400/5 disabled:opacity-40"
+                  >
+                    {myLoading ? t("searchTyping") : t("loadMore")}
+                  </button>
+                )}
+              </section>
+            )}
+
+            {/* 2. 전체 고객 조회 — embedded(회원 상세) 일 때는 컨텍스트 고정이라 숨김 */}
+            {!embedded && !cust && (
             <section className="rounded-2xl border border-amber-400/25 bg-zinc-900 p-4">
               <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">
                 {t("stepCustomer")}
               </h2>
-              {cust ? (
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="text-sm">
-                    <span className="text-zinc-500">
-                      {t("pickedCustomer")}:{" "}
-                    </span>
-                    <span className="font-semibold text-white">
-                      {cust.name}
-                    </span>
-                  </span>
-                  {!preset && (
-                    <button
-                      type="button"
-                      onClick={() => setCust(null)}
-                      className="rounded-md border border-white/15 px-2.5 py-1 text-xs text-zinc-400"
-                    >
-                      {t("changeCustomer")}
-                    </button>
-                  )}
-                </div>
-              ) : (
+              {(
                 <>
                   <div className="mt-3 flex gap-2">
                     <button
@@ -301,40 +484,37 @@ export function IntakeFlow({
                           {t("searchBtn")}
                         </button>
                       </div>
-                      <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
-                        {pending && (
+                      {/* 라벨: 검색 비어있을 때 = "최근 등록 순", 검색 중이면 숨김 */}
+                      {q.trim().length === 0 && (
+                        <div className="mt-2 text-[11px] text-zinc-500">
+                          {t("recentLabel")}
+                        </div>
+                      )}
+                      <ul className="mt-2 space-y-1">
+                        {pending && results.length === 0 && (
                           <li className="px-1 py-2 text-xs text-zinc-500">
                             {t("searchTyping")}
                           </li>
                         )}
-                        {!pending &&
-                          results.length === 0 &&
-                          (searched ? (
-                            <li className="px-1 py-2 text-xs text-zinc-500">
-                              {t("noResults")}
-                            </li>
-                          ) : (
-                            <li className="px-1 py-2 text-xs text-zinc-500">
-                              {t("searchHint")}
-                            </li>
-                          ))}
-                        {results.map((c) => (
-                          <li key={c.id}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setCust({ id: c.id, name: c.name })
-                              }
-                              className="flex w-full items-center justify-between rounded-md border border-white/15 px-3 py-2 text-sm hover:border-amber-400/50 hover:bg-amber-400/10"
-                            >
-                              <span className="font-medium">{c.name}</span>
-                              <span className="text-xs text-zinc-500">
-                                {c.phone ?? ""}
-                              </span>
-                            </button>
+                        {!pending && results.length === 0 && searched && (
+                          <li className="px-1 py-2 text-xs text-zinc-500">
+                            {t("noResults")}
                           </li>
+                        )}
+                        {results.map((c) => (
+                          <li key={c.id}>{renderCustRow(c)}</li>
                         ))}
                       </ul>
+                      {hasMore && (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={loadMore}
+                          className="mt-2 w-full rounded-md border border-white/15 py-2 text-xs text-zinc-300 hover:border-amber-400/50 hover:bg-amber-400/5 disabled:opacity-40"
+                        >
+                          {pending ? t("searchTyping") : t("loadMore")}
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -416,8 +596,9 @@ export function IntakeFlow({
                 </>
               )}
             </section>
+            )}
 
-            {/* 2. 카탈로그 발급 */}
+            {/* 3. 카탈로그 발급 */}
             {cust && (
               <section className="mt-4 rounded-2xl border border-amber-400/25 bg-zinc-900 p-4">
                 <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">

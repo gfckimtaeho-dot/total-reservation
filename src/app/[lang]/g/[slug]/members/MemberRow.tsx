@@ -75,7 +75,11 @@ export type MemberView = {
   status: "PENDING" | "ACTIVE" | "WITHDRAWN" | "ANONYMIZED";
   nextExpiry: string | null;
   expiringSoon: boolean;
-  remainingSessions: string;
+  remainingPerService: {
+    name: string;
+    isGroup: boolean;
+    count: string;
+  }[];
 };
 
 export function MemberRow({
@@ -223,13 +227,27 @@ export function MemberRow({
           <span className={tk.subtext}>-</span>
         )}
       </td>
-      <td className={`px-4 py-3 text-right text-sm tabular-nums ${tk.text}`}>
-        {member.remainingSessions !== "0.0" ? (
-          <span className="font-medium">
-            {t("remainingUnit", { count: member.remainingSessions })}
-          </span>
-        ) : (
+      <td
+        className={`min-w-[16rem] px-4 py-3 text-right text-sm ${tk.text}`}
+      >
+        {member.remainingPerService.length === 0 ? (
           <span className={tk.subtext}>-</span>
+        ) : (
+          <div className="flex flex-wrap justify-end gap-x-3 gap-y-0.5">
+            {member.remainingPerService.map((it, i) => (
+              <span
+                key={i}
+                className="whitespace-nowrap font-medium tabular-nums"
+              >
+                {t(
+                  it.isGroup
+                    ? "remainingItemGroup"
+                    : "remainingItemPersonal",
+                  { service: it.name, count: it.count },
+                )}
+              </span>
+            ))}
+          </div>
         )}
       </td>
       <td

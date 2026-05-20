@@ -87,7 +87,12 @@ export default async function GymMembersPage({
           select: { endDate: true },
         },
         packages: {
-          select: { remainingCount: true },
+          // 잔여 0 권은 회원관리 그리드에서 표시 제외.
+          where: { remainingCount: { gt: 0 } },
+          select: {
+            remainingCount: true,
+            service: { select: { name: true, capacity: true } },
+          },
         },
       },
     }),
@@ -123,10 +128,36 @@ export default async function GymMembersPage({
       latestExpiry !== null &&
       latestExpiry >= today &&
       latestExpiry <= sevenDays;
-    const remaining = r.packages.reduce(
-      (sum, p) => sum + Number(p.remainingCount),
-      0,
-    );
+    // 서비스별 잔여 분리 — 같은 서비스에 권이 여러 장이면 합산.
+    // 1:1(capacity=1) 과 단체(capacity>1) 는 다른 줄로 노출.
+    const perService = new Map<
+      string,
+      { name: string; isGroup: boolean; total: number }
+    >();
+    for (const p of r.packages) {
+      const isGroup = p.service.capacity > 1;
+      const key = `${isGroup ? "G" : "P"}::${p.service.name}`;
+      const cur = perService.get(key) ?? {
+        name: p.service.name,
+        isGroup,
+        total: 0,
+      };
+      cur.total += Number(p.remainingCount);
+      perService.set(key, cur);
+    }
+    const remainingPerService = Array.from(perService.values())
+      .sort((a, b) =>
+        a.isGroup === b.isGroup
+          ? a.name.localeCompare(b.name)
+          : a.isGroup
+            ? 1
+            : -1,
+      )
+      .map((v) => ({
+        name: v.name,
+        isGroup: v.isGroup,
+        count: remainingFmt.format(v.total),
+      }));
     return {
       id: r.id,
       name: r.name,
@@ -144,7 +175,7 @@ export default async function GymMembersPage({
         ? latestExpiry.toISOString().slice(0, 10)
         : null,
       expiringSoon: expSoon,
-      remainingSessions: remainingFmt.format(remaining),
+      remainingPerService,
     };
   });
 

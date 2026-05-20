@@ -8,6 +8,7 @@ import { requireGymStaff } from "@/lib/auth/dal";
 import { getTheme } from "@/lib/theme";
 import { SidebarNav } from "../../dashboard/SidebarNav";
 import { MemberAddDialog } from "../MemberAddDialog";
+import { OwnerIssuePanel } from "./OwnerIssuePanel";
 
 const PAGE_BG = {
   normal: "bg-amber-50/50",
@@ -93,40 +94,90 @@ export default async function MemberDetailPage({
   const t = await getTranslations("memberDetail");
   const tn = await getTranslations("nav");
 
-  const u = await prisma.user.findFirst({
-    where: { id, gymId: business.id, role: "CUSTOMER" },
-    select: {
-      id: true,
-      name: true,
-      gender: true,
-      phone: true,
-      email: true,
-      dob: true,
-      emergencyContactPhone: true,
-      note: true,
-      status: true,
-      locale: true,
-      createdAt: true,
-      memberships: {
-        orderBy: { endDate: "desc" },
+  const [u, membershipPlans, packagePlans, comboPlans, promotionsRaw] =
+    await Promise.all([
+      prisma.user.findFirst({
+        where: { id, gymId: business.id, role: "CUSTOMER" },
         select: {
           id: true,
-          startDate: true,
-          endDate: true,
-          plan: { select: { name: true } },
+          name: true,
+          gender: true,
+          phone: true,
+          email: true,
+          dob: true,
+          emergencyContactPhone: true,
+          note: true,
+          status: true,
+          locale: true,
+          createdAt: true,
+          memberships: {
+            orderBy: { endDate: "desc" },
+            select: {
+              id: true,
+              startDate: true,
+              endDate: true,
+              plan: { select: { name: true } },
+            },
+          },
+          packages: {
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              totalCount: true,
+              remainingCount: true,
+              service: { select: { name: true, capacity: true } },
+            },
+          },
         },
-      },
-      packages: {
-        orderBy: { createdAt: "desc" },
+      }),
+      prisma.membershipPlan.findMany({
+        where: { gymId: business.id, active: true },
+        select: { id: true, name: true, pricePhp: true, durationDays: true },
+        orderBy: { pricePhp: "asc" },
+      }),
+      prisma.packagePlan.findMany({
+        where: { gymId: business.id, active: true },
         select: {
           id: true,
-          totalCount: true,
-          remainingCount: true,
+          name: true,
+          pricePhp: true,
+          sessionCount: true,
           service: { select: { name: true } },
         },
-      },
-    },
-  });
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.comboPlan.findMany({
+        where: { gymId: business.id, active: true },
+        select: {
+          id: true,
+          name: true,
+          pricePhp: true,
+          membershipPlan: { select: { name: true } },
+          packageItems: {
+            select: { packagePlan: { select: { name: true } } },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      (async () => {
+        const now = new Date();
+        return prisma.promotion.findMany({
+          where: {
+            gymId: business.id,
+            active: true,
+            startsAt: { lte: now },
+            endsAt: { gte: now },
+          },
+          select: {
+            id: true,
+            scope: true,
+            targetId: true,
+            discountType: true,
+            discountValue: true,
+          },
+        });
+      })(),
+    ]);
   if (!u) notFound();
 
   const today = new Date();
@@ -142,6 +193,42 @@ export default async function MemberDetailPage({
         : t("statusWithdrawn");
   const statusPill =
     u.status === "ACTIVE" ? PILL_ACTIVE[theme] : PILL_PENDING[theme];
+
+  // 회원권 + 횟수권을 한 표("보유 상품") 안에 보여줌. 구분 컬럼으로 종류 표시.
+  type Holding = {
+    id: string;
+    kind: "MEMBERSHIP" | "PACKAGE_PERSONAL" | "PACKAGE_GROUP";
+    item: string;
+    info: string;
+  };
+  const order: Record<Holding["kind"], number> = {
+    MEMBERSHIP: 0,
+    PACKAGE_PERSONAL: 1,
+    PACKAGE_GROUP: 2,
+  };
+  const holdings: Holding[] = [
+    ...u.memberships.map((m) => ({
+      id: m.id,
+      kind: "MEMBERSHIP" as const,
+      item: m.plan?.name ?? t("kindMembership"),
+      info: `${m.startDate.toISOString().slice(0, 10)} ~ ${m.endDate
+        .toISOString()
+        .slice(0, 10)}`,
+    })),
+    ...u.packages.map((p) => ({
+      id: p.id,
+      kind: (p.service.capacity > 1
+        ? "PACKAGE_GROUP"
+        : "PACKAGE_PERSONAL") as Holding["kind"],
+      item: p.service?.name ?? t("noValue"),
+      info: `${Number(p.remainingCount)} / ${Number(p.totalCount)}`,
+    })),
+  ].sort((a, b) => order[a.kind] - order[b.kind]);
+  function kindLabel(k: Holding["kind"]): string {
+    if (k === "MEMBERSHIP") return t("kindMembership");
+    if (k === "PACKAGE_GROUP") return t("kindPackageGroup");
+    return t("kindPackagePersonal");
+  }
 
   return (
     <div className={`flex min-h-screen ${PAGE_BG[theme]}`}>
@@ -243,11 +330,11 @@ export default async function MemberDetailPage({
           {/* Basic */}
           <section className={SECTION[theme]}>
             <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
+              className={`font-heading text-2xl tracking-tight ${TITLE[theme]}`}
             >
               {t("basicHeading")}
             </h2>
-            <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+            <dl className="mt-5 grid grid-cols-2 gap-x-8 gap-y-5 text-base sm:grid-cols-3">
               <Cell
                 label={t("labelGender")}
                 value={
@@ -311,61 +398,70 @@ export default async function MemberDetailPage({
                 subtle={SUBTLE[theme]}
               />
             </dl>
-            <div className="mt-4">
+            <div className="mt-5">
               <dt
-                className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
+                className={`text-xs font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
               >
                 {t("labelNote")}
               </dt>
               <dd
-                className={`mt-1 whitespace-pre-wrap text-sm ${TITLE[theme]}`}
+                className={`mt-1 whitespace-pre-wrap text-base ${TITLE[theme]}`}
               >
                 {u.note || t("noValue")}
               </dd>
             </div>
           </section>
 
-          {/* Memberships */}
+          {/* 보유 상품 — 회원권 + 1:1 횟수권 + 단체 횟수권 통합 */}
           <section className={SECTION[theme]}>
             <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
+              className={`font-heading text-2xl tracking-tight ${TITLE[theme]}`}
             >
-              {t("membershipsHeading")}
+              {t("holdingsHeading")}
             </h2>
-            {u.memberships.length === 0 ? (
-              <p className={`mt-3 text-sm ${SUBTLE[theme]}`}>
-                {t("membershipsNone")}
+            {holdings.length === 0 ? (
+              <p className={`mt-3 text-base ${SUBTLE[theme]}`}>
+                {t("holdingsNone")}
               </p>
             ) : (
-              <table className="mt-4 w-full text-sm">
+              <table className="mt-4 w-full text-base">
                 <thead>
                   <tr className={`border-b ${ROW_BORDER[theme]}`}>
                     <th
-                      className={`px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
+                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
                     >
-                      {t("colPlan")}
+                      {t("colKind")}
                     </th>
                     <th
-                      className={`px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
+                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
                     >
-                      {t("colPeriod")}
+                      {t("colItem")}
+                    </th>
+                    <th
+                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
+                    >
+                      {t("colInfo")}
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {u.memberships.map((m) => (
+                  {holdings.map((h) => (
                     <tr
-                      key={m.id}
+                      key={h.id}
                       className={`border-b ${ROW_BORDER[theme]}`}
                     >
-                      <td className={`px-3 py-2 text-left ${TITLE[theme]}`}>
-                        {m.plan?.name ?? t("noValue")}
+                      <td
+                        className={`px-3 py-3 text-left text-sm ${SUBTLE[theme]}`}
+                      >
+                        {kindLabel(h.kind)}
+                      </td>
+                      <td className={`px-3 py-3 text-left font-medium ${TITLE[theme]}`}>
+                        {h.item}
                       </td>
                       <td
-                        className={`px-3 py-2 text-center tabular-nums ${TITLE[theme]}`}
+                        className={`px-3 py-3 text-center tabular-nums ${TITLE[theme]}`}
                       >
-                        {m.startDate.toISOString().slice(0, 10)} ~{" "}
-                        {m.endDate.toISOString().slice(0, 10)}
+                        {h.info}
                       </td>
                     </tr>
                   ))}
@@ -374,52 +470,42 @@ export default async function MemberDetailPage({
             )}
           </section>
 
-          {/* Packages */}
+          {/* 서비스 발급 — 회원관리 → 회원 row → 상세 → 그 자리에서 발급 완결 */}
           <section className={SECTION[theme]}>
             <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
+              className={`font-heading text-2xl tracking-tight ${TITLE[theme]}`}
             >
-              {t("packagesHeading")}
+              {t("issueHeading")}
             </h2>
-            {u.packages.length === 0 ? (
-              <p className={`mt-3 text-sm ${SUBTLE[theme]}`}>
-                {t("packagesNone")}
-              </p>
-            ) : (
-              <table className="mt-4 w-full text-sm">
-                <thead>
-                  <tr className={`border-b ${ROW_BORDER[theme]}`}>
-                    <th
-                      className={`px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
-                    >
-                      {t("colService")}
-                    </th>
-                    <th
-                      className={`px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
-                    >
-                      {t("colRemaining")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {u.packages.map((p) => (
-                    <tr
-                      key={p.id}
-                      className={`border-b ${ROW_BORDER[theme]}`}
-                    >
-                      <td className={`px-3 py-2 text-left ${TITLE[theme]}`}>
-                        {p.service?.name ?? t("noValue")}
-                      </td>
-                      <td
-                        className={`px-3 py-2 text-right tabular-nums ${TITLE[theme]}`}
-                      >
-                        {Number(p.remainingCount)} / {Number(p.totalCount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <p className={`mt-2 text-base ${SUBTLE[theme]}`}>
+              {t("issueHint")}
+            </p>
+            <div className="mt-4">
+              <OwnerIssuePanel
+                tone={theme}
+                slug={slug}
+                lang={lang}
+                customer={{ id: u.id, name: u.name }}
+                memberships={membershipPlans}
+                packages={packagePlans.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  pricePhp: p.pricePhp,
+                  sessionCount: p.sessionCount,
+                  serviceName: p.service.name,
+                }))}
+                combos={comboPlans.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  pricePhp: c.pricePhp,
+                  parts: [
+                    ...(c.membershipPlan ? [c.membershipPlan.name] : []),
+                    ...c.packageItems.map((it) => it.packagePlan.name),
+                  ],
+                }))}
+                promotions={promotionsRaw}
+              />
+            </div>
           </section>
         </div>
       </main>
@@ -441,11 +527,11 @@ function Cell({
   return (
     <div>
       <dt
-        className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${subtle}`}
+        className={`text-xs font-semibold uppercase tracking-[0.18em] ${subtle}`}
       >
         {label}
       </dt>
-      <dd className={`mt-0.5 ${title}`}>{value}</dd>
+      <dd className={`mt-1 text-base font-medium ${title}`}>{value}</dd>
     </div>
   );
 }

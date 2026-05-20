@@ -1,10 +1,13 @@
+import { redirect } from "next/navigation";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { IntakeFlow } from "./IntakeFlow";
 
-// 고객 등록 + 서비스 발급 전용 화면 (사장/트레이너 공용 진입).
-// 고객 등록은 사장님과 동일한 createMember(이메일+활성화 메일) 재사용.
-// 발급은 회원권/횟수권/콤보 전체 카탈로그 → Sale + 인스턴스.
+// 발급은 두 경로로 진입한다.
+//   - 트레이너: 본인 dashboard 헤더 "발급" 버튼 → /intake 풀스크린 (이 페이지)
+//   - 사장: 회원관리 → 회원 row 클릭 → 회원 상세에 임베드된 발급 섹션
+// 사장이 /intake 를 직접 URL 로 들어오면 회원관리로 보낸다 (회원 먼저 고르는
+// 흐름이 일관성).
 export default async function IntakePage({
   params,
   searchParams,
@@ -16,6 +19,10 @@ export default async function IntakePage({
   const sp = await searchParams;
   const auth = await requireGymStaff(slug);
   const gymId = auth.business!.id;
+
+  if (auth.role !== "TRAINER") {
+    redirect(`/${lang}/g/${slug}/members`);
+  }
 
   const [memberships, packages, combos, preset] = await Promise.all([
     prisma.membershipPlan.findMany({
@@ -55,8 +62,6 @@ export default async function IntakePage({
       : Promise.resolve(null),
   ]);
 
-  // 현재 기간 안 + 활성 프로모션 — 장바구니 할인 미리보기용(실제 적용은
-  // 발급 시 서버가 동일 산식으로 재계산: @/lib/catalog/promo).
   const now = new Date();
   const promotions = await prisma.promotion.findMany({
     where: {

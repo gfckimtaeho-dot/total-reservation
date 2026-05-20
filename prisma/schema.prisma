@@ -422,6 +422,7 @@ model Staff {
   images           StaffImage[]
   leaves           StaffLeave[]
   scheduledClasses ScheduledClass[]
+  assignedPackages Package[]
   createdById      String?
   updatedById      String?
 
@@ -764,6 +765,11 @@ model Package {
   plan           PackagePlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   saleId         String?
   sale           Sale?        @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  // 권 단위 담당 트레이너(소프트 기본값). 발급 시 발급 트레이너로 자동 지정 —
+  // 고객 화면의 "내 트레이너" 표시 + 예약 변경 시 빈 슬롯 산출의 기준점.
+  // 하드 제약 아님: 고객은 다른 트레이너로 분산 예약 가능, staff 비활성 시 SetNull.
+  assignedStaffId String?
+  assignedStaff   Staff?      @relation(fields: [assignedStaffId], references: [id], onDelete: SetNull)
   createdAt      DateTime     @default(now()) @db.Timestamptz(3)
 
   reservations Reservation[]
@@ -773,6 +779,7 @@ model Package {
 
   @@index([gymId, userId])
   @@index([saleId])
+  @@index([assignedStaffId])
 }
 
 // ─── Sale (매출 단일 소스) ──────────────────────────────────

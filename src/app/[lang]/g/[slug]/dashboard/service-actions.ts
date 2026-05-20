@@ -67,6 +67,153 @@ export async function searchCustomers(input: {
   return { ok: true, data: rows };
 }
 
+// /intake 고객 선택용 — 검색 + 페이징.
+// q 빈 문자열이면 최근 등록 순 전체 list, q 있으면 그 안에서 검색.
+// 잔여>0 권의 서비스명을 합쳐 row 표시(트레이너가 한눈에 어떤 권 있는지).
+// take=limit+1 로 다음 페이지 여부(hasMore) 판단(별도 count 쿼리 회피).
+export async function listRecentCustomers(input: {
+  slug: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<R> {
+  const auth = await requireGymStaff(input.slug);
+  const gymId = auth.business!.id;
+  const q = (input.q ?? "").trim();
+  const limit = Math.min(50, Math.max(1, input.limit ?? 10));
+  const offset = Math.max(0, input.offset ?? 0);
+  const where = {
+    gymId,
+    role: "CUSTOMER" as const,
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { phone: { contains: q } },
+          ],
+        }
+      : {}),
+  };
+  const rows = await prisma.user.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      packages: {
+        where: { remainingCount: { gt: 0 } },
+        select: {
+          remainingCount: true,
+          service: { select: { name: true, capacity: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit + 1,
+    skip: offset,
+  });
+  const hasMore = rows.length > limit;
+  const sliced = hasMore ? rows.slice(0, limit) : rows;
+  const formatted = sliced.map((u) => ({
+    id: u.id,
+    name: u.name,
+    phone: u.phone,
+    services: dedupServices(u.packages),
+  }));
+  return { ok: true, data: { rows: formatted, hasMore } };
+}
+
+// /intake "내 담당 고객" — 본인이 담당 트레이너로 발급된 Package 의 user 들 distinct.
+// 사장/매니저는 본인이 staff 행이 없을 수 있어 빈 결과 반환(섹션 자체는 숨김 처리).
+export async function listMyAssignedCustomers(input: {
+  slug: string;
+  limit?: number;
+  offset?: number;
+}): Promise<R> {
+  const auth = await requireGymStaff(input.slug);
+  const gymId = auth.business!.id;
+  const limit = Math.min(50, Math.max(1, input.limit ?? 10));
+  const offset = Math.max(0, input.offset ?? 0);
+
+  const staff = await prisma.staff.findFirst({
+    where: { gymId, userId: auth.id },
+    select: { id: true },
+  });
+  if (!staff) {
+    return { ok: true, data: { rows: [], hasMore: false } };
+  }
+
+  const rows = await prisma.user.findMany({
+    where: {
+      gymId,
+      role: "CUSTOMER",
+      packages: {
+        some: { assignedStaffId: staff.id, remainingCount: { gt: 0 } },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      packages: {
+        where: { assignedStaffId: staff.id, remainingCount: { gt: 0 } },
+        select: {
+          remainingCount: true,
+          service: { select: { name: true, capacity: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit + 1,
+    skip: offset,
+  });
+  const hasMore = rows.length > limit;
+  const sliced = hasMore ? rows.slice(0, limit) : rows;
+  const formatted = sliced.map((u) => ({
+    id: u.id,
+    name: u.name,
+    phone: u.phone,
+    services: dedupServices(u.packages),
+  }));
+  return { ok: true, data: { rows: formatted, hasMore } };
+}
+
+// 같은 service 권 여러 장이면 잔여 합산해 한 줄로. capacity > 1 = 단체 flag.
+function dedupServices(
+  packages: {
+    remainingCount: { toString: () => string } | number;
+    service: { name: string; capacity: number };
+  }[],
+): { name: string; isGroup: boolean; remaining: number }[] {
+  const m = new Map<
+    string,
+    { name: string; isGroup: boolean; remaining: number }
+  >();
+  for (const p of packages) {
+    const isGroup = p.service.capacity > 1;
+    const key = `${isGroup ? "G" : "P"}::${p.service.name}`;
+    const inc = Number(
+      typeof p.remainingCount === "number"
+        ? p.remainingCount
+        : p.remainingCount.toString(),
+    );
+    const cur = m.get(key) ?? {
+      name: p.service.name,
+      isGroup,
+      remaining: 0,
+    };
+    cur.remaining += inc;
+    m.set(key, cur);
+  }
+  return Array.from(m.values()).sort((a, b) =>
+    a.isGroup === b.isGroup
+      ? a.name.localeCompare(b.name)
+      : a.isGroup
+        ? 1
+        : -1,
+  );
+}
+
 // 팝오버용 — 그 고객의 서비스별 잔여 횟수(단체 수업 권 포함, 같은 서비스
 // 여러 권은 합산). 잔여 = remainingCount(완료 시 차감됨), 완료 = total−remaining.
 export async function customerRemaining(input: {
@@ -162,10 +309,17 @@ async function pickPromotion(
 // 잘못된 plan 이면 throw → 호출부 트랜잭션 전체 롤백.
 async function createSaleLine(
   tx: TxClient,
-  ctx: { gymId: string; customerId: string; soldById: string },
+  ctx: {
+    gymId: string;
+    customerId: string;
+    soldById: string;
+    // 발급한 사람이 트레이너면 그 Staff.id — 발급되는 Package의 담당
+    // 트레이너로 자동 지정됨. 사장/매니저 단독 발급이면 null.
+    soldByStaffId: string | null;
+  },
   item: IssueItem,
 ): Promise<void> {
-  const { gymId, customerId, soldById } = ctx;
+  const { gymId, customerId, soldById, soldByStaffId } = ctx;
 
   if (item.kind === "PACKAGE") {
     const plan = await tx.packagePlan.findFirst({
@@ -212,6 +366,7 @@ async function createSaleLine(
         payoutPhp: perPayout,
         planId: plan.id,
         saleId: s.id,
+        assignedStaffId: soldByStaffId,
       },
     });
     return;
@@ -283,6 +438,7 @@ async function createSaleLine(
           payoutPhp: pp.service.payoutPhp,
           planId: pp.id,
           saleId: s.id,
+          assignedStaffId: soldByStaffId,
         },
       });
     }
@@ -352,11 +508,13 @@ export async function issueService(input: {
   });
   if (!cust) return { ok: false, error: "고객을 찾을 수 없습니다" };
 
+  const soldByStaffId = await lookupStaffIdForUser(auth.id, gymId);
+
   try {
     await prisma.$transaction((tx) =>
       createSaleLine(
         tx,
-        { gymId, customerId: cust.id, soldById: auth.id },
+        { gymId, customerId: cust.id, soldById: auth.id, soldByStaffId },
         { kind: input.kind, planId: input.planId },
       ),
     );
@@ -388,12 +546,14 @@ export async function issueCart(input: {
   });
   if (!cust) return { ok: false, error: "고객을 찾을 수 없습니다" };
 
+  const soldByStaffId = await lookupStaffIdForUser(auth.id, gymId);
+
   try {
     await prisma.$transaction(async (tx) => {
       for (const item of input.items) {
         await createSaleLine(
           tx,
-          { gymId, customerId: cust.id, soldById: auth.id },
+          { gymId, customerId: cust.id, soldById: auth.id, soldByStaffId },
           item,
         );
       }
@@ -403,6 +563,20 @@ export async function issueCart(input: {
   }
   rev(input.slug);
   return { ok: true, data: { count: input.items.length } };
+}
+
+// 발급한 User가 Staff 모델에도 행이 있으면 그 Staff.id 반환(트레이너).
+// 사장 단독 발급이면 null — Package.assignedStaffId 도 null 로 발급되며,
+// 이 경우 고객 화면은 "담당 미지정" 처리.
+async function lookupStaffIdForUser(
+  userId: string,
+  gymId: string,
+): Promise<string | null> {
+  const s = await prisma.staff.findFirst({
+    where: { userId, gymId },
+    select: { id: true },
+  });
+  return s?.id ?? null;
 }
 
 // 예약 추가 — FIFO 로 잔여>0 인 그 서비스 권을 골라 연결. 권 없으면 차단.

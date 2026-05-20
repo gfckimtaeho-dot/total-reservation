@@ -275,7 +275,7 @@ export function TrainerCalendarPro({
   const ROW_H = "h-10";
 
   return (
-    <section className="rounded-2xl border border-amber-400/25 bg-black p-4 text-zinc-100">
+    <section className="rounded-2xl border border-orange-400/25 bg-black p-4 text-zinc-100">
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-heading text-base tracking-tight text-white">
@@ -308,12 +308,12 @@ export function TrainerCalendarPro({
 
       {/* 이동 모드 배너만 상단 유지(진행 안내) */}
       {moving && picked && (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-amber-400/15 px-3 py-2 text-sm text-amber-200 ring-1 ring-amber-400/40">
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-orange-400/15 px-3 py-2 text-sm text-orange-200 ring-1 ring-orange-400/40">
           <span>{t("movingBanner", { name: picked.name })}</span>
           <button
             type="button"
             onClick={reset}
-            className="shrink-0 rounded-md border border-amber-400/40 px-2 py-1 text-xs hover:bg-amber-400/20"
+            className="shrink-0 rounded-md border border-orange-400/40 px-2 py-1 text-xs hover:bg-orange-400/20"
           >
             {t("movingStop")}
           </button>
@@ -338,9 +338,9 @@ export function TrainerCalendarPro({
           )
           .filter((x): x is { s: number; ev: CellEvent } => x != null);
         return (
-          <div className="mt-3 rounded-lg bg-zinc-900/70 p-3 ring-1 ring-amber-400/30">
+          <div className="mt-3 rounded-lg bg-zinc-900/70 p-3 ring-1 ring-orange-400/30">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-300/90">
                 {t("todayHeading", {
                   date: `${data.today.month}/${data.today.day}`,
                 })}
@@ -372,10 +372,10 @@ export function TrainerCalendarPro({
                       className={`flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition disabled:opacity-50 ${
                         ev.completed
                           ? "bg-emerald-500/12 text-emerald-200 hover:bg-emerald-500/20"
-                          : "bg-amber-400/15 text-amber-100 hover:bg-amber-400/25"
+                          : "bg-orange-400/15 text-orange-100 hover:bg-orange-400/25"
                       }`}
                     >
-                      <span className="font-mono text-xs tabular-nums text-amber-300">
+                      <span className="font-mono text-xs tabular-nums text-orange-300">
                         {hm(s)}
                       </span>
                       <span className="font-medium">{ev.customerName}</span>
@@ -424,7 +424,7 @@ export function TrainerCalendarPro({
               g.state !== "open"
                 ? "text-zinc-600"
                 : rel === "today"
-                  ? "text-amber-300"
+                  ? "text-orange-300"
                   : "text-zinc-300";
             return (
               <div
@@ -435,7 +435,7 @@ export function TrainerCalendarPro({
                   type="button"
                   onClick={() => setSelIdx(clampSel(selIdx + vi))}
                   className={`${ROW_H} flex w-full shrink-0 flex-col items-center justify-center border-b border-white/25 text-[11px] font-bold leading-tight ${headTone} ${
-                    isSel ? "bg-amber-400/10" : "hover:bg-white/5"
+                    isSel ? "bg-orange-400/10" : "hover:bg-white/5"
                   }`}
                 >
                   <span>
@@ -509,7 +509,7 @@ export function TrainerCalendarPro({
                       className={`${ROW_H} flex w-full shrink-0 flex-col justify-center overflow-hidden border-b border-white/15 px-1 text-[10px] font-medium leading-none ring-1 ring-inset transition ${
                         done
                           ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/40 hover:bg-emerald-500/25"
-                          : "bg-amber-400/20 text-amber-100 ring-amber-400/40 hover:bg-amber-400/30"
+                          : "bg-gradient-to-br from-orange-500/30 via-pink-500/15 to-purple-500/20 text-white ring-pink-400/40 hover:from-orange-500/40 hover:to-purple-500/30"
                       }`}
                     >
                       <span className="block truncate">
@@ -518,7 +518,7 @@ export function TrainerCalendarPro({
                       </span>
                       <span
                         className={`mt-0.5 block truncate text-[8px] ${
-                          done ? "text-emerald-300/80" : "text-amber-200/70"
+                          done ? "text-emerald-300/80" : "text-white/70"
                         }`}
                       >
                         {c.ev.service}
@@ -555,7 +555,7 @@ export function TrainerCalendarPro({
               : moveConfirm.ay + 8;
             return (
               <div
-                className="fixed z-50 rounded-xl border border-amber-400/50 bg-zinc-900 p-4 shadow-xl"
+                className="fixed z-50 rounded-xl border border-orange-400/50 bg-zinc-900 p-4 shadow-xl"
                 style={{ left, top, width: W }}
               >
                 <p className="text-sm text-zinc-200">
@@ -576,7 +576,7 @@ export function TrainerCalendarPro({
                     type="button"
                     disabled={pending}
                     onClick={confirmMoveNow}
-                    className="rounded-lg border border-amber-400/50 bg-amber-400/20 py-2.5 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/30 disabled:opacity-40"
+                    className="rounded-lg border border-orange-400/50 bg-orange-400/20 py-2.5 text-sm font-semibold text-orange-200 transition hover:bg-orange-400/30 disabled:opacity-40"
                   >
                     {t("confirmOk")}
                   </button>
@@ -608,11 +608,11 @@ export function TrainerCalendarPro({
               : below;
             return (
               <div
-                className="fixed z-50 rounded-xl border border-amber-400/40 bg-zinc-900 p-4 shadow-xl"
+                className="fixed z-50 rounded-xl border border-orange-400/40 bg-zinc-900 p-4 shadow-xl"
                 style={{ left, top, width: W }}
               >
                 <div className="text-sm">
-                  <span className="font-mono tabular-nums text-amber-300">
+                  <span className="font-mono tabular-nums text-orange-300">
                     {picked.whenLabel}
                   </span>
                   <div className="mt-1 flex items-center gap-2">
@@ -650,7 +650,7 @@ export function TrainerCalendarPro({
                         >
                           <span className="text-zinc-300">{x.service}</span>
                           <span className="tabular-nums">
-                            <span className="font-semibold text-amber-300">
+                            <span className="font-semibold text-orange-300">
                               {t("remainLeft", { n: x.remaining })}
                             </span>
                             <span className="ml-2 text-zinc-500">
@@ -678,7 +678,7 @@ export function TrainerCalendarPro({
                       type="button"
                       disabled={pending || !canMove}
                       onClick={() => setMoving(true)}
-                      className="whitespace-nowrap rounded-lg border border-amber-400/40 bg-amber-400/15 py-3 text-sm font-semibold text-amber-300 transition hover:bg-amber-400/25 disabled:opacity-30"
+                      className="whitespace-nowrap rounded-lg border border-orange-400/40 bg-orange-400/15 py-3 text-sm font-semibold text-orange-300 transition hover:bg-orange-400/25 disabled:opacity-30"
                     >
                       {t("move")}
                     </button>
@@ -708,7 +708,7 @@ export function TrainerCalendarPro({
           onClick={closeModal}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-amber-400/30 bg-zinc-900 p-5 text-zinc-100"
+            className="w-full max-w-sm rounded-2xl border border-orange-400/30 bg-zinc-900 p-5 text-zinc-100"
             onClick={(e) => e.stopPropagation()}
           >
             {modal.t === "addRes" && (
@@ -749,7 +749,7 @@ export function TrainerCalendarPro({
                         type="button"
                         disabled={pending}
                         onClick={() => doAddRes(c.id)}
-                        className="flex w-full items-center justify-between rounded-md border border-white/15 px-3 py-2 text-sm transition hover:border-amber-400/50 hover:bg-amber-400/10 disabled:opacity-50"
+                        className="flex w-full items-center justify-between rounded-md border border-white/15 px-3 py-2 text-sm transition hover:border-orange-400/50 hover:bg-orange-400/10 disabled:opacity-50"
                       >
                         <span className="font-medium">{c.name}</span>
                         <span className="text-xs text-zinc-500">
