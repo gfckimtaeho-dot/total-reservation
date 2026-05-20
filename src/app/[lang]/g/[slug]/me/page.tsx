@@ -6,15 +6,26 @@ import {
   manilaTodayUtcMidnight,
   manilaTodayRange,
 } from "@/lib/calendar/manila";
-import { MeAccessQr } from "./MeAccessQr";
 import { UpcomingItem } from "./UpcomingItem";
 import { PwaCard } from "./PwaCard";
 import { ClassOccurrenceList } from "./ClassOccurrenceList";
+import { MeHeaderActions } from "./MeHeaderActions";
+import type { Weekday } from "@/generated/prisma/enums";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const SOON_DAYS = 7;
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
+
+const WEEKDAY_ENUM = [
+  "SUN",
+  "MON",
+  "TUE",
+  "WED",
+  "THU",
+  "FRI",
+  "SAT",
+] as const;
 
 export default async function CustomerHomePage({
   params,
@@ -29,12 +40,11 @@ export default async function CustomerHomePage({
   const todayMid = manilaTodayUtcMidnight();
   const { start: todayStart, end: todayEnd } = manilaTodayRange();
 
-  // 캘린더 5주: 오늘 속한 주의 일요일부터 35일
   const weekStartUtcMid = new Date(
     todayMid.getTime() - todayMid.getUTCDay() * MS_PER_DAY,
   );
   const calStart = new Date(
-    weekStartUtcMid.getTime() - 8 * 60 * 60 * 1000, // UTC mid → Manila 00:00의 real UTC
+    weekStartUtcMid.getTime() - 8 * 60 * 60 * 1000,
   );
   const calEnd = new Date(calStart.getTime() + 35 * MS_PER_DAY);
 
@@ -46,6 +56,8 @@ export default async function CustomerHomePage({
     upcoming,
     calReservations,
     scheduledClasses,
+    businessHours,
+    closures,
   ] = await Promise.all([
     prisma.businessClosure.findFirst({
       where: { gymId: business.id, date: todayMid },
@@ -73,6 +85,17 @@ export default async function CustomerHomePage({
       },
       include: {
         service: { select: { id: true, name: true, capacity: true } },
+        assignedStaff: {
+          select: {
+            id: true,
+            photoUrl: true,
+            specialties: true,
+            career: true,
+            bio: true,
+            weeklyOffDays: true,
+            user: { select: { name: true, phone: true } },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -150,7 +173,40 @@ export default async function CustomerHomePage({
       },
       orderBy: { startMinute: "asc" },
     }),
+    prisma.businessHours.findMany({
+      where: { gymId: business.id },
+      select: { weekday: true, openMinute: true, closeMinute: true },
+    }),
+    prisma.businessClosure.findMany({
+      where: {
+        gymId: business.id,
+        date: { gte: calStart, lt: calEnd },
+      },
+      select: { date: true, kind: true },
+    }),
   ]);
+
+  const oneOnOneStaffIds = Array.from(
+    new Set(
+      packages
+        .filter((p) => p.service.capacity === 1 && p.assignedStaffId)
+        .map((p) => p.assignedStaffId!),
+    ),
+  );
+  const has1on1 = oneOnOneStaffIds.length > 0;
+
+  // 담당 staff 휴가 (5주분과 겹치는 leave) — 5주 셀 dim 계산용
+  const staffLeaves = has1on1
+    ? await prisma.staffLeave.findMany({
+        where: {
+          gymId: business.id,
+          staffId: { in: oneOnOneStaffIds },
+          startDate: { lt: calEnd },
+          endDate: { gte: calStart },
+        },
+        select: { staffId: true, startDate: true, endDate: true },
+      })
+    : [];
 
   const hasAnyPass = memberships.length > 0 || packages.length > 0;
   const headerDate = formatDate(todayStart, lang, {
@@ -159,7 +215,6 @@ export default async function CustomerHomePage({
     weekday: "short",
   });
 
-  // 단체 횟수권(service.capacity > 1) 보유 service IDs → 일정 안내 대상
   const groupServiceIds = new Set(
     packages
       .filter((p) => p.service.capacity > 1)
@@ -169,16 +224,6 @@ export default async function CustomerHomePage({
     groupServiceIds.has(sc.serviceId),
   );
 
-  // 단체 schedule 다음 14일치 occurrence 전개 — 내일부터 14일.
-  const WEEKDAY_ENUM = [
-    "SUN",
-    "MON",
-    "TUE",
-    "WED",
-    "THU",
-    "FRI",
-    "SAT",
-  ] as const;
   const occurrences: {
     scheduleId: string;
     year: number;
@@ -237,17 +282,38 @@ export default async function CustomerHomePage({
   );
 
   const eventByDayKey = buildEventMap(calReservations);
-  const cells = buildCalendarCells(weekStartUtcMid, todayMid, eventByDayKey);
+
+  const weekdayOpenSet = new Set(businessHours.map((bh) => bh.weekday));
+  const closedDateSet = new Set(
+    closures
+      .filter((c) => c.kind === "CLOSED")
+      .map((c) => manilaDayKey(c.date)),
+  );
+
+  const my1on1Staff = packages
+    .filter((p) => p.service.capacity === 1 && p.assignedStaff)
+    .map((p) => p.assignedStaff!);
+  const leaveDateKeysByStaff = buildLeaveDateKeysByStaff(staffLeaves);
+
+  const cells = buildCalendarCells(
+    weekStartUtcMid,
+    todayMid,
+    eventByDayKey,
+    weekdayOpenSet,
+    closedDateSet,
+    my1on1Staff,
+    leaveDateKeysByStaff,
+  );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-100">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
       <div className="pointer-events-none absolute -top-32 left-1/4 h-[28rem] w-[28rem] rounded-full bg-rose-400/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-32 top-1/3 h-[24rem] w-[24rem] rounded-full bg-emerald-400/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 left-0 h-[24rem] w-[28rem] rounded-full bg-sky-400/15 blur-3xl" />
 
       <header className="relative border-b border-white/5 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-start justify-between px-6 py-5">
-          <div>
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-6 py-5">
+          <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
               {business.name}
             </div>
@@ -258,11 +324,11 @@ export default async function CustomerHomePage({
               {t("todayLabel")} · {headerDate}
             </div>
           </div>
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="text-xs text-zinc-400 hover:text-zinc-100">
-              {t("logout")}
-            </button>
-          </form>
+          <MeHeaderActions
+            slug={slug}
+            lang={lang}
+            memberName={user.name}
+          />
         </div>
       </header>
 
@@ -278,30 +344,7 @@ export default async function CustomerHomePage({
 
           <TodayHero reservations={todayReservations} lang={lang} t={t} />
 
-          <MeAccessQr slug={slug} />
-
-          {hasAnyPass ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {memberships.length > 0 && (
-                <MembershipsCard
-                  memberships={memberships}
-                  todayMid={todayMid}
-                  lang={lang}
-                  t={t}
-                />
-              )}
-              {packages.length > 0 && (
-                <PackagesCard
-                  packages={packages}
-                  lang={lang}
-                  slug={slug}
-                  t={t}
-                />
-              )}
-            </div>
-          ) : (
-            <NoPassCard t={t} />
-          )}
+          {!hasAnyPass && <NoPassNotice t={t} />}
 
           {groupServiceIds.size > 0 && (
             <ClassOccurrenceList
@@ -324,8 +367,29 @@ export default async function CustomerHomePage({
         </div>
       </main>
 
-      <footer className="relative border-t border-white/5 py-6 text-center text-xs text-zinc-500">
-        © 2026 예약가즈아 · /g/{slug}
+      <footer className="relative border-t border-white/5 py-5 text-center">
+        {business.phone && (
+          <div className="text-[11px] text-zinc-400">
+            {t("frontDeskCall")}{" "}
+            <a
+              href={`tel:${business.phone}`}
+              className="tabular-nums text-zinc-200 underline-offset-2 hover:underline"
+            >
+              {business.phone}
+            </a>
+          </div>
+        )}
+        <form
+          action={logout.bind(null, `/${lang}/g/${slug}/login`)}
+          className="mt-2"
+        >
+          <button className="text-[11px] text-zinc-500 hover:text-zinc-100">
+            {t("logout")}
+          </button>
+        </form>
+        <div className="mt-2 text-[10px] text-zinc-600">
+          © 2026 예약가즈아 · /g/{slug}
+        </div>
       </footer>
     </div>
   );
@@ -364,7 +428,6 @@ type TodayReservation = {
   staff: { user: { name: string } };
 };
 
-// V5 글래스 카드 + 한 줄 형식 ("18:00 PT Kevin 트레이너")
 function TodayHero({
   reservations,
   lang,
@@ -417,146 +480,19 @@ function TodayHero({
   );
 }
 
-type MembershipRow = {
-  id: string;
-  endDate: Date;
-  plan: { name: string } | null;
-};
-
-function MembershipsCard({
-  memberships,
-  todayMid,
-  lang,
-  t,
-}: {
-  memberships: MembershipRow[];
-  todayMid: Date;
-  lang: string;
-  t: T;
-}) {
+function NoPassNotice({ t }: { t: T }) {
   return (
     <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
-        {t("membershipsTitle")}
-      </div>
-      <ul className="mt-3 space-y-2.5">
-        {memberships.map((m) => {
-          const daysLeft = Math.max(
-            0,
-            Math.round((m.endDate.getTime() - todayMid.getTime()) / MS_PER_DAY),
-          );
-          const soon = daysLeft <= SOON_DAYS;
-          const expiresLabel = formatDate(m.endDate, lang, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          });
-          return (
-            <li key={m.id} className="text-sm">
-              <div className="flex items-baseline justify-between">
-                <div className="font-medium text-white">
-                  {m.plan?.name ?? t("membershipsTitle")}
-                </div>
-                <div
-                  className={
-                    "font-heading tabular-nums " +
-                    (soon ? "text-amber-200" : "text-zinc-100")
-                  }
-                >
-                  {t("membershipDaysLeft", { n: daysLeft })}
-                </div>
-              </div>
-              <div
-                className={
-                  "text-xs " + (soon ? "text-amber-200/80" : "text-zinc-400")
-                }
-              >
-                {t("membershipExpiresOn", { date: expiresLabel })}
-                {soon && (
-                  <span className="ml-1 font-semibold">
-                    · {t("membershipExpiringSoon")}
-                  </span>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-type PackageRow = {
-  id: string;
-  remainingCount: { toString: () => string } | number;
-  totalCount: { toString: () => string } | number;
-  service: { id: string; name: string; capacity: number };
-};
-
-function PackagesCard({
-  packages,
-  lang,
-  slug,
-  t,
-}: {
-  packages: PackageRow[];
-  lang: string;
-  slug: string;
-  t: T;
-}) {
-  return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-200/90">
-        {t("packagesTitle")}
-      </div>
-      <ul className="mt-3 space-y-2.5">
-        {packages.map((p) => {
-          const remaining = decimalToDisplay(p.remainingCount);
-          const total = decimalToDisplay(p.totalCount);
-          const isPersonal = p.service.capacity === 1;
-          return (
-            <li
-              key={p.id}
-              className="flex items-center justify-between gap-3"
-            >
-              <div className="min-w-0 text-sm">
-                <div className="font-medium text-white">{p.service.name}</div>
-                <div className="text-xs text-zinc-400 tabular-nums">
-                  <span className="text-emerald-200">{remaining}</span>
-                  <span className="text-zinc-500"> /{total}</span>
-                </div>
-              </div>
-              {isPersonal && (
-                <a
-                  href={`/${lang}/g/${slug}/me/reservations/new?pkg=${p.id}`}
-                  className="shrink-0 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-3 py-1 text-xs font-semibold text-white shadow-[0_4px_14px_-6px_rgba(251,146,60,0.6)] hover:brightness-110"
-                >
-                  {t("actionBook")}
-                </a>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-function NoPassCard({ t }: { t: T }) {
-  return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-      <div className="font-heading text-base tracking-tight text-zinc-200">
+      <div className="font-heading text-sm tracking-tight text-zinc-200">
         {t("noActiveTitle")}
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+      <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
         {t("noActiveBody")}
       </p>
     </section>
   );
 }
 
-
-// V8 sunset 그라데 chip 캘린더 — 오늘=full 그라데, PT=orange, 단체=purple, 둘다=그라데
 type CalCell = {
   dayKey: string;
   day: number;
@@ -568,6 +504,8 @@ type CalCell = {
   hasEvent: boolean;
   isPersonal: boolean;
   isGroup: boolean;
+  isOpen: boolean;
+  isStaffAvailable: boolean;
 };
 
 function CalendarSection({ cells, t }: { cells: CalCell[]; t: T }) {
@@ -586,6 +524,10 @@ function CalendarSection({ cells, t }: { cells: CalCell[]; t: T }) {
             <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />{" "}
             {t("legendGroup")}
           </span>
+          <span className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-zinc-600" />{" "}
+            {t("legendClosed")}
+          </span>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-7 gap-1.5 text-center text-[10px] text-zinc-400">
@@ -596,6 +538,7 @@ function CalendarSection({ cells, t }: { cells: CalCell[]; t: T }) {
         ))}
         {cells.map((c) => {
           const dim = !c.isCurrentMonth || c.isPast;
+          const inactive = !c.isOpen || !c.isStaffAvailable;
           let cls = "";
           if (c.isToday) {
             cls =
@@ -607,6 +550,8 @@ function CalendarSection({ cells, t }: { cells: CalCell[]; t: T }) {
             cls = "bg-orange-500/20 text-white ring-1 ring-orange-400/40";
           } else if (c.isGroup) {
             cls = "bg-purple-500/20 text-white ring-1 ring-purple-400/40";
+          } else if (inactive) {
+            cls = "bg-zinc-900/40 text-zinc-700";
           } else {
             cls = dim ? "text-zinc-600" : "text-zinc-300";
           }
@@ -686,8 +631,6 @@ function UpcomingSection({
   );
 }
 
-// ─── helpers ────────────────────────────────────────────────
-
 function suffixTrainer(lang: string): string {
   return lang === "en" ? "" : "트레이너";
 }
@@ -704,7 +647,6 @@ function formatDate(
 }
 
 function formatShortDate(d: Date, lang: string): string {
-  // "05-22" 같은 짧은 표기 (한국어 기준), 영어는 "May 22"
   if (lang === "en") {
     return new Intl.DateTimeFormat("en-US", {
       timeZone: "Asia/Manila",
@@ -758,7 +700,6 @@ function buildEventMap(
   return m;
 }
 
-// reservation.startAt(UTC-naive Manila)이 속한 Manila 달력일의 YYYY-MM-DD
 function manilaDayKey(d: Date): string {
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth() + 1;
@@ -766,18 +707,61 @@ function manilaDayKey(d: Date): string {
   return `${y}-${String(m).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
 }
 
+type StaffMini = {
+  id: string;
+  weeklyOffDays: Weekday[];
+};
+
+function buildLeaveDateKeysByStaff(
+  leaves: { staffId: string; startDate: Date; endDate: Date }[],
+): Map<string, Set<string>> {
+  // staffId -> { "YYYY-MM-DD" of every leave day }
+  const m = new Map<string, Set<string>>();
+  for (const lv of leaves) {
+    const set = m.get(lv.staffId) ?? new Set<string>();
+    let cur = new Date(lv.startDate.getTime());
+    const end = lv.endDate.getTime();
+    while (cur.getTime() <= end) {
+      set.add(manilaDayKey(cur));
+      cur = new Date(cur.getTime() + MS_PER_DAY);
+    }
+    m.set(lv.staffId, set);
+  }
+  return m;
+}
+
 function buildCalendarCells(
   weekStartUtcMid: Date,
   todayUtcMid: Date,
   events: Map<string, { isPersonal: boolean; isGroup: boolean }>,
+  weekdayOpenSet: Set<string>,
+  closedDateSet: Set<string>,
+  my1on1Staff: StaffMini[],
+  leaveDateKeysByStaff: Map<string, Set<string>>,
 ): CalCell[] {
   const todayKey = manilaDayKey(todayUtcMid);
   const currentMonth = todayUtcMid.getUTCMonth() + 1;
   const cells: CalCell[] = [];
+  const hasAnyAssigned = my1on1Staff.length > 0;
   for (let i = 0; i < 35; i++) {
     const d = new Date(weekStartUtcMid.getTime() + i * MS_PER_DAY);
     const key = manilaDayKey(d);
+    const wd = WEEKDAY_ENUM[d.getUTCDay()]!;
     const ev = events.get(key);
+    const isOpen = weekdayOpenSet.has(wd) && !closedDateSet.has(key);
+    // 본인 1:1권 담당 트레이너 중 1명이라도 그 날 가용이면 true.
+    // 가용 = weeklyOffDays에 그 요일 없음 AND 휴가 아님.
+    // 1:1권 없으면 의미 없어 true 처리(필터 dim 안 함).
+    let isStaffAvailable = !hasAnyAssigned;
+    if (hasAnyAssigned) {
+      for (const s of my1on1Staff) {
+        if (s.weeklyOffDays.includes(wd as Weekday)) continue;
+        const leaveSet = leaveDateKeysByStaff.get(s.id);
+        if (leaveSet && leaveSet.has(key)) continue;
+        isStaffAvailable = true;
+        break;
+      }
+    }
     cells.push({
       dayKey: key,
       day: d.getUTCDate(),
@@ -789,6 +773,8 @@ function buildCalendarCells(
       hasEvent: !!ev,
       isPersonal: ev?.isPersonal ?? false,
       isGroup: ev?.isGroup ?? false,
+      isOpen,
+      isStaffAvailable,
     });
   }
   return cells;
