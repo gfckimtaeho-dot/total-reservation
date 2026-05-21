@@ -167,6 +167,7 @@ function errorMessage(
   if (first === "permission") return te("permission");
   if (first === "dateFormat") return te("dateFormat");
   if (first === "untilBeforeFrom") return te("untilBeforeFrom");
+  if (first === "staffRequired") return te("staffRequired");
   return first;
 }
 
@@ -268,7 +269,7 @@ export function ScheduleManager({
                   onChange={(e) => setStaffId(e.target.value)}
                   className={`mt-3 w-full rounded-lg border px-3 py-2 text-sm transition ${tk.input}`}
                 >
-                  <option value="">{t("staffNone")}</option>
+                  <option value="">{t("staffPlaceholder")}</option>
                   {staffOptions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -524,13 +525,16 @@ function RecurringForm({
         />
       </div>
 
+      {(!staffId || errOf("staffId")) && (
+        <p className={`text-sm ${tk.error}`}>{te("staffRequired")}</p>
+      )}
       {state.errors?._global && (
         <p className={`text-sm ${tk.error}`}>{errOf("_global")}</p>
       )}
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !staffId}
         className={`rounded-lg px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 ${tk.button}`}
       >
         {pending ? t("addingRecurring") : t("addRecurring")}
@@ -603,13 +607,16 @@ function OneOffForm({
         errOf={errOf}
       />
 
+      {(!staffId || errOf("staffId")) && (
+        <p className={`text-sm ${tk.error}`}>{te("staffRequired")}</p>
+      )}
       {state.errors?._global && (
         <p className={`text-sm ${tk.error}`}>{errOf("_global")}</p>
       )}
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !staffId}
         className={`rounded-lg px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 ${tk.button}`}
       >
         {pending ? t("addingOneOff") : t("addOneOff")}

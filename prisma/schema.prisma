@@ -143,12 +143,6 @@ enum NotificationChannelSetting {
   BOTH
 }
 
-enum TrustEventKind {
-  SIGNUP
-  VISIT_COMPLETED
-  NO_SHOW
-}
-
 enum UserDeletionStatus {
   PENDING
   CANCELLED
@@ -228,6 +222,9 @@ model Business {
   hasDeposit   Boolean          @default(false)
   gcashQrUrl   String?
   status       BusinessStatus   @default(TRIAL)
+  // IANA 타임존 — 매장 현지 시간 기준(오늘/영업/예약 판정). 기존 매장은
+  // 모두 필리핀이라 default Asia/Manila. 등록 시 선택받는다.
+  timeZone     String           @default("Asia/Manila")
   cityId       String
   barangayId   String
   city         City             @relation(fields: [cityId], references: [id])
@@ -252,8 +249,6 @@ model Business {
   reservationLogs     ReservationLog[]
   qrTokens            QrToken[]
   accessLogs          AccessLog[]
-  trustScores         TrustScore[]
-  trustEvents         TrustEvent[]
   userDeletions       UserDeletion[]
   notificationSetting BusinessNotificationSetting?
   notificationLogs    NotificationLog[]
@@ -300,8 +295,6 @@ model User {
   reservations        Reservation[]            @relation("CustomerReservations")
   qrTokens            QrToken[]
   accessLogs          AccessLog[]
-  trustScores         TrustScore[]
-  trustEvents         TrustEvent[]
   userDeletion        UserDeletion?
   notificationSetting UserNotificationSetting?
   pushSubscriptions   PushSubscription[]
@@ -473,7 +466,7 @@ model Service {
   durationMin Int
   pricePhp    Int
   payoutPhp   Int      @default(0)
-  deductCount Decimal  @default(1.0) @db.Decimal(3, 1)
+  deductCount Int      @default(1)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
@@ -754,8 +747,8 @@ model Package {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceId      String
   service        Service      @relation(fields: [serviceId], references: [id])
-  totalCount     Decimal      @db.Decimal(5, 1)
-  remainingCount Decimal      @db.Decimal(5, 1)
+  totalCount     Int
+  remainingCount Int
   pricePhp       Int
   // 결제 시점 Service.payoutPhp 스냅샷(frozen). 이후 Service.payoutPhp가 바뀌어도
   // 이미 팔린 패키지의 트레이너 지급액은 불변. 기존 인스턴스 호환 위해 default 0.
@@ -914,40 +907,6 @@ model AccessLog {
   updatedById String?
 
   @@index([gymId, occurredAt])
-  @@index([gymId, userId, occurredAt])
-}
-
-// ─── Trust ─────────────────────────────────────────────────
-
-model TrustScore {
-  id          String   @id @default(cuid())
-  gymId       String
-  business    Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  score       Int      @default(100)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  createdById String?
-  updatedById String?
-
-  @@unique([gymId, userId])
-}
-
-model TrustEvent {
-  id          String         @id @default(cuid())
-  gymId       String
-  business    Business       @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind        TrustEventKind
-  delta       Int
-  occurredAt  DateTime       @default(now()) @db.Timestamptz(3)
-  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime       @default(now()) @updatedAt @db.Timestamptz(3)
-  createdById String?
-  updatedById String?
-
   @@index([gymId, userId, occurredAt])
 }
 

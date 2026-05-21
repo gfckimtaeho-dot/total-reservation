@@ -3,21 +3,30 @@ import { getTranslations } from "next-intl/server";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { loadTrainerMonthPerf } from "@/lib/perf/trainerMonth";
+import {
+  loadTrainerYearPerf,
+  loadTrainerDecadePerf,
+} from "@/lib/perf/trainerPerf";
 
-// 트레이너 월별 실적 — 월급 산정 근거(완료 세션·지급액 그리드 + 월 네비).
-// 환불은 트레이너 무관(사장 전액 처리) — 실적엔 환불 개념 없음.
+type View = "daily" | "monthly" | "yearly";
+type T = (key: string) => string;
+
+// 트레이너 실적 — 상단 "이번 달" 요약 고정 + 일별/월별/년도별 탭.
+//  일별: 선택 월의 완료 세션 1건당 1행 (누구·무슨 서비스)
+//  월별: 선택 년도 12개월 집계
+//  년도별: 선택 년도 포함 과거 10년 집계
 export default async function PerformancePage({
   params,
   searchParams,
 }: {
   params: Promise<{ lang: string; slug: string }>;
-  searchParams: Promise<{ y?: string; m?: string }>;
+  searchParams: Promise<{ view?: string; y?: string; m?: string }>;
 }) {
   const { lang, slug } = await params;
   const sp = await searchParams;
   const auth = await requireGymStaff(slug);
   const gymId = auth.business!.id;
-  const t = await getTranslations("trainerPerf");
+  const t = (await getTranslations("trainerPerf")) as unknown as T;
 
   const staff = await prisma.staff.findFirst({
     where: { userId: auth.id, gymId },
@@ -43,36 +52,58 @@ export default async function PerformancePage({
   const now = new Date();
   const curY = now.getUTCFullYear();
   const curM = now.getUTCMonth() + 1;
+
+  const view: View =
+    sp.view === "monthly" || sp.view === "yearly" ? sp.view : "daily";
   let y = Number(sp.y) || curY;
   let m = Number(sp.m) || curM;
   if (m < 1 || m > 12) m = curM;
 
-  const perf = await loadTrainerMonthPerf(gymId, staff.id, y, m);
+  // 상단 요약 — 항상 이번 달.
+  const thisMonth = await loadTrainerMonthPerf(gymId, staff.id, curY, curM);
 
-  // 이전/다음/현재 월 링크
+  const daily =
+    view === "daily"
+      ? await loadTrainerMonthPerf(gymId, staff.id, y, m)
+      : null;
+  const yearPerf =
+    view === "monthly"
+      ? await loadTrainerYearPerf(gymId, staff.id, y)
+      : null;
+  const decade =
+    view === "yearly"
+      ? await loadTrainerDecadePerf(gymId, staff.id, y)
+      : null;
+
+  const base = `/${lang}/g/${slug}/performance`;
   const shift = (yy: number, mm: number, d: number) => {
     const idx = yy * 12 + (mm - 1) + d;
     return { y: Math.floor(idx / 12), m: (idx % 12) + 1 };
   };
-  const prev = shift(y, m, -1);
-  const next = shift(y, m, 1);
-  const hrefFor = (yy: number, mm: number) =>
-    `/${lang}/g/${slug}/performance?y=${yy}&m=${mm}`;
-  const isCurrent = y === curY && m === curM;
-  const periodLabel =
-    lang === "en" ? `${y}-${String(m).padStart(2, "0")}` : `${y}년 ${m}월`;
+  const monthLabel = (yy: number, mm: number) =>
+    lang === "en" ? `${yy}-${String(mm).padStart(2, "0")}` : `${yy}년 ${mm}월`;
+  const yearLabel = (yy: number) => (lang === "en" ? `${yy}` : `${yy}년`);
 
   const navBtn =
     "flex h-8 items-center rounded-md border border-white/15 px-2.5 text-xs text-zinc-300 transition hover:bg-white/10";
+  const jumpBtn =
+    "rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400 hover:text-zinc-950";
+
+  const tabs: { key: View; label: string }[] = [
+    { key: "daily", label: t("tabDaily") },
+    { key: "monthly", label: t("tabMonthly") },
+    { key: "yearly", label: t("tabYearly") },
+  ];
 
   return (
     <div className="min-h-[100dvh] bg-black p-4 text-zinc-100">
       <div className="mx-auto max-w-3xl">
+        {/* 헤더 */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-heading text-lg text-white">{t("title")}</h1>
             <div className="mt-0.5 text-[11px] text-amber-300/70">
-              {staff.user?.name} · {perf.fromYmd} ~ {perf.toYmd}
+              {staff.user?.name}
             </div>
           </div>
           <Link
@@ -83,103 +114,334 @@ export default async function PerformancePage({
           </Link>
         </div>
 
-        {/* 월 네비 */}
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <Link href={hrefFor(prev.y, prev.m)} className={navBtn}>
-            ‹ {t("prevMonth")}
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-white">
-              {periodLabel}
-            </span>
-            {!isCurrent && (
+        {/* 이번 달 요약 — 고정 */}
+        <div className="mt-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-amber-300/80">
+            {t("summaryThisMonth")} · {monthLabel(curY, curM)}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-white/10 bg-zinc-900 p-3">
+              <div className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                {t("sessions")}
+              </div>
+              <div className="mt-1 text-xl font-bold tabular-nums text-white">
+                {thisMonth.sessionCount}
+              </div>
+            </div>
+            <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <div className="text-[10px] uppercase tracking-[0.15em] text-emerald-300/80">
+                {t("gross")}
+              </div>
+              <div className="mt-1 text-xl font-bold tabular-nums text-emerald-300">
+                {peso(thisMonth.grossPhp)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 일별 / 월별 / 년도별 탭 */}
+        <div className="mt-5 flex gap-1.5">
+          {tabs.map((tab) => {
+            const active = tab.key === view;
+            return (
               <Link
-                href={hrefFor(curY, curM)}
-                className="rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400 hover:text-zinc-950"
+                key={tab.key}
+                href={`${base}?view=${tab.key}`}
+                className={`flex-1 rounded-md border py-2 text-center text-sm font-semibold transition ${
+                  active
+                    ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
+                    : "border-white/15 text-zinc-400 hover:bg-white/5"
+                }`}
               >
-                {t("thisMonth")}
+                {tab.label}
               </Link>
-            )}
-          </div>
-          <Link href={hrefFor(next.y, next.m)} className={navBtn}>
-            {t("nextMonth")} ›
-          </Link>
+            );
+          })}
         </div>
 
-        {/* 요약 */}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-white/10 bg-zinc-900 p-3">
-            <div className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">
-              {t("sessions")}
+        {/* 일별 — 선택 월의 완료 세션 목록 */}
+        {view === "daily" && daily && (
+          <>
+            <div className="mt-4 flex items-center justify-between gap-2">
+              {(() => {
+                const p = shift(y, m, -1);
+                const n = shift(y, m, 1);
+                return (
+                  <>
+                    <Link
+                      href={`${base}?view=daily&y=${p.y}&m=${p.m}`}
+                      className={navBtn}
+                    >
+                      ‹ {t("prevMonth")}
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white">
+                        {monthLabel(y, m)}
+                      </span>
+                      {!(y === curY && m === curM) && (
+                        <Link href={`${base}?view=daily`} className={jumpBtn}>
+                          {t("thisMonth")}
+                        </Link>
+                      )}
+                    </div>
+                    <Link
+                      href={`${base}?view=daily&y=${n.y}&m=${n.m}`}
+                      className={navBtn}
+                    >
+                      {t("nextMonth")} ›
+                    </Link>
+                  </>
+                );
+              })()}
             </div>
-            <div className="mt-1 text-xl font-bold tabular-nums text-white">
-              {perf.sessionCount}
-            </div>
-          </div>
-          <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3">
-            <div className="text-[10px] uppercase tracking-[0.15em] text-emerald-300/80">
-              {t("gross")}
-            </div>
-            <div className="mt-1 text-xl font-bold tabular-nums text-emerald-300">
-              {peso(perf.grossPhp)}
-            </div>
-          </div>
-        </div>
-
-        {/* 완료 세션 그리드 */}
-        <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/15 bg-zinc-900/60">
-                <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
-                  {t("colDate")}
-                </th>
-                <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
-                  {t("colCustomer")}
-                </th>
-                <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
-                  {t("colService")}
-                </th>
-                <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
-                  {t("colPayout")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {perf.rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-3 py-10 text-center text-sm text-zinc-500"
-                  >
-                    {t("empty")}
-                  </td>
-                </tr>
-              ) : (
-                perf.rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="border-b border-white/5 hover:bg-white/5"
-                  >
-                    <td className="px-3 py-2.5 text-center tabular-nums text-zinc-300">
-                      {r.dateYmd}
-                    </td>
-                    <td className="px-3 py-2.5 text-left font-medium text-white">
-                      {r.customerName}
-                    </td>
-                    <td className="px-3 py-2.5 text-left text-zinc-300">
-                      {r.serviceName}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-amber-300">
-                      {peso(r.payoutPhp)}
-                    </td>
+            <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/15 bg-zinc-900/60">
+                    <Th>{t("colDate")}</Th>
+                    <Th>{t("colCustomer")}</Th>
+                    <Th>{t("colService")}</Th>
+                    <Th>{t("colPayout")}</Th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {daily.rows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-3 py-10 text-center text-sm text-zinc-500"
+                      >
+                        {t("empty")}
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {daily.rows.map((r) => (
+                        <tr
+                          key={r.id}
+                          className="border-b border-white/5 hover:bg-white/5"
+                        >
+                          <td className="px-3 py-2.5 text-center tabular-nums text-zinc-300">
+                            {r.dateYmd}
+                          </td>
+                          <td className="px-3 py-2.5 text-left font-medium text-white">
+                            {r.customerName}
+                          </td>
+                          <td className="px-3 py-2.5 text-left text-zinc-300">
+                            {r.serviceName}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-amber-300">
+                            {peso(r.payoutPhp)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-white/20 bg-zinc-900/60 font-semibold">
+                        <td
+                          colSpan={2}
+                          className="px-3 py-2.5 text-left text-zinc-300"
+                        >
+                          {t("total")}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
+                          {daily.sessionCount}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-emerald-300">
+                          {peso(daily.grossPhp)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* 월별 — 선택 년도 12개월 집계 */}
+        {view === "monthly" && yearPerf && (
+          <>
+            <PeriodNav
+              prevHref={`${base}?view=monthly&y=${y - 1}`}
+              nextHref={`${base}?view=monthly&y=${y + 1}`}
+              label={yearLabel(y)}
+              jumpHref={y === curY ? null : `${base}?view=monthly`}
+              jumpLabel={t("thisYear")}
+              prevLabel={t("prevYear")}
+              nextLabel={t("nextYear")}
+              navBtn={navBtn}
+              jumpBtn={jumpBtn}
+            />
+            <AggTable
+              firstColLabel={t("colMonth")}
+              rows={yearPerf.months.map((mo) => ({
+                key: mo.month,
+                label: lang === "en" ? String(mo.month) : `${mo.month}월`,
+                sessionCount: mo.sessionCount,
+                grossPhp: mo.grossPhp,
+              }))}
+              total={yearPerf.total}
+              t={t}
+              peso={peso}
+            />
+          </>
+        )}
+
+        {/* 년도별 — 선택 년도 포함 과거 10년 집계 */}
+        {view === "yearly" && decade && (
+          <>
+            <PeriodNav
+              prevHref={`${base}?view=yearly&y=${y - 1}`}
+              nextHref={`${base}?view=yearly&y=${y + 1}`}
+              label={yearLabel(y)}
+              jumpHref={y === curY ? null : `${base}?view=yearly`}
+              jumpLabel={t("thisYear")}
+              prevLabel={t("prevYear")}
+              nextLabel={t("nextYear")}
+              navBtn={navBtn}
+              jumpBtn={jumpBtn}
+            />
+            <AggTable
+              firstColLabel={t("colYear")}
+              rows={decade.years.map((yr) => ({
+                key: yr.year,
+                label: yearLabel(yr.year),
+                sessionCount: yr.sessionCount,
+                grossPhp: yr.grossPhp,
+              }))}
+              total={decade.total}
+              t={t}
+              peso={peso}
+            />
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+function Th({ children }: { children: React.ReactNode }) {
+  return (
+    <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+      {children}
+    </th>
+  );
+}
+
+function PeriodNav({
+  prevHref,
+  nextHref,
+  label,
+  jumpHref,
+  jumpLabel,
+  prevLabel,
+  nextLabel,
+  navBtn,
+  jumpBtn,
+}: {
+  prevHref: string;
+  nextHref: string;
+  label: string;
+  jumpHref: string | null;
+  jumpLabel: string;
+  prevLabel: string;
+  nextLabel: string;
+  navBtn: string;
+  jumpBtn: string;
+}) {
+  return (
+    <div className="mt-4 flex items-center justify-between gap-2">
+      <Link href={prevHref} className={navBtn}>
+        ‹ {prevLabel}
+      </Link>
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-white">{label}</span>
+        {jumpHref && (
+          <Link href={jumpHref} className={jumpBtn}>
+            {jumpLabel}
+          </Link>
+        )}
+      </div>
+      <Link href={nextHref} className={navBtn}>
+        {nextLabel} ›
+      </Link>
+    </div>
+  );
+}
+
+// 월별·년도별 공용 집계 표 — 1열(월/년도) · 세션 수 · 지급액 + 합계 행.
+function AggTable({
+  firstColLabel,
+  rows,
+  total,
+  t,
+  peso,
+}: {
+  firstColLabel: string;
+  rows: {
+    key: number;
+    label: string;
+    sessionCount: number;
+    grossPhp: number;
+  }[];
+  total: { sessionCount: number; grossPhp: number };
+  t: T;
+  peso: (n: number) => string;
+}) {
+  return (
+    <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-white/15 bg-zinc-900/60">
+            <Th>{firstColLabel}</Th>
+            <Th>{t("sessions")}</Th>
+            <Th>{t("colPayout")}</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const empty = r.sessionCount === 0;
+            return (
+              <tr
+                key={r.key}
+                className="border-b border-white/5 hover:bg-white/5"
+              >
+                <td
+                  className={`px-3 py-2.5 text-center font-medium tabular-nums ${
+                    empty ? "text-zinc-600" : "text-white"
+                  }`}
+                >
+                  {r.label}
+                </td>
+                <td
+                  className={`px-3 py-2.5 text-right tabular-nums ${
+                    empty ? "text-zinc-600" : "text-zinc-300"
+                  }`}
+                >
+                  {r.sessionCount}
+                </td>
+                <td
+                  className={`px-3 py-2.5 text-right tabular-nums ${
+                    empty ? "text-zinc-600" : "text-amber-300"
+                  }`}
+                >
+                  {peso(r.grossPhp)}
+                </td>
+              </tr>
+            );
+          })}
+          <tr className="border-t border-white/20 bg-zinc-900/60 font-semibold">
+            <td className="px-3 py-2.5 text-left text-zinc-300">
+              {t("total")}
+            </td>
+            <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
+              {total.sessionCount}
+            </td>
+            <td className="px-3 py-2.5 text-right tabular-nums text-emerald-300">
+              {peso(total.grossPhp)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -39,7 +39,8 @@ function parseYmd(s: string): Date | null {
 const recurringSchema = z.object({
   slug: z.string().min(1),
   serviceId: z.string().min(1),
-  staffId: z.string().optional().nullable(),
+  // 담당 트레이너 필수 — 미지정 단체수업은 운영상 책임자가 없어 금지.
+  staffId: z.string().min(1, "staffRequired"),
   kind: z.literal("RECURRING"),
   weekdays: z.array(weekdayZ).min(1, "weekdays"),
   startTime: timeZ,
@@ -51,7 +52,8 @@ const recurringSchema = z.object({
 const oneOffSchema = z.object({
   slug: z.string().min(1),
   serviceId: z.string().min(1),
-  staffId: z.string().optional().nullable(),
+  // 담당 트레이너 필수 — 미지정 단체수업은 운영상 책임자가 없어 금지.
+  staffId: z.string().min(1, "staffRequired"),
   kind: z.literal("ONE_OFF"),
   specificDate: dateZ,
   startTime: timeZ,
@@ -81,7 +83,7 @@ export async function createSchedule(
   const parsed = createSchema.safeParse({
     slug: formData.get("slug"),
     serviceId: formData.get("serviceId"),
-    staffId: (formData.get("staffId") as string) || null,
+    staffId: (formData.get("staffId") as string) || "",
     kind: formData.get("kind"),
     weekdays,
     specificDate: (formData.get("specificDate") as string) || undefined,
@@ -125,13 +127,11 @@ export async function createSchedule(
     return { errors: { startTime: ["overflowMidnight"] } };
   }
 
-  if (data.staffId) {
-    const staff = await prisma.staff.findUnique({
-      where: { id: data.staffId },
-    });
-    if (!staff || staff.gymId !== gymId) {
-      return { errors: { staffId: ["permission"] } };
-    }
+  const staff = await prisma.staff.findUnique({
+    where: { id: data.staffId },
+  });
+  if (!staff || staff.gymId !== gymId) {
+    return { errors: { staffId: ["permission"] } };
   }
 
   if (data.kind === "RECURRING") {
@@ -150,7 +150,7 @@ export async function createSchedule(
       data: {
         gymId,
         serviceId: data.serviceId,
-        staffId: data.staffId || null,
+        staffId: data.staffId,
         kind: "RECURRING",
         weekdays: data.weekdays as Weekday[],
         specificDate: null,
@@ -170,7 +170,7 @@ export async function createSchedule(
       data: {
         gymId,
         serviceId: data.serviceId,
-        staffId: data.staffId || null,
+        staffId: data.staffId,
         kind: "ONE_OFF",
         weekdays: [],
         specificDate: date,

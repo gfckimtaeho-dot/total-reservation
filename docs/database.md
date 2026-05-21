@@ -7,7 +7,7 @@
 
 ## 멀티테넌시 핵심 원칙
 
-- **모든 도메인 row에 `gym_id` FK 강제** (User·Reservation·Membership·Package·Service·Staff·Hours·Image·NotificationSetting·NotificationLog·AccessLog·QrToken·TrustScore·TrustEvent·UserDeletion 등 전부)
+- **모든 도메인 row에 `gym_id` FK 강제** (User·Reservation·Membership·Package·Service·Staff·Hours·Image·NotificationSetting·NotificationLog·AccessLog·QrToken·UserDeletion 등 전부)
 - 관리자만 `gym_id` NULL 허용 (User 테이블 한정)
 - Server Action·API route 진입점에서 URL slug → `gym_id` 도출 → 모든 쿼리에 `where: { gym_id }` 강제 주입
 - Prisma helper 또는 row-level scoping 함수 1개로 통일
@@ -20,6 +20,7 @@
 - 매장명·전화·대표 이메일·예약금 여부·GCash QR URL
 - `city_id` + `barangay_id` (PSGC FK)
 - `status`: `trial` / `active` / `grace` / `expired` / `blocked`
+- `timeZone` (IANA, 예: `Asia/Manila`) — 등록 시 선택. 예약·영업시간·"오늘" 계산의 단일 소스. 자세한 모델은 아래 "시간대 처리" 참조
 - 등록 시 필수 필드는 [business.md](./business.md) 참조
 
 ### 인증 (User · Account · Session)
@@ -67,20 +68,13 @@
 - 단체 수업: 같은 시간에 N개 row (참석자별)
 - `ReservationLog`: 액션 로그
   - `created` / `confirmed` / `changed_by_customer` / `changed_by_staff` / `cancelled_by_customer` / `cancelled_by_staff` / `rejected` / `completed` / `no_show`
-  - 패널티 분기에 사용 (`changed_by_staff`는 신뢰도 무영향)
+  - 예약 변경·취소·완료 이력 추적용 감사 로그
 
 ### 출입 (AccessLog · QrToken)
 - `QrToken`: `gym_id` + `user_id` + 5분 유효, 일회용. Redis 또는 DB cache (TTL 활용)
   - 페이로드: gym_id + user_id + issued_at + nonce + 서명
 - `AccessLog`: `gym_id` + `user_id` + 시각 + QR token + 결과 (`allowed` / `denied` / `expired`)
 - 자유 운동 통계는 AccessLog 기반
-
-### 신뢰도 (TrustScore · TrustEvent)
-- `TrustScore`: `gym_id` + `user_id` + 현재 점수 + 등급 (계산값 캐싱)
-- `TrustEvent`: `gym_id` + `user_id` + 이벤트 타입 (`signup` / `visit_completed` / `no_show`) + 점수 변동 + 시각
-  - 신규 가입 +100, 정상 +5, 노쇼 -30
-  - 재가입 시 새 TrustScore row (이전 row와 분리, 100점 시작)
-- 가맹점 스코프 — 가맹점 A 신뢰도와 가맹점 B 신뢰도는 완전 별개
 
 ### 위치 (City · Barangay)
 - `City`: 코드 + 이름 (PSGC psgc_code) — 글로벌
@@ -105,6 +99,7 @@
 ## 명시적으로 제거된 것 (피벗 후)
 
 - `category` enum (`gym` / `massage`) — 단일 vertical
+- `TrustScore` / `TrustEvent` / `TrustEventKind` — 신뢰도 점수·등급 시스템 폐기(2026-05-21). 문제 회원은 회원 비활성화로 차단.
 - Staff role의 `massagist`
 - `OtpToken` 모델 (magic link로 대체)
 - `tsvector` full-text search 인덱스 (검색 모듈 폐기)
@@ -112,9 +107,14 @@
 
 ## 시간대 처리
 
-- 모든 `DateTime` 컬럼 **UTC 저장**
-- 표시·입력은 PHT 변환 (Next.js 서버·클라이언트 양쪽)
-- 시간 비교 (예약 충돌·QR 만료·구독 만료)는 **항상 UTC 끼리**
+매장마다 타임존이 다르므로 `Business.timeZone`(IANA, 등록 시 선택)이 단일 소스다.
+
+- **예약 시각** (`Reservation.startAt`/`endAt`)은 매장 벽시계 시각을 UTC 필드에 그대로 저장 (UTC-naive). 진짜 UTC 변환을 하지 않는다 — 매장 일정은 벽시계 약속이라 DST에 안전하고 매장 간 절대시각 비교가 필요 없다. 읽을 때 `getUTC*`, 표시할 때 `timeZone:"UTC"`.
+- **분-of-day 정수** (`ScheduledClass.startMinute`, `BusinessHours.openMinute`, `Staff.workStartMin` 등)는 타임존 무관.
+- **날짜 컬럼** (`Membership.endDate` 등 `@db.Date`)은 UTC 자정 저장, `timeZone:"UTC"`로 표시.
+- **"오늘/지금" 계산**은 `src/lib/calendar/gymTime.ts` (`gymTodayUtcMidnight`·`gymTodayRange` 등)로, 매장 `timeZone`을 인자로 넘겨 한다. `new Date()`의 UTC 파츠로 "오늘"을 구하면 UTC 16시 이후 하루 밀린다 — 금지.
+- 절대시각이 의미 있는 컬럼(`createdAt`/`updatedAt`, `AccessLog.occurredAt`, 토큰 만료 등)만 진짜 UTC.
+- 고정 오프셋(+8h 등) 하드코딩 금지. 타임존 문자열 하드코딩 금지 — 지원 목록은 `src/lib/calendar/timezones.ts`.
 
 ## 인덱스 전략 (초안)
 
@@ -135,7 +135,7 @@
 
 ## 작업 순서 (M1 시작 시)
 
-1. 도메인별 Prisma 모델 작성 (Business 먼저 → User·Token → Staff·Service → Membership·Package → Reservation·QR·Notification·Trust·Subscription)
+1. 도메인별 Prisma 모델 작성 (Business 먼저 → User·Token → Staff·Service → Membership·Package → Reservation·QR·Notification·Subscription)
 2. PSGC 시드 스크립트 작성 (NCR 17개 시 + Barangay)
 3. admin user seed 스크립트 (`ADMIN_EMAIL` 기반)
 4. `prisma migrate dev --name m1_multitenancy_business`

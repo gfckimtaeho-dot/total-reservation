@@ -38,6 +38,7 @@ export default async function GymDashboardPage({
         businessName={business.name}
         trainerName={user.name}
         accessToken={accessToken}
+        timeZone={business.timeZone}
         selectedDay={selectedDay}
         weeklyOffDays={staff?.weeklyOffDays ?? []}
       />
@@ -50,6 +51,7 @@ export default async function GymDashboardPage({
     slug,
     gymId: business.id,
     businessName: business.name,
+    timeZone: business.timeZone,
   };
 
   if (theme === "black") return <DashboardBlack {...props} />;

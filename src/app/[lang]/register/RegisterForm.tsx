@@ -10,6 +10,10 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { checkSlug, registerBusiness, type RegisterState } from "./actions";
+import {
+  SUPPORTED_TIMEZONES,
+  DEFAULT_TIME_ZONE,
+} from "@/lib/calendar/timezones";
 
 const initialState: RegisterState = {};
 
@@ -33,6 +37,7 @@ export function RegisterForm({
   );
   const [cityId, setCityId] = useState("");
   const [category, setCategory] = useState<"GYM" | "MASSAGE">("GYM");
+  const [timeZone, setTimeZone] = useState<string>(DEFAULT_TIME_ZONE);
   const formRef = useRef<HTMLFormElement>(null);
   const barangays = useMemo(
     () => cities.find((c) => c.id === cityId)?.barangays ?? [],
@@ -97,6 +102,20 @@ export function RegisterForm({
             required
             errorMessage={t("errors.category")}
             errors={state.errors?.category}
+          />
+          <Select
+            label={t("timeZone")}
+            name="timeZone"
+            placeholder={t("selectTimeZone")}
+            value={timeZone}
+            onValueChange={setTimeZone}
+            options={SUPPORTED_TIMEZONES.map((tz) => ({
+              value: tz.id,
+              label: tz.label,
+            }))}
+            required
+            errorMessage={t("errors.timeZone")}
+            errors={state.errors?.timeZone}
           />
           <Select
             label={t("city")}

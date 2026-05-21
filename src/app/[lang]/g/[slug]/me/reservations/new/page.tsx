@@ -37,7 +37,7 @@ export default async function NewReservationPage({
     pkg.gymId !== business.id ||
     pkg.userId !== user.id ||
     pkg.service.capacity !== 1 ||
-    Number(pkg.remainingCount) <= 0
+    pkg.remainingCount <= 0
   ) {
     redirect(`/${lang}/g/${slug}/me`);
   }
@@ -59,6 +59,7 @@ export default async function NewReservationPage({
     business.id,
     pkg.assignedStaff.id,
     pkg.assignedStaff.user.name,
+    business.timeZone,
   );
 
   const firstIdx = cal.todayIdx + 1;

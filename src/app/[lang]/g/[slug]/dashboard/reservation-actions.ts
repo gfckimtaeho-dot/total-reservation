@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { ymd } from "@/lib/hours/status";
+import { gymTodayUtcMidnight } from "@/lib/calendar/gymTime";
 
 // 트레이너 예약 변경/취소. 규칙:
 //  - 과거 예약(시작일 < 오늘, UTC-naive 기준)은 변경·취소 불가.
@@ -19,9 +20,9 @@ function dayKeyUtc(d: Date): string {
     new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())),
   );
 }
-function todayKey(): string {
-  const n = new Date();
-  return ymd(new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate())));
+// 매장 타임존 기준 오늘 — UTC-naive 저장과 같은 기준으로 비교.
+function todayKey(timeZone: string): string {
+  return ymd(gymTodayUtcMidnight(timeZone));
 }
 
 type Owned =
@@ -29,6 +30,7 @@ type Owned =
   | {
       ok: true;
       gymId: string;
+      timeZone: string;
       res: NonNullable<
         Awaited<ReturnType<typeof prisma.reservation.findFirst>>
       >;
@@ -53,7 +55,7 @@ async function loadOwned(
       return { ok: false, error: "본인 예약만 변경할 수 있습니다" };
     }
   }
-  return { ok: true, gymId, res };
+  return { ok: true, gymId, timeZone: auth.business!.timeZone, res };
 }
 
 export async function rescheduleReservation(input: {
@@ -68,7 +70,7 @@ export async function rescheduleReservation(input: {
   if (!owned.ok) return { ok: false, error: owned.error };
   const { gymId, res } = owned;
 
-  const tKey = todayKey();
+  const tKey = todayKey(owned.timeZone);
   if (dayKeyUtc(res.startAt) < tKey) {
     return { ok: false, error: "지난 예약은 변경할 수 없습니다" };
   }
@@ -123,6 +125,11 @@ export async function completeReservation(input: {
   const { res } = owned;
   if (res.status === "COMPLETED") return { ok: true }; // 멱등 — 중복 차감 방지
 
+  // 완료는 당일 수업만 — 미래·과거 회차는 완료 처리 불가.
+  if (dayKeyUtc(res.startAt) !== todayKey(owned.timeZone)) {
+    return { ok: false, error: "당일 수업만 완료 처리할 수 있습니다" };
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.reservation.update({
       where: { id: res.id },
@@ -139,8 +146,8 @@ export async function completeReservation(input: {
         select: { remainingCount: true },
       });
       if (pkg) {
-        const deduct = Number(svc?.deductCount ?? 1);
-        const next = Math.max(0, Number(pkg.remainingCount) - deduct);
+        const deduct = svc?.deductCount ?? 1;
+        const next = Math.max(0, pkg.remainingCount - deduct);
         await tx.package.update({
           where: { id: res.packageId },
           data: { remainingCount: next },
@@ -162,12 +169,61 @@ export async function cancelReservation(input: {
   if (!owned.ok) return { ok: false, error: owned.error };
   const { res } = owned;
 
-  if (dayKeyUtc(res.startAt) < todayKey()) {
+  if (dayKeyUtc(res.startAt) < todayKey(owned.timeZone)) {
     return { ok: false, error: "지난 예약은 취소할 수 없습니다" };
   }
   await prisma.reservation.update({
     where: { id: res.id },
     data: { status: "CANCELLED" },
+  });
+  revalidatePath(`/ko/g/${input.slug}/dashboard`);
+  revalidatePath(`/en/g/${input.slug}/dashboard`);
+  return { ok: true };
+}
+
+// 수업 완료 취소(당일 한정) — 실수로 완료한 예약을 되돌림.
+// status COMPLETED → CONFIRMED, 차감했던 권 1회분 환불(totalCount 초과 금지).
+export async function uncompleteReservation(input: {
+  slug: string;
+  reservationId: string;
+}): Promise<Result> {
+  const owned = await loadOwned(input.slug, input.reservationId);
+  if (!owned.ok) return { ok: false, error: owned.error };
+  const { res } = owned;
+  if (res.status !== "COMPLETED") {
+    return { ok: false, error: "완료된 예약이 아닙니다" };
+  }
+  if (dayKeyUtc(res.startAt) !== todayKey(owned.timeZone)) {
+    return { ok: false, error: "당일 수업만 완료를 취소할 수 있습니다" };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.reservation.update({
+      where: { id: res.id },
+      data: { status: "CONFIRMED", completedAt: null },
+    });
+    // 완료 시 차감했던 만큼 환불 — 원본 totalCount 초과 금지.
+    if (res.packageId) {
+      const svc = await tx.service.findUnique({
+        where: { id: res.serviceId },
+        select: { deductCount: true },
+      });
+      const pkg = await tx.package.findUnique({
+        where: { id: res.packageId },
+        select: { remainingCount: true, totalCount: true },
+      });
+      if (pkg) {
+        const deduct = svc?.deductCount ?? 1;
+        const next = Math.min(
+          pkg.totalCount,
+          pkg.remainingCount + deduct,
+        );
+        await tx.package.update({
+          where: { id: res.packageId },
+          data: { remainingCount: next },
+        });
+      }
+    }
   });
   revalidatePath(`/ko/g/${input.slug}/dashboard`);
   revalidatePath(`/en/g/${input.slug}/dashboard`);

@@ -84,7 +84,7 @@ const TONE = {
   },
 } as const;
 
-const SESSION_PRESETS = [5, 10, 20] as const;
+const SESSION_PRESETS = [1, 5, 10, 20] as const;
 const DISCOUNT_PRESETS = [5, 10, 15, 20, 30] as const;
 
 const INITIAL: MembershipPlanState = {};
@@ -118,8 +118,11 @@ export function PackagePlanForm({
   const formRef = useRef<HTMLFormElement>(null);
 
   const initialServiceId = plan?.serviceId ?? services[0]?.id ?? "";
-  const initialSessions = plan ? String(plan.sessionCount) : "5";
-  const initialPrice = plan ? String(plan.pricePhp) : "0";
+  const initialSessions = plan ? String(plan.sessionCount) : "1";
+  // 신규: 기본 회수(1회)의 정가 = 서비스 단가 × 1 → 처음부터 할인 0%.
+  const initialPrice = plan
+    ? String(plan.pricePhp)
+    : String(services[0]?.pricePhp ?? 0);
   const initialActive = plan?.active ?? true;
 
   const [serviceId, setServiceId] = useState(initialServiceId);
@@ -136,8 +139,8 @@ export function PackagePlanForm({
       formRef.current?.reset();
       setName("");
       setServiceId(services[0]?.id ?? "");
-      setSessions("5");
-      setPrice("0");
+      setSessions("1");
+      setPrice(String(services[0]?.pricePhp ?? 0));
       setActive(true);
     }
   }, [state.ok, state.at, mode, onSuccess, services]);
@@ -178,8 +181,10 @@ export function PackagePlanForm({
       : 0;
   const currentDiscountAmount = Math.max(0, listPrice - priceNum);
 
-  // 서비스 변경 시 가격을 새 정가로 reset — 사용자가 다른 서비스를 골랐다는 건
-  // 가격 시작점도 다르다는 의미. 회수만 바꿀 땐 reset 안 함(할인율 보호).
+  // 서비스·회수 변경 시 가격을 새 정가로 reset — 할인은 항상 0%에서 시작.
+  // 회수만 바꿔도 reset 한다: 안 하면 가격은 그대로인데 정가만 커져서
+  // 할인율이 멋대로 튄다(사장이 의도하지 않은 자동 할인). 할인은 아래
+  // 할인 preset 으로만 명시적으로 적용.
   // 첫 mount는 skip — edit 모드의 기존 가격을 덮어쓰지 않게.
   const isInitialMount = useRef(true);
   useEffect(() => {
@@ -191,7 +196,7 @@ export function PackagePlanForm({
       setPrice(String(listPrice));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceId]);
+  }, [serviceId, sessions]);
 
   function applyDiscountPreset(pct: number) {
     if (listPrice <= 0) return;
@@ -295,6 +300,11 @@ export function PackagePlanForm({
               >
                 {p}
                 {t("sessionUnit")}
+                {p === 1 && (
+                  <span className="ml-1 text-[10px] opacity-70">
+                    {t("sessionBasic")}
+                  </span>
+                )}
               </button>
             ))}
             <input

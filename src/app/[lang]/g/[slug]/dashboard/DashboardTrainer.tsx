@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import { loadTrainerCalendar } from "@/lib/calendar/trainerCalendarPro";
 import { TrainerCalendarPro } from "@/components/calendar/TrainerCalendarPro";
+import { TrainerQrButton } from "./TrainerQrButton";
 
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
@@ -16,6 +17,7 @@ type Props = {
   businessName: string;
   trainerName: string;
   accessToken: string;
+  timeZone: string;
   selectedDay: number;
   weeklyOffDays: Weekday[];
 };
@@ -30,22 +32,17 @@ export async function DashboardTrainer({
   businessName,
   trainerName,
   accessToken,
+  timeZone,
 }: Props) {
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
-  const today = new Date();
-  const todayDisplay = new Intl.DateTimeFormat(
-    lang === "en" ? "en-US" : "ko-KR",
-    {
-      timeZone: "Asia/Manila",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "long",
-    },
-  ).format(today);
 
-  const calendar = await loadTrainerCalendar(gymId, staffId, trainerName);
+  const calendar = await loadTrainerCalendar(
+    gymId,
+    staffId,
+    trainerName,
+    timeZone,
+  );
 
   const qrDataUrl = await QRCode.toDataURL(accessToken, {
     width: 320,
@@ -61,14 +58,23 @@ export async function DashboardTrainer({
 
       <header className="relative flex items-center justify-between border-b border-white/5 px-5 py-4">
         <div>
-          <h1 className="font-heading text-lg tracking-tight text-white">
-            {trainerName}
+          {/* 1줄: 매장명·역할은 기존 그라데, 트레이너명은 흰색 — 색은 유지하고
+              2줄→1줄이 된 만큼 크기만 키움. */}
+          <h1 className="font-heading text-xl tracking-tight">
+            <span className="mr-3 bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-transparent">
+              {businessName}
+            </span>
+            <span className="text-white">{trainerName}</span>{" "}
+            <span className="bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-transparent">
+              {t("trainerRole")}
+            </span>
           </h1>
-          <div className="mt-0.5 bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-[11px] font-semibold uppercase tracking-[0.18em] text-transparent">
-            {businessName} · {todayDisplay}
-          </div>
         </div>
         <div className="flex items-center gap-2">
+          <TrainerQrButton
+            qrDataUrl={qrDataUrl}
+            trainerName={trainerName}
+          />
           <Link
             href={`/${lang}/g/${slug}/showcase`}
             className="rounded-full bg-gradient-to-r from-orange-500/20 to-pink-500/20 px-3 py-1.5 text-xs font-semibold text-orange-100 ring-1 ring-orange-400/40 transition hover:from-orange-500/30 hover:to-pink-500/30"
@@ -96,41 +102,13 @@ export async function DashboardTrainer({
       </header>
 
       <main className="relative flex-1 space-y-4 p-4">
-        {/* QR — 핸드폰만, V8 sunset 그라데 ring */}
-        <section className="relative flex flex-col items-center overflow-hidden rounded-3xl p-[1.5px] md:hidden">
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500" />
-          <div className="relative w-full rounded-[calc(1.5rem-1.5px)] bg-zinc-950 p-5">
-            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-500/40 blur-3xl" />
-            <div className="relative flex flex-col items-center">
-              <h2 className="bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text font-heading text-base tracking-tight text-transparent">
-                {t("trainerQrTitle")}
-              </h2>
-              <div className="mt-3 rounded-xl bg-white p-2.5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrDataUrl}
-                  alt="Access QR"
-                  className="block h-36 w-36"
-                />
-              </div>
-              <p className="mt-3 whitespace-pre-line text-center text-[11px] leading-relaxed text-zinc-400">
-                {t("trainerQrHint")}
-              </p>
-            </div>
-          </div>
-        </section>
-
+        {/* 출입 QR 은 헤더의 TrainerQrButton(핸드폰 전용 버튼 → 모달)로 이동.
+            태블릿 관리 화면엔 노출하지 않는다. */}
         <TrainerCalendarPro data={calendar} slug={slug} lang={lang} />
       </main>
 
       <footer className="relative border-t border-white/5 px-5 py-4 text-center text-[11px] text-zinc-500">
-        예약가즈아 · /g/{slug} ·{" "}
-        <Link
-          href={`/${lang}/g/${slug}/me`}
-          className="bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-transparent underline-offset-2 hover:underline"
-        >
-          {t("trainerProfileLink")}
-        </Link>
+        예약가즈아 · /g/{slug}
       </footer>
     </div>
   );

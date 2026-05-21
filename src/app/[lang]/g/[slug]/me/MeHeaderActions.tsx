@@ -1,34 +1,26 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Box, QrCode, X } from "lucide-react";
-import { requestAccessQr, type AccessQrResult } from "./actions";
+import type { AccessQrResult } from "./actions";
 
 export function MeHeaderActions({
   slug,
   lang,
   memberName,
+  qrInitial,
 }: {
   slug: string;
   lang: string;
   memberName: string;
+  // 페이지 렌더(SSR) 시점에 미리 발급된 QR — 탭 즉시 표시용.
+  qrInitial: AccessQrResult;
 }) {
   const t = useTranslations("me");
   const [qrOpen, setQrOpen] = useState(false);
-  const [qrResult, setQrResult] = useState<AccessQrResult | null>(null);
-  const [qrPending, startQr] = useTransition();
-
-  function openQr() {
-    setQrOpen(true);
-    setQrResult(null);
-    startQr(async () => {
-      const r = await requestAccessQr(slug);
-      setQrResult(r);
-    });
-  }
 
   const btnCls =
     "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-100 backdrop-blur-md transition hover:bg-white/10 active:scale-95";
@@ -40,7 +32,7 @@ export function MeHeaderActions({
           <Box size={16} />
           <span>{t("holdingsButton")}</span>
         </Link>
-        <button type="button" onClick={openQr} className={btnCls}>
+        <button type="button" onClick={() => setQrOpen(true)} className={btnCls}>
           <QrCode size={16} />
           <span>{t("qrButton")}</span>
         </button>
@@ -49,8 +41,7 @@ export function MeHeaderActions({
       {qrOpen && (
         <Portal>
           <QrDialog
-            result={qrResult}
-            pending={qrPending}
+            result={qrInitial}
             memberName={memberName}
             onClose={() => setQrOpen(false)}
           />
@@ -71,12 +62,10 @@ function Portal({ children }: { children: React.ReactNode }) {
 
 function QrDialog({
   result,
-  pending,
   memberName,
   onClose,
 }: {
-  result: AccessQrResult | null;
-  pending: boolean;
+  result: AccessQrResult;
   memberName: string;
   onClose: () => void;
 }) {
@@ -117,9 +106,7 @@ function QrDialog({
         </div>
 
         <div className="mt-3 flex flex-col items-center">
-          {pending || !result ? (
-            <div className="py-12 text-sm text-zinc-400">{t("qrLoading")}</div>
-          ) : result.ok ? (
+          {result.ok ? (
             <>
               <div className="rounded-2xl bg-white p-3 shadow-[0_0_40px_-10px_rgba(252,165,165,0.4)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

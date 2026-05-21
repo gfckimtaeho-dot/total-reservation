@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ChevronLeft } from "lucide-react";
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
-import { manilaTodayUtcMidnight } from "@/lib/calendar/manila";
+import { gymTodayUtcMidnight } from "@/lib/calendar/gymTime";
 import { PackageTrainerCard } from "./PackageTrainerCard";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -20,7 +20,7 @@ export default async function HoldingsPage({
   const business = user.business!;
   const t = (await getTranslations("me")) as unknown as T;
 
-  const todayMid = manilaTodayUtcMidnight();
+  const todayMid = gymTodayUtcMidnight(business.timeZone);
 
   const [memberships, packages] = await Promise.all([
     prisma.membership.findMany({
@@ -160,8 +160,8 @@ export default async function HoldingsPage({
                         </div>
                         <div className="mt-0.5 text-xs text-zinc-400">
                           {t("packageRemaining", {
-                            remaining: decimalToDisplay(p.remainingCount),
-                            total: decimalToDisplay(p.totalCount),
+                            remaining: p.remainingCount,
+                            total: p.totalCount,
                           })}
                         </div>
                       </div>
@@ -211,8 +211,8 @@ export default async function HoldingsPage({
                         </div>
                         <div className="mt-0.5 text-xs text-zinc-400">
                           {t("packageRemaining", {
-                            remaining: decimalToDisplay(p.remainingCount),
-                            total: decimalToDisplay(p.totalCount),
+                            remaining: p.remainingCount,
+                            total: p.totalCount,
                           })}
                         </div>
                       </div>
@@ -256,15 +256,9 @@ function RefundPlaceholder({ t }: { t: T }) {
 
 function formatDate(d: Date, lang: string): string {
   return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
-    timeZone: "Asia/Manila",
+    timeZone: "UTC",
     year: "numeric",
     month: "long",
     day: "numeric",
   }).format(d);
-}
-
-function decimalToDisplay(v: { toString: () => string } | number): string {
-  const s = typeof v === "number" ? String(v) : v.toString();
-  if (s.endsWith(".0")) return s.slice(0, -2);
-  return s;
 }

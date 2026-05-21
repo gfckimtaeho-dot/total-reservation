@@ -6,9 +6,17 @@ import { prisma } from "@/lib/db/client";
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { generateAccessToken } from "@/lib/auth/accessToken";
 import {
-  manilaTodayUtcMidnight,
-  manilaTodayRange,
-} from "@/lib/calendar/manila";
+  gymTodayUtcMidnight,
+  gymTodayRange,
+} from "@/lib/calendar/gymTime";
+import {
+  packageAvailableCount,
+  pickBookablePackage,
+} from "@/lib/packages/availability";
+import {
+  loadMeCalendarMonth,
+  type MeCalendarMonth,
+} from "@/lib/calendar/meCalendar";
 
 export type AccessQrResult =
   | { ok: true; qr: string; expiresYmd: string }
@@ -26,17 +34,20 @@ export async function requestAccessQr(
   const gymId = user.business!.id;
   const userId = user.id;
 
-  const today = manilaTodayUtcMidnight();
-  const { end: endOfDay } = manilaTodayRange();
+  const tz = user.business!.timeZone;
+  const today = gymTodayUtcMidnight(tz);
+  const { end: endOfDay } = gymTodayRange(tz);
 
+  // 가장 늦게 끝나는 유효 회원권 — 표시용 "마지막 날"의 출처.
   const validMembership = await prisma.membership.findFirst({
     where: { userId, gymId, endDate: { gte: today } },
-    select: { id: true },
+    orderBy: { endDate: "desc" },
+    select: { endDate: true },
   });
 
   let eligible = Boolean(validMembership);
   if (!eligible) {
-    const { start, end } = manilaTodayRange();
+    const { start, end } = gymTodayRange(tz);
     const reservationToday = await prisma.reservation.findFirst({
       where: {
         customerUserId: userId,
@@ -89,10 +100,12 @@ export async function requestAccessQr(
     color: { dark: "#0a0a0a", light: "#ffffff" },
   });
 
+  // 표시용 유효일: 회원권 보유 시 회원권 마지막 날, 예약 임시발급이면 그날(토큰 만료일).
+  const displayExpiry = validMembership?.endDate ?? expiresAt;
   return {
     ok: true,
     qr,
-    expiresYmd: expiresAt.toISOString().slice(0, 10),
+    expiresYmd: displayExpiry.toISOString().slice(0, 10),
   };
 }
 
@@ -100,8 +113,10 @@ export async function requestAccessQr(
 //   - 본인 예약(customerUserId === user.id)만
 //   - 1:1만 (capacity 1, scheduledClassId null) — 단체 취소는 별도 흐름
 //   - 당일/과거 잠금 — 시작이 "오늘"이면 불가 (전화 안내), 과거도 불가
-//   - 통과 시: status=CANCELLED + Package.remainingCount += deductCount + ReservationLog
-//   - 권이 없는(unmanaged) 1:1 예약은 remainingCount 복구 단계 생략
+//   - 통과 시: status=CANCELLED + ReservationLog
+//   - remainingCount 는 손대지 않는다 — 잔여는 "완료" 시점에만 차감되므로
+//     미완료 예약 취소는 복구할 차감분이 없다(+1 하면 무료 1회를 주는 셈).
+//     단체 취소(cancelGroupEnrollment)와 동일 모델.
 export type CancelResult =
   | { ok: true }
   | {
@@ -124,7 +139,7 @@ export async function cancelReservation(
   const res = await prisma.reservation.findUnique({
     where: { id: reservationId },
     include: {
-      service: { select: { capacity: true, deductCount: true } },
+      service: { select: { capacity: true } },
     },
   });
   if (!res || res.gymId !== gymId) return { ok: false, reason: "notFound" };
@@ -137,7 +152,7 @@ export async function cancelReservation(
   }
 
   // 당일/과거 잠금: startAt < 내일 자정(Manila) 이면 거부.
-  const { end: todayEnd } = manilaTodayRange();
+  const { end: todayEnd } = gymTodayRange(user.business!.timeZone);
   if (res.startAt < todayEnd) {
     return { ok: false, reason: "sameDayOrPast" };
   }
@@ -147,28 +162,6 @@ export async function cancelReservation(
       where: { id: res.id },
       data: { status: "CANCELLED" },
     });
-    if (res.packageId) {
-      const deduct = Number(res.service.deductCount);
-      // 권의 remainingCount는 완료 시점에 차감되는 모델 — 취소만으로
-      // 차감되지 않았다면 복구하지 않아도 일관성 유지. 다만 사전 차감
-      // 흐름(예약 시 차감)도 일부 존재하므로 안전하게 복구 시도:
-      // remainingCount + deduct <= totalCount 일 때만 +.
-      const pkg = await tx.package.findUnique({
-        where: { id: res.packageId },
-        select: { remainingCount: true, totalCount: true },
-      });
-      if (pkg) {
-        const remaining = Number(pkg.remainingCount);
-        const total = Number(pkg.totalCount);
-        const next = Math.min(total, remaining + deduct);
-        if (next > remaining) {
-          await tx.package.update({
-            where: { id: res.packageId },
-            data: { remainingCount: next },
-          });
-        }
-      }
-    }
     await tx.reservationLog.create({
       data: {
         gymId,
@@ -216,22 +209,31 @@ export async function createReservation(
   const pkg = await prisma.package.findUnique({
     where: { id: packageId },
     include: {
-      service: { select: { capacity: true, durationMin: true } },
+      service: {
+        select: { capacity: true, durationMin: true, deductCount: true },
+      },
     },
   });
   if (!pkg || pkg.gymId !== gymId) return { ok: false, reason: "notFound" };
   if (pkg.userId !== user.id) return { ok: false, reason: "notOwner" };
   if (pkg.service.capacity !== 1)
     return { ok: false, reason: "notPersonal" };
-  if (Number(pkg.remainingCount) <= 0)
-    return { ok: false, reason: "noRemaining" };
+  // 잔여 초과 예약 차단 — remainingCount 만 보면 미완료 예약이 장차
+  // 소진할 몫을 무시하게 된다. 미완료 예약분을 뺀 가용으로 판정.
+  const deduct = pkg.service.deductCount;
+  const available = await packageAvailableCount(
+    pkg.id,
+    pkg.remainingCount,
+    deduct,
+  );
+  if (available < deduct) return { ok: false, reason: "noRemaining" };
   if (!pkg.assignedStaffId) return { ok: false, reason: "noTrainer" };
 
   const newStart = new Date(newStartIso);
   if (Number.isNaN(newStart.getTime()))
     return { ok: false, reason: "invalidTarget" };
 
-  const { end: todayEnd } = manilaTodayRange();
+  const { end: todayEnd } = gymTodayRange(user.business!.timeZone);
   if (newStart < todayEnd) return { ok: false, reason: "sameDayOrPast" };
 
   const newEnd = new Date(
@@ -313,7 +315,9 @@ export async function joinScheduledClass(
   const sched = await prisma.scheduledClass.findUnique({
     where: { id: scheduleId },
     include: {
-      service: { select: { capacity: true, durationMin: true } },
+      service: {
+        select: { capacity: true, durationMin: true, deductCount: true },
+      },
     },
   });
   if (!sched || sched.gymId !== gymId)
@@ -390,17 +394,14 @@ export async function joinScheduledClass(
   });
   if (mine) return { ok: false, reason: "alreadyJoined" };
 
-  // 본인 보유 단체 권(해당 service) FIFO 1장 선택
-  const pkg = await prisma.package.findFirst({
-    where: {
-      gymId,
-      userId: user.id,
-      serviceId: sched.serviceId,
-      remainingCount: { gt: 0 },
-    },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
+  // 본인 보유 단체 권(해당 service) FIFO 1장 선택 — 잔여는 있으나
+  // 미완료 예약으로 모두 선점된 권은 건너뛴다(초과 예약 차단).
+  const pkg = await pickBookablePackage(
+    gymId,
+    user.id,
+    sched.serviceId,
+    sched.service.deductCount,
+  );
   if (!pkg) return { ok: false, reason: "noPack" };
 
   await prisma.$transaction(async (tx) => {
@@ -487,7 +488,7 @@ export async function moveReservation(
     return { ok: false, reason: "alreadyClosed" };
   }
 
-  const { end: todayEnd } = manilaTodayRange();
+  const { end: todayEnd } = gymTodayRange(user.business!.timeZone);
   if (res.startAt < todayEnd) {
     return { ok: false, reason: "sameDayOrPast" };
   }
@@ -534,4 +535,21 @@ export async function moveReservation(
   revalidatePath(`/ko/g/${slug}/me`);
   revalidatePath(`/en/g/${slug}/me`);
   return { ok: true };
+}
+
+// 고객 대시보드 캘린더 월 네비게이션 — 클라이언트(MeCalendar)가 전달/다음달
+// 버튼마다 호출. 페이지 전체를 다시 안 받고 캘린더만 갱신.
+export async function meCalendarMonth(
+  slug: string,
+  year: number,
+  month: number,
+): Promise<MeCalendarMonth> {
+  const user = await requireGymCustomer(slug);
+  return loadMeCalendarMonth(
+    user.business!.id,
+    user.id,
+    gymTodayUtcMidnight(user.business!.timeZone),
+    year,
+    month,
+  );
 }

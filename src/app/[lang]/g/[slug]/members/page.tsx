@@ -142,7 +142,7 @@ export default async function GymMembersPage({
         isGroup,
         total: 0,
       };
-      cur.total += Number(p.remainingCount);
+      cur.total += p.remainingCount;
       perService.set(key, cur);
     }
     const remainingPerService = Array.from(perService.values())

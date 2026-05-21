@@ -46,6 +46,12 @@ export async function requireGymCustomer(slug: string) {
   if (!user.business || user.business.slug !== slug) {
     redirect(`/g/${slug}/login`);
   }
+  // 스태프는 고객 페이지(/me 등)에 들어올 일이 없다 — 대시보드로 보낸다.
+  // (requireGymStaff 가 고객을 /me 로 보내는 것과 대칭) 트레이너가 /me 의
+  // 고객 전용 출입 QR 흐름을 타 "발급 불가"를 보던 문제를 차단.
+  if (["OWNER", "MANAGER", "TRAINER"].includes(user.role)) {
+    redirect(`/g/${slug}/dashboard`);
+  }
   return user;
 }
 

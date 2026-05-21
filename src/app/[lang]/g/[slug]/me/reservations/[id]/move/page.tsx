@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
-import { manilaTodayRange } from "@/lib/calendar/manila";
+import { gymTodayRange } from "@/lib/calendar/gymTime";
 import { loadTrainerCalendar } from "@/lib/calendar/trainerCalendarPro";
 import { MovePicker } from "./MovePicker";
 
@@ -36,7 +36,7 @@ export default async function ReservationMovePage({
     redirect(`/${lang}/g/${slug}/me`);
   }
 
-  const { end: todayEnd } = manilaTodayRange();
+  const { end: todayEnd } = gymTodayRange(business.timeZone);
   if (res.startAt < todayEnd) {
     redirect(`/${lang}/g/${slug}/me`);
   }
@@ -45,6 +45,7 @@ export default async function ReservationMovePage({
     business.id,
     res.staff.id,
     res.staff.user.name,
+    business.timeZone,
   );
 
   // 내일부터 14일치만 잘라 클라이언트에 넘김.
@@ -112,7 +113,7 @@ export default async function ReservationMovePage({
 
 function formatDateTime(d: Date, lang: string): string {
   return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
-    timeZone: "Asia/Manila",
+    timeZone: "UTC",
     month: "short",
     day: "numeric",
     weekday: "short",
@@ -124,7 +125,7 @@ function formatDateTime(d: Date, lang: string): string {
 
 function formatTime(d: Date, lang: string): string {
   return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
-    timeZone: "Asia/Manila",
+    timeZone: "UTC",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,

@@ -4,21 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createReservation } from "../../actions";
-
-type GridCell =
-  | { kind: "unavail" }
-  | { kind: "free" }
-  | { kind: "booked"; ev: unknown };
-
-type GridDay = {
-  year: number;
-  month: number;
-  day: number;
-  weekdayIdx: number;
-  state: "open" | "off" | "closed";
-  reason: string | null;
-  cells: GridCell[];
-};
+import type { GridDay } from "@/lib/calendar/trainerCalendarPro";
 
 export function NewReservationPicker({
   slug,

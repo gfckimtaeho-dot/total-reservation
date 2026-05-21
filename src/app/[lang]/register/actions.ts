@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db/client";
 import { hashPassword } from "@/lib/auth/password";
 import { issueSession } from "@/lib/auth/session";
 import { sendWelcomeEmail } from "@/lib/email/resend";
+import { isSupportedTimeZone } from "@/lib/calendar/timezones";
 
 const RESERVED_SLUGS = new Set([
   "admin",
@@ -40,6 +41,9 @@ const schema = z
     category: z.enum(["GYM", "MASSAGE"], {
       message: "업종을 선택해 주세요",
     }),
+    timeZone: z
+      .string()
+      .refine(isSupportedTimeZone, "타임존을 선택해 주세요"),
     cityId: z.string().min(1, "시를 선택해 주세요"),
     barangayId: z.string().min(1, "동을 선택해 주세요"),
     ownerName: z.string().min(1, "이름을 입력해 주세요"),
@@ -136,6 +140,7 @@ export async function registerBusiness(
           slug: d.slug,
           name: d.storeName,
           category: d.category,
+          timeZone: d.timeZone,
           phone: d.storePhone,
           cityId: city.id,
           barangayId: barangay.id,

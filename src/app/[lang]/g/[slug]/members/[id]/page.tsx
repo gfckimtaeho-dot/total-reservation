@@ -221,7 +221,7 @@ export default async function MemberDetailPage({
         ? "PACKAGE_GROUP"
         : "PACKAGE_PERSONAL") as Holding["kind"],
       item: p.service?.name ?? t("noValue"),
-      info: `${Number(p.remainingCount)} / ${Number(p.totalCount)}`,
+      info: `${p.remainingCount} / ${p.totalCount}`,
     })),
   ].sort((a, b) => order[a.kind] - order[b.kind]);
   function kindLabel(k: Holding["kind"]): string {

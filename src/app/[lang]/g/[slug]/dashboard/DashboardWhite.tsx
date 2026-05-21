@@ -3,16 +3,12 @@ import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/client";
 import {
-  MOCK_ACCESS_LOG,
-  MOCK_KPI,
-  MOCK_RESERVATIONS_TODAY,
   fmtTime,
-  formatManilaMonthLabel,
-  getManilaMonthInfo,
-  groupByHour,
-} from "../../../preview/_mock";
+  formatGymMonthLabel,
+  getGymMonthInfo,
+} from "@/lib/calendar/gymTime";
 import { SidebarNav } from "./SidebarNav";
-import { getKpiExtras, fmtHoursRange, fmtCheckIn } from "./kpi-data";
+import { getKpiExtras, fmtCheckIn } from "./kpi-data";
 import { CalendarMonth } from "./CalendarMonth";
 import {
   expandSchedulesToMonth,
@@ -28,30 +24,36 @@ type Props = {
   slug: string;
   gymId: string;
   businessName: string;
+  timeZone: string;
 };
 
-export async function DashboardWhite({ lang, slug, gymId, businessName }: Props) {
+export async function DashboardWhite({
+  lang,
+  slug,
+  gymId,
+  businessName,
+  timeZone,
+}: Props) {
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
   const tc = await getTranslations("checkin");
-  const th = await getTranslations("hours");
   const ts = await getTranslations("services.schedule");
   const kpi = await getKpiExtras(gymId);
-  const buckets = groupByHour(MOCK_RESERVATIONS_TODAY);
+  const buckets = kpi.todayBuckets;
   const weekdays = lang === "en" ? WEEKDAYS_EN : WEEKDAYS;
   const today = new Date();
   const todayDisplay = new Intl.DateTimeFormat(
     lang === "en" ? "en-US" : "ko-KR",
     {
-      timeZone: "Asia/Manila",
+      timeZone,
       year: "numeric",
       month: "long",
       day: "numeric",
       weekday: "long",
     },
   ).format(today);
-  const monthLabel = formatManilaMonthLabel(today, lang);
-  const monthInfo = getManilaMonthInfo(today);
+  const monthLabel = formatGymMonthLabel(timeZone, today, lang);
+  const monthInfo = getGymMonthInfo(timeZone, today);
   const monthStart = new Date(Date.UTC(monthInfo.year, monthInfo.month - 1, 1));
   const monthEndExclusive = new Date(
     Date.UTC(monthInfo.year, monthInfo.month, 1),
@@ -162,9 +164,6 @@ export async function DashboardWhite({ lang, slug, gymId, businessName }: Props)
               {todayDisplay}
             </h1>
           </div>
-          <span className="rounded-full bg-zinc-100 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-600">
-            {t("sampleData")}
-          </span>
         </header>
 
         <div className="grid grid-cols-12 gap-4 p-6">
@@ -172,44 +171,22 @@ export async function DashboardWhite({ lang, slug, gymId, businessName }: Props)
           <PastelKpi
             tone="lime"
             label={t("kpiTodayBookings")}
-            value={MOCK_KPI.todayBookings}
+            value={kpi.ptCount + kpi.groupParticipants}
             sub={t("unitCount")}
             cellOnly
             extra={
-              <div className="flex flex-col items-end gap-1 text-right text-xs">
-                {kpi.hours.state === "OPEN" ? (
-                  <>
-                    <span
-                      className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                        kpi.hours.onBreak
-                          ? "bg-amber-100 text-amber-800"
-                          : kpi.hours.nowOpen
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-rose-100 text-rose-700"
-                      }`}
-                    >
-                      {kpi.hours.onBreak
-                        ? th("onBreakNow")
-                        : kpi.hours.nowOpen
-                          ? th("operatingNow")
-                          : th("closedNow")}
-                    </span>
-                    <span className="font-mono tabular-nums text-zinc-600">
-                      {fmtHoursRange(kpi.hours)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
-                    {th("closedToday")}
-                  </span>
-                )}
+              <div className="text-right text-xs leading-relaxed text-zinc-600">
+                {t("kpiBookingBreakdown", {
+                  pt: kpi.ptCount,
+                  group: kpi.groupParticipants,
+                })}
               </div>
             }
           />
           <PastelKpi
             tone="amber"
             label={t("kpiActiveMembers")}
-            value={`${MOCK_KPI.activeMembers}/${MOCK_KPI.totalCustomersEver}`}
+            value={`${kpi.activeMembers}/${kpi.totalCustomers}`}
             sub={t("unitPeople")}
             cellOnly
           />
@@ -318,6 +295,11 @@ export async function DashboardWhite({ lang, slug, gymId, businessName }: Props)
                 </li>
               ))}
             </ol>
+            {buckets.length === 0 && (
+              <p className="mt-3 text-sm text-zinc-500">
+                {t("timelineEmpty")}
+              </p>
+            )}
           </section>
 
           <section className="col-span-12 rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-200/50 xl:col-span-5">
@@ -337,7 +319,7 @@ export async function DashboardWhite({ lang, slug, gymId, businessName }: Props)
           <section className="col-span-12 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200/60 xl:col-span-2">
             <SectionHead title={t("accessTitle")} />
             <ul className="mt-4 divide-y divide-amber-200/50">
-              {MOCK_ACCESS_LOG.filter((e) => e.daysAgo === 0).map((e) => (
+              {kpi.accessToday.map((e) => (
                 <li key={e.id} className="py-2 first:pt-0 last:pb-0">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="truncate text-sm font-medium text-ink">

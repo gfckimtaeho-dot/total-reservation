@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { pickBestPromo } from "@/lib/catalog/promo";
+import { pickBookablePackage } from "@/lib/packages/availability";
 
 // 신규 고객 등록 + 서비스(권) 발급 + 예약 추가. 트레이너가 직접 처리
 // (사장은 운영 바빠 거의 안 함). 발급 = Sale 1건 + Package/Membership 인스턴스
@@ -181,7 +182,7 @@ export async function listMyAssignedCustomers(input: {
 // 같은 service 권 여러 장이면 잔여 합산해 한 줄로. capacity > 1 = 단체 flag.
 function dedupServices(
   packages: {
-    remainingCount: { toString: () => string } | number;
+    remainingCount: number;
     service: { name: string; capacity: number };
   }[],
 ): { name: string; isGroup: boolean; remaining: number }[] {
@@ -192,11 +193,7 @@ function dedupServices(
   for (const p of packages) {
     const isGroup = p.service.capacity > 1;
     const key = `${isGroup ? "G" : "P"}::${p.service.name}`;
-    const inc = Number(
-      typeof p.remainingCount === "number"
-        ? p.remainingCount
-        : p.remainingCount.toString(),
-    );
+    const inc = p.remainingCount;
     const cur = m.get(key) ?? {
       name: p.service.name,
       isGroup,
@@ -237,8 +234,8 @@ export async function customerRemaining(input: {
   for (const p of pkgs) {
     const name = p.service?.name ?? "-";
     const cur = bySvc.get(name) ?? { service: name, total: 0, remaining: 0 };
-    cur.total += Number(p.totalCount);
-    cur.remaining += Number(p.remainingCount);
+    cur.total += p.totalCount;
+    cur.remaining += p.remainingCount;
     bySvc.set(name, cur);
   }
   return { ok: true, data: [...bySvc.values()] };
@@ -579,10 +576,52 @@ async function lookupStaffIdForUser(
   return s?.id ?? null;
 }
 
-// 예약 추가 — FIFO 로 잔여>0 인 그 서비스 권을 골라 연결. 권 없으면 차단.
+// 빈 슬롯 등록용 — 그 고객이 보유한 1:1 서비스(capacity 1) 중 잔여>0 인
+// 것 목록. 트레이너가 어떤 서비스로 예약할지 직접 고르게 한다(FIFO 고정 금지).
+export async function listBookableServices(input: {
+  slug: string;
+  customerUserId: string;
+}): Promise<R> {
+  const auth = await requireGymStaff(input.slug);
+  const gymId = auth.business!.id;
+  const pkgs = await prisma.package.findMany({
+    where: {
+      gymId,
+      userId: input.customerUserId,
+      remainingCount: { gt: 0 },
+      service: { capacity: 1 },
+    },
+    select: {
+      serviceId: true,
+      remainingCount: true,
+      service: { select: { name: true } },
+    },
+  });
+  // 같은 서비스 권 여러 장이면 잔여 합산.
+  const m = new Map<
+    string,
+    { serviceId: string; name: string; remaining: number }
+  >();
+  for (const p of pkgs) {
+    const cur = m.get(p.serviceId) ?? {
+      serviceId: p.serviceId,
+      name: p.service?.name ?? "-",
+      remaining: 0,
+    };
+    cur.remaining += p.remainingCount;
+    m.set(p.serviceId, cur);
+  }
+  return {
+    ok: true,
+    data: [...m.values()].sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
+// 예약 추가 — 트레이너가 고른 서비스의 잔여 권을 FIFO 로 골라 연결.
 export async function addReservation(input: {
   slug: string;
   customerUserId: string;
+  serviceId: string;
   year: number;
   month: number;
   day: number;
@@ -596,28 +635,23 @@ export async function addReservation(input: {
   });
   if (!staff) return { ok: false, error: "트레이너 정보를 찾을 수 없습니다" };
 
-  // FIFO: 먼저 산, 잔여>0 인 권(서비스 무관 가장 오래된 것) → 그 권의 서비스로.
-  const pkg = await prisma.package.findFirst({
-    where: {
-      gymId,
-      userId: input.customerUserId,
-      remainingCount: { gt: 0 },
-    },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, serviceId: true },
-  });
-  if (!pkg) {
-    return {
-      ok: false,
-      error: "잔여 횟수권이 없습니다. 먼저 권을 발급해 주세요.",
-    };
-  }
   const service = await prisma.service.findFirst({
-    where: { id: pkg.serviceId, gymId },
-    select: { durationMin: true },
+    where: { id: input.serviceId, gymId },
+    select: { durationMin: true, deductCount: true },
   });
   if (!service) return { ok: false, error: "서비스를 찾을 수 없습니다" };
-  const serviceId = pkg.serviceId;
+
+  // 고른 서비스의 잔여 권 — 같은 서비스 권이 여럿이면 가장 오래된 것부터.
+  // 잔여는 있으나 미완료 예약으로 모두 선점된 권은 건너뛴다(초과 예약 차단).
+  const pkg = await pickBookablePackage(
+    gymId,
+    input.customerUserId,
+    input.serviceId,
+    service.deductCount,
+  );
+  if (!pkg) {
+    return { ok: false, error: "이 서비스로 더 예약할 잔여 횟수가 없습니다" };
+  }
 
   const startAt = new Date(
     Date.UTC(
@@ -646,17 +680,30 @@ export async function addReservation(input: {
   });
   if (clash) return { ok: false, error: "그 시간에 이미 예약이 있습니다" };
 
-  await prisma.reservation.create({
-    data: {
-      gymId,
-      serviceId,
-      staffId: staff.id,
-      customerUserId: input.customerUserId,
-      startAt,
-      endAt,
-      status: "CONFIRMED",
-      packageId: pkg.id,
-    },
+  await prisma.$transaction(async (tx) => {
+    const r = await tx.reservation.create({
+      data: {
+        gymId,
+        serviceId: input.serviceId,
+        staffId: staff.id,
+        customerUserId: input.customerUserId,
+        startAt,
+        endAt,
+        status: "CONFIRMED",
+        packageId: pkg.id,
+      },
+      select: { id: true },
+    });
+    // 트레이너가 건 예약도 고객 셀프·단체 등록과 동일하게 ReservationLog
+    // CREATED 를 남긴다 — 감사 일관성(이게 빠져 액션 로그가 비어 있었음).
+    await tx.reservationLog.create({
+      data: {
+        gymId,
+        reservationId: r.id,
+        action: "CREATED",
+        actorUserId: auth.id,
+      },
+    });
   });
   rev(input.slug);
   return { ok: true };
