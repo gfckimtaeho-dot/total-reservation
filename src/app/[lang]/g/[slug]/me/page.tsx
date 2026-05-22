@@ -4,6 +4,7 @@ import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { gymTodayUtcMidnight } from "@/lib/calendar/gymTime";
 import { loadMeCalendarMonth } from "@/lib/calendar/meCalendar";
+import { OPEN_STATUSES } from "@/lib/packages/availability";
 import { PwaCard } from "./PwaCard";
 import { MeHeaderActions } from "./MeHeaderActions";
 import { MeCalendar } from "./MeCalendar";
@@ -56,8 +57,17 @@ export default async function CustomerHomePage({
       },
       select: {
         id: true,
+        totalCount: true,
+        remainingCount: true,
         assignedStaffId: true,
-        service: { select: { id: true, name: true, capacity: true } },
+        service: {
+          select: {
+            id: true,
+            name: true,
+            capacity: true,
+            deductCount: true,
+          },
+        },
       },
       // FIFO — 데이 시트가 같은 서비스 권이 여럿이면 먼저 산 것부터 쓴다.
       orderBy: { createdAt: "asc" },
@@ -88,6 +98,42 @@ export default async function CustomerHomePage({
   ]);
 
   const hasAnyPass = membershipCount > 0 || packages.length > 0;
+
+  // 보유 현황 — 횟수권을 서비스별로 묶어 완료/예약중/예약가능 집계.
+  // 같은 서비스 권이 여러 장이면 합산(어느 권으로든 예약 가능하므로).
+  const openByPkg = new Map<string, number>();
+  if (packages.length > 0) {
+    const openGroups = await prisma.reservation.groupBy({
+      by: ["packageId"],
+      where: {
+        packageId: { in: packages.map((p) => p.id) },
+        status: { in: [...OPEN_STATUSES] },
+      },
+      _count: { _all: true },
+    });
+    for (const g of openGroups) {
+      if (g.packageId) openByPkg.set(g.packageId, g._count._all);
+    }
+  }
+  const passBySvc = new Map<
+    string,
+    { name: string; completed: number; booked: number; available: number }
+  >();
+  for (const p of packages) {
+    const completed = p.totalCount - p.remainingCount;
+    const booked = (openByPkg.get(p.id) ?? 0) * p.service.deductCount;
+    const cur = passBySvc.get(p.service.id) ?? {
+      name: p.service.name,
+      completed: 0,
+      booked: 0,
+      available: 0,
+    };
+    cur.completed += completed;
+    cur.booked += booked;
+    cur.available += Math.max(0, p.remainingCount - booked);
+    passBySvc.set(p.service.id, cur);
+  }
+  const passes = [...passBySvc.values()];
   // 트레이너 대시보드 오늘 날짜 라벨과 동일 형식: "5/22 (목) · 2026"
   const todayWd = new Intl.DateTimeFormat(
     lang === "en" ? "en-US" : "ko-KR",
@@ -130,7 +176,7 @@ export default async function CustomerHomePage({
       </header>
 
       <main className="relative flex-1">
-        <div className="mx-auto w-full max-w-3xl space-y-4 px-6 py-6">
+        <div className="mx-auto w-full max-w-3xl space-y-3 px-6 pb-6 pt-4">
           {closureToday && (
             <ClosureBanner
               reason={closureToday.reason}
@@ -147,6 +193,8 @@ export default async function CustomerHomePage({
           />
 
           {!hasAnyPass && <NoPassNotice t={t} />}
+
+          {passes.length > 0 && <PassSummary passes={passes} t={t} />}
 
           <MeCalendar
             slug={slug}
@@ -237,22 +285,22 @@ function TodayHero({
   t: T;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/80 p-5">
-      <div className="absolute -inset-px rounded-3xl ring-1 ring-rose-300/30" />
+    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80 p-4">
+      <div className="absolute -inset-px rounded-2xl ring-1 ring-rose-300/30" />
       <div className="relative">
         {/* 단일 색 — 밝은 퍼플. 다크 카드 위에서 또렷하게. */}
         <h3 className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="font-heading text-lg font-bold tracking-tight text-purple-300">
+          <span className="font-heading text-base font-bold tracking-tight text-purple-300">
             {t("todayTitle")}
           </span>
-          <span className="text-sm font-medium tracking-tight text-zinc-300">
+          <span className="text-xs font-medium tracking-tight text-zinc-300">
             {dateLabel}
           </span>
         </h3>
         {reservations.length === 0 ? (
-          <div className="mt-3.5 text-sm text-zinc-400">{t("todayEmpty")}</div>
+          <div className="mt-2 text-xs text-zinc-400">{t("todayEmpty")}</div>
         ) : (
-          <ul className="mt-3.5 space-y-1.5">
+          <ul className="mt-2 space-y-1">
             {reservations.map((r) => {
               const isGroup =
                 r.scheduledClassId !== null || r.service.capacity !== 1;
@@ -274,7 +322,7 @@ function TodayHero({
                 <li key={r.id}>
                   <div
                     className={
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm " +
+                      "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm " +
                       rowCls
                     }
                   >
@@ -300,6 +348,59 @@ function TodayHero({
           </ul>
         )}
       </div>
+    </section>
+  );
+}
+
+// 보유 현황 — 횟수권별 한 줄. 캘린더 바로 위에서 "예약 가능"을 보고
+// 달력 날짜를 고르도록. 데이 시트 예약/취소 시 함께 갱신된다.
+function PassSummary({
+  passes,
+  t,
+}: {
+  passes: {
+    name: string;
+    completed: number;
+    booked: number;
+    available: number;
+  }[];
+  t: T;
+}) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
+        {t("passSummaryTitle")}
+      </h3>
+      <ul className="mt-2 space-y-1.5">
+        {passes.map((p) => (
+          <li
+            key={p.name}
+            className="flex items-center justify-between gap-3"
+          >
+            <span className="min-w-0 truncate text-sm font-medium text-white">
+              {p.name}
+            </span>
+            <div className="flex shrink-0 items-baseline gap-2">
+              <span
+                className={
+                  "text-sm font-semibold tabular-nums " +
+                  (p.available > 0
+                    ? "text-emerald-300"
+                    : "text-zinc-500")
+                }
+              >
+                {t("packageAvailableBig", { n: p.available })}
+              </span>
+              <span className="text-[11px] tabular-nums text-zinc-500">
+                {t("passSummaryDetail", {
+                  done: p.completed,
+                  booked: p.booked,
+                })}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

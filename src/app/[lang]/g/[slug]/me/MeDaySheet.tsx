@@ -117,6 +117,8 @@ export function MeDaySheet({
       const fresh = await loadMeDaySheet(slug, cell.dayKey);
       setData(fresh);
       onChanged();
+      // 페이지의 서버 렌더분(보유 현황 카드 등)도 최신화.
+      router.refresh();
     });
   }
 
