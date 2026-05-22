@@ -54,6 +54,7 @@ export default async function CustomerHomePage({
         gymId: business.id,
         userId: user.id,
         remainingCount: { gt: 0 },
+        refundedAt: null, // 환불 동결 권 제외
       },
       select: {
         id: true,

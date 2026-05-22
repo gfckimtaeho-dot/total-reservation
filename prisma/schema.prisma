@@ -116,6 +116,24 @@ enum PriceChangeEntity {
   PROMOTION_VALUE
 }
 
+// 환불 대상 종류 — 횟수권 / 회원권.
+enum RefundKind {
+  PACKAGE
+  MEMBERSHIP
+}
+
+// 환불 처리 상태 — 미지급(신청됨, 송금 대기) / 완료.
+enum RefundStatus {
+  PENDING
+  COMPLETED
+}
+
+// 환불금 수령 방식 — 계좌이체 / 헬스장 직접 수령.
+enum RefundPayoutMethod {
+  BANK_TRANSFER
+  IN_PERSON
+}
+
 // Promotion 적용 범위. 콤보는 자체 할인이라 promotion 적용 제외(의도적 누락).
 enum PromotionScope {
   ALL
@@ -258,6 +276,7 @@ model Business {
   inviteToken         InviteToken?
   scheduledClasses    ScheduledClass[]
   priceChangeLogs     PriceChangeLog[]
+  refundRequests      RefundRequest[]
   sales               Sale[]
   createdById         String?
   updatedById         String?
@@ -292,6 +311,7 @@ model User {
   staff               Staff?
   memberships         Membership[]
   packages            Package[]
+  refundRequests      RefundRequest[]
   reservations        Reservation[]            @relation("CustomerReservations")
   qrTokens            QrToken[]
   accessLogs          AccessLog[]
@@ -589,10 +609,14 @@ model Membership {
   plan        MembershipPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   saleId      String?
   sale        Sale?           @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  // 환불 신청 시각 — null 이 아니면 환불 진행/완료된 동결 상태.
+  refundedAt  DateTime?       @db.Timestamptz(3)
   createdAt   DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
   createdById String?
   updatedById String?
+
+  refundRequests RefundRequest[]
 
   @@index([gymId, userId])
   @@index([gymId, endDate])
@@ -739,6 +763,57 @@ model PriceChangeLog {
   @@index([gymId, changedAt])
 }
 
+// ─── RefundRequest (환불 신청) ─────────────────────────────
+// 고객이 횟수권/회원권 잔여분을 환불 신청. 신청 시 권은 동결(refundedAt),
+// 미래(내일 이후) 예약은 취소된다. 당일 예약은 완료 취급(환불 제외).
+// 금액·횟수는 신청 시점 스냅샷으로 고정(분쟁 추적). 사장이 송금/직접지급
+// 후 status=COMPLETED 로 마감. 거절 플로우는 없음.
+model RefundRequest {
+  id           String      @id @default(cuid())
+  gymId        String
+  business     Business    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind         RefundKind
+  // kind 에 따라 하나만 채워진다. 권 삭제 시 환불 기록은 보존(SetNull).
+  packageId    String?
+  package      Package?    @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  membershipId String?
+  membership   Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+
+  // 신청 시점 스냅샷 — 불변. 매출/환불 분쟁 추적용.
+  serviceName    String  // 서비스명 또는 회원권명
+  trainerName    String? // 횟수권 담당 트레이너(회원권은 null)
+  paidPhp        Int     // 원 결제가
+  refundPhp      Int     // 환불 금액 (올림 적용)
+  // 횟수권: 회 단위 / 회원권: 일 단위. total = completed + today + refund.
+  totalUnits     Int
+  completedUnits Int // 완료된 수업 / 회원권 경과일
+  todayUnits     Int // 당일 예약으로 사용 처리된 횟수 (회원권은 0)
+  refundUnits    Int // 환불 대상 횟수 / 회원권 잔여일
+
+  payoutMethod  RefundPayoutMethod
+  bankName      String? // BANK_TRANSFER 일 때
+  bankAccount   String?
+  accountHolder String?
+
+  status        RefundStatus @default(PENDING)
+  requestedAt   DateTime     @default(now()) @db.Timestamptz(3)
+  completedAt   DateTime?    @db.Timestamptz(3)
+  completedById String? // 환불 완료를 처리한 staff/owner
+
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@index([gymId, status, requestedAt])
+  @@index([gymId, userId])
+  @@index([packageId])
+  @@index([membershipId])
+}
+
 model Package {
   id             String       @id @default(cuid())
   gymId          String
@@ -763,9 +838,12 @@ model Package {
   // 하드 제약 아님: 고객은 다른 트레이너로 분산 예약 가능, staff 비활성 시 SetNull.
   assignedStaffId String?
   assignedStaff   Staff?      @relation(fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  // 환불 신청 시각 — null 이 아니면 환불 진행/완료된 동결 상태(예약 불가).
+  refundedAt     DateTime?    @db.Timestamptz(3)
   createdAt      DateTime     @default(now()) @db.Timestamptz(3)
 
-  reservations Reservation[]
+  reservations   Reservation[]
+  refundRequests RefundRequest[]
   updatedAt    DateTime      @default(now()) @updatedAt @db.Timestamptz(3)
   createdById  String?
   updatedById  String?

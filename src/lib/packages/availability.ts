@@ -36,7 +36,13 @@ export async function pickBookablePackage(
   deductCount: number,
 ): Promise<{ id: string } | null> {
   const pkgs = await prisma.package.findMany({
-    where: { gymId, userId, serviceId, remainingCount: { gt: 0 } },
+    where: {
+      gymId,
+      userId,
+      serviceId,
+      remainingCount: { gt: 0 },
+      refundedAt: null, // 환불 동결 권은 예약 불가
+    },
     orderBy: { createdAt: "asc" },
     select: { id: true, remainingCount: true },
   });

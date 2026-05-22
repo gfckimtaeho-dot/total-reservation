@@ -283,6 +283,8 @@ export async function createReservation(
   });
   if (!pkg || pkg.gymId !== gymId) return { ok: false, reason: "notFound" };
   if (pkg.userId !== user.id) return { ok: false, reason: "notOwner" };
+  // 환불 동결 권은 예약 불가.
+  if (pkg.refundedAt) return { ok: false, reason: "notFound" };
   if (pkg.service.capacity !== 1)
     return { ok: false, reason: "notPersonal" };
   // 잔여 초과 예약 차단 — remainingCount 만 보면 미완료 예약이 장차
@@ -737,7 +739,12 @@ export async function loadMeDaySheet(
 
   // 트립 1 — 보유 권. 다음 트립을 막는 유일한 선행 조회.
   const pkgs = await prisma.package.findMany({
-    where: { gymId, userId: user.id, remainingCount: { gt: 0 } },
+    where: {
+      gymId,
+      userId: user.id,
+      remainingCount: { gt: 0 },
+      refundedAt: null, // 환불 동결 권 제외
+    },
     select: {
       id: true,
       remainingCount: true,

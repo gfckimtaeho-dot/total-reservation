@@ -117,6 +117,7 @@ export async function loadMeCalendarMonth(
           gymId,
           userId,
           remainingCount: { gt: 0 },
+          refundedAt: null, // 환불 동결 권 제외
           service: { capacity: { gt: 1 } },
         },
         select: { serviceId: true },

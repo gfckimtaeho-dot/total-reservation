@@ -37,7 +37,8 @@ export default async function NewReservationPage({
     pkg.gymId !== business.id ||
     pkg.userId !== user.id ||
     pkg.service.capacity !== 1 ||
-    pkg.remainingCount <= 0
+    pkg.remainingCount <= 0 ||
+    pkg.refundedAt // 환불 동결 권은 예약 불가
   ) {
     redirect(`/${lang}/g/${slug}/me`);
   }

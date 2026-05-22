@@ -142,6 +142,7 @@ async function loadChangeContext(
       gymId: true,
       userId: true,
       assignedStaffId: true,
+      refundedAt: true,
       service: { select: { capacity: true } },
     },
   });
@@ -149,7 +150,8 @@ async function loadChangeContext(
     !pkg ||
     pkg.gymId !== gymId ||
     pkg.userId !== user.id ||
-    pkg.service.capacity !== 1
+    pkg.service.capacity !== 1 ||
+    pkg.refundedAt // 환불 동결 권은 트레이너 변경 불가
   ) {
     return null;
   }

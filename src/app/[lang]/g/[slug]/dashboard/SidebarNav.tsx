@@ -14,6 +14,7 @@ type ActiveKey =
   | "products"
   | "services"
   | "revenue"
+  | "refunds"
   | "settings";
 
 type Item = {
@@ -30,6 +31,7 @@ function items(lang: string, slug: string): Item[] {
     { key: "hours", href: `/${lang}/g/${slug}/hours` },
     { key: "products", href: `/${lang}/g/${slug}/products` },
     { key: "revenue", href: null },
+    { key: "refunds", href: `/${lang}/g/${slug}/refunds` },
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
   ];
 }
@@ -83,6 +85,7 @@ function parsePathname(
   else if (section === "products") key = "products";
   else if (section === "services") key = "services";
   else if (section === "revenue") key = "revenue";
+  else if (section === "refunds") key = "refunds";
   else if (section === "settings") key = "settings";
   return { lang, slug, activeKey: key };
 }
@@ -94,6 +97,7 @@ function keyFromHref(href: string): ActiveKey | null {
   if (href.endsWith("/hours")) return "hours";
   if (href.endsWith("/products")) return "products";
   if (href.endsWith("/services")) return "services";
+  if (href.endsWith("/refunds")) return "refunds";
   if (href.endsWith("/settings")) return "settings";
   return null;
 }
@@ -170,6 +174,7 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
             n.key === "hours" ||
             n.key === "products" ||
             n.key === "services" ||
+            n.key === "refunds" ||
             n.key === "settings") &&
           effectiveKey === n.key;
         if (!n.href) {

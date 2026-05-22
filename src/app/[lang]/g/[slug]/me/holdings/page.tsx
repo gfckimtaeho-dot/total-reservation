@@ -180,16 +180,28 @@ export default async function HoldingsPage({
                             {t("membershipExpiresOn", { date: expiresLabel })}
                           </div>
                         </div>
-                        <div
-                          className={
-                            "shrink-0 font-heading text-sm tabular-nums " +
-                            (soon ? "text-amber-200" : "text-zinc-200")
-                          }
-                        >
-                          {t("membershipDaysLeft", { n: daysLeft })}
-                        </div>
+                        {m.refundedAt ? (
+                          <RefundedBadge t={t} />
+                        ) : (
+                          <div
+                            className={
+                              "shrink-0 font-heading text-sm tabular-nums " +
+                              (soon ? "text-amber-200" : "text-zinc-200")
+                            }
+                          >
+                            {t("membershipDaysLeft", { n: daysLeft })}
+                          </div>
+                        )}
                       </div>
-                      <RefundPlaceholder t={t} />
+                      {!m.refundedAt && (
+                        <RefundLink
+                          lang={lang}
+                          slug={slug}
+                          kind="MEMBERSHIP"
+                          id={m.id}
+                          t={t}
+                        />
+                      )}
                     </li>
                   );
                 })}
@@ -210,15 +222,19 @@ export default async function HoldingsPage({
                         <div className="text-sm font-medium text-white">
                           {p.service.name}
                         </div>
-                        <PackageCounts
-                          totalCount={p.totalCount}
-                          remainingCount={p.remainingCount}
-                          deductCount={p.service.deductCount}
-                          openCount={openByPkg.get(p.id) ?? 0}
-                          t={t}
-                        />
+                        {p.refundedAt ? (
+                          <RefundedBadge t={t} />
+                        ) : (
+                          <PackageCounts
+                            totalCount={p.totalCount}
+                            remainingCount={p.remainingCount}
+                            deductCount={p.service.deductCount}
+                            openCount={openByPkg.get(p.id) ?? 0}
+                            t={t}
+                          />
+                        )}
                       </div>
-                      {p.assignedStaffId && (
+                      {!p.refundedAt && p.assignedStaffId && (
                         <a
                           href={`/${lang}/g/${slug}/me/reservations/new?pkg=${p.id}`}
                           className="shrink-0 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_4px_14px_-6px_rgba(251,146,60,0.6)] hover:brightness-110"
@@ -227,26 +243,38 @@ export default async function HoldingsPage({
                         </a>
                       )}
                     </div>
-                    <PackageTrainerCard
-                      slug={slug}
-                      lang={lang}
-                      packageId={p.id}
-                      pendingRebookCount={pendingRebookByPkg.get(p.id) ?? 0}
-                      assignedStaff={
-                        p.assignedStaff
-                          ? {
-                              name: p.assignedStaff.user.name,
-                              phone: p.assignedStaff.user.phone,
-                              photoUrl: p.assignedStaff.photoUrl,
-                              specialty:
-                                p.assignedStaff.specialties[0] ?? null,
-                              career: p.assignedStaff.career,
-                              bio: p.assignedStaff.bio,
-                            }
-                          : null
-                      }
-                    />
-                    <RefundPlaceholder t={t} />
+                    {!p.refundedAt && (
+                      <PackageTrainerCard
+                        slug={slug}
+                        lang={lang}
+                        packageId={p.id}
+                        pendingRebookCount={
+                          pendingRebookByPkg.get(p.id) ?? 0
+                        }
+                        assignedStaff={
+                          p.assignedStaff
+                            ? {
+                                name: p.assignedStaff.user.name,
+                                phone: p.assignedStaff.user.phone,
+                                photoUrl: p.assignedStaff.photoUrl,
+                                specialty:
+                                  p.assignedStaff.specialties[0] ?? null,
+                                career: p.assignedStaff.career,
+                                bio: p.assignedStaff.bio,
+                              }
+                            : null
+                        }
+                      />
+                    )}
+                    {!p.refundedAt && (
+                      <RefundLink
+                        lang={lang}
+                        slug={slug}
+                        kind="PACKAGE"
+                        id={p.id}
+                        t={t}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -266,16 +294,28 @@ export default async function HoldingsPage({
                         <div className="text-sm font-medium text-white">
                           {p.service.name}
                         </div>
-                        <PackageCounts
-                          totalCount={p.totalCount}
-                          remainingCount={p.remainingCount}
-                          deductCount={p.service.deductCount}
-                          openCount={openByPkg.get(p.id) ?? 0}
-                          t={t}
-                        />
+                        {p.refundedAt ? (
+                          <RefundedBadge t={t} />
+                        ) : (
+                          <PackageCounts
+                            totalCount={p.totalCount}
+                            remainingCount={p.remainingCount}
+                            deductCount={p.service.deductCount}
+                            openCount={openByPkg.get(p.id) ?? 0}
+                            t={t}
+                          />
+                        )}
                       </div>
                     </div>
-                    <RefundPlaceholder t={t} />
+                    {!p.refundedAt && (
+                      <RefundLink
+                        lang={lang}
+                        slug={slug}
+                        kind="PACKAGE"
+                        id={p.id}
+                        t={t}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -345,10 +385,37 @@ function PackageCounts({
   );
 }
 
-function RefundPlaceholder({ t }: { t: T }) {
+// 환불 신청 링크 — 동결 안 된 권에만. 환불 신청 페이지로.
+function RefundLink({
+  lang,
+  slug,
+  kind,
+  id,
+  t,
+}: {
+  lang: string;
+  slug: string;
+  kind: "PACKAGE" | "MEMBERSHIP";
+  id: string;
+  t: T;
+}) {
   return (
-    <div className="mt-3 border-t border-white/5 pt-2 text-[10px] text-zinc-500">
-      {t("holdingsRefundPlaceholder")}
+    <div className="mt-3 border-t border-white/5 pt-2">
+      <a
+        href={`/${lang}/g/${slug}/me/holdings/refund?kind=${kind}&id=${id}`}
+        className="text-[11px] text-zinc-400 underline-offset-2 hover:text-rose-200 hover:underline"
+      >
+        {t("holdingsRefundRequest")}
+      </a>
+    </div>
+  );
+}
+
+// 환불 신청된 권 — "환불 처리 중" 배지. 예약/변경 불가.
+function RefundedBadge({ t }: { t: T }) {
+  return (
+    <div className="mt-1.5 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-medium text-amber-200">
+      {t("holdingsRefundPending")}
     </div>
   );
 }
