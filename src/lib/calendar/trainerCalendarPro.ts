@@ -544,3 +544,96 @@ export async function loadTrainerCalendar(
     remainingByCustomer,
   };
 }
+
+// ─── 단일 하루 트레이너 가용성 ──────────────────────────────
+// loadTrainerCalendar 는 3개월 그리드를 통째로 계산한다 — 데이 시트처럼
+// "그 날 하루" 만 알면 되는 곳엔 과하다. 이 함수는 그 날짜 1일치만 조회해
+// open/off/closed + 빈 슬롯 존재 여부를 빠르게 돌려준다.
+//
+// 주의: 트레이너 담당 단체수업 슬롯은 그 수업의 학생 예약(staffId=트레이너)
+// 으로 reservations 에 잡혀 막힌다. 등록자 0인 단체수업만 예외적으로 비는
+// 것처럼 보일 수 있으나, 실제 예약 화면(loadTrainerCalendar)이 최종 차단한다.
+export type TrainerDayAvailability = {
+  state: "open" | "off" | "closed";
+  onLeave: boolean; // off 가 휴가 때문이면 true (정기 휴무 요일이면 false)
+  hasFree: boolean; // open 일 때 빈 슬롯이 하나라도 있나
+};
+
+export async function loadTrainerDayAvailability(
+  gymId: string,
+  staffId: string,
+  dayUtcMid: Date, // 그 날 자정(UTC-naive)
+): Promise<TrainerDayAvailability> {
+  const dayEnd = new Date(dayUtcMid.getTime() + MS_PER_DAY);
+  const [hours, closure, staff, leave, reservations] = await Promise.all([
+    prisma.businessHours.findMany({ where: { gymId } }),
+    prisma.businessClosure.findFirst({
+      where: { gymId, date: dayUtcMid },
+    }),
+    prisma.staff.findUnique({
+      where: { id: staffId },
+      select: {
+        weeklyOffDays: true,
+        workStartMin: true,
+        workEndMin: true,
+        breakStartMin: true,
+        breakEndMin: true,
+      },
+    }),
+    prisma.staffLeave.findFirst({
+      where: {
+        staffId,
+        startDate: { lte: dayUtcMid },
+        endDate: { gte: dayUtcMid },
+      },
+      select: { id: true },
+    }),
+    prisma.reservation.findMany({
+      where: {
+        gymId,
+        staffId,
+        startAt: { gte: dayUtcMid, lt: dayEnd },
+        status: { notIn: ["CANCELLED", "REJECTED"] },
+      },
+      select: { startAt: true },
+    }),
+  ]);
+
+  const gym = computeStatus(dayUtcMid, hours, closure);
+  if (gym.state === "CLOSED_DAY" || gym.state === "NO_HOURS_SET") {
+    return { state: "closed", onLeave: false, hasFree: false };
+  }
+
+  const offDay = (staff?.weeklyOffDays ?? []).includes(
+    WD[dayUtcMid.getUTCDay()]!,
+  );
+  const onLeave = leave !== null;
+  if (offDay || onLeave) {
+    return { state: "off", onLeave, hasFree: false };
+  }
+
+  const oMin = Math.max(gym.openMin, staff?.workStartMin ?? gym.openMin);
+  const cMin = Math.min(gym.closeMin, staff?.workEndMin ?? gym.closeMin);
+  const brkS = staff?.breakStartMin ?? null;
+  const brkE = staff?.breakEndMin ?? null;
+  const hasBrk = brkS != null && brkE != null && brkE > brkS;
+
+  const bookedStarts = reservations.map(
+    (r) => r.startAt.getUTCHours() * 60 + r.startAt.getUTCMinutes(),
+  );
+
+  let hasFree = false;
+  const axisStart = Math.floor(oMin / 60) * 60;
+  for (let s = axisStart; s + CLASS_MIN <= cMin; s += SLOT_MIN) {
+    if (s < oMin) continue;
+    if (hasBrk && s < brkE! && s + CLASS_MIN > brkS!) continue;
+    const slotBooked = bookedStarts.some(
+      (bm) => bm >= s && bm < s + SLOT_MIN,
+    );
+    if (!slotBooked) {
+      hasFree = true;
+      break;
+    }
+  }
+  return { state: "open", onLeave: false, hasFree };
+}

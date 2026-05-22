@@ -53,6 +53,13 @@ export function MeCalendar({
     });
   }
 
+  // 데이 시트에서 예약/취소한 뒤 — 현재 보고 있는 달을 다시 받아 그리드 갱신.
+  function refreshMonth() {
+    startTransition(async () => {
+      setData(await meCalendarMonth(slug, data.year, data.month));
+    });
+  }
+
   // 클릭 가능 여부 — 미래는 항상, 과거/오늘은 예약이 있을 때만.
   function clickableOf(c: MeCalCell): boolean {
     if (!c.isCurrentMonth) return false;
@@ -134,6 +141,7 @@ export function MeCalendar({
             openCell.dayKey >= todayKey && openCell.dayKey <= maxBookKey
           }
           onClose={() => setOpenCell(null)}
+          onChanged={refreshMonth}
         />
       )}
     </section>

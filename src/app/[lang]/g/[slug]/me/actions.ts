@@ -12,12 +12,13 @@ import {
 import {
   packageAvailableCount,
   pickBookablePackage,
+  OPEN_STATUSES,
 } from "@/lib/packages/availability";
 import {
   loadMeCalendarMonth,
   type MeCalendarMonth,
 } from "@/lib/calendar/meCalendar";
-import { loadTrainerCalendar } from "@/lib/calendar/trainerCalendarPro";
+import { loadTrainerDayAvailability } from "@/lib/calendar/trainerCalendarPro";
 
 export type AccessQrResult =
   | { ok: true; qr: string; expiresYmd: string }
@@ -633,8 +634,9 @@ export type MeDayOption =
       serviceName: string;
       trainerName: string;
       available: boolean;
-      // 비활성 사유 — off: 트레이너 휴무 요일, leave: 휴가, full: 예약 마감
-      reason: "off" | "leave" | "full" | null;
+      // 비활성 사유 — off: 트레이너 휴무 요일, leave: 휴가, full: 예약 마감,
+      // exhausted: 그 서비스 권의 예약 가능 횟수를 모두 소진
+      reason: "off" | "leave" | "full" | "exhausted" | null;
     }
   | {
       kind: "group";
@@ -643,9 +645,19 @@ export type MeDayOption =
       startMin: number;
     };
 
-export type MeDayBookingResult = {
-  hasPasses: boolean; // 잔여 있는 권을 하나라도 보유 (안내 문구 분기용)
-  options: MeDayOption[];
+export type MeDayEvent = {
+  id: string;
+  kind: "pt" | "group";
+  startMin: number;
+  label: string;
+  staffName: string;
+  status: string;
+};
+
+export type MeDaySheetData = {
+  events: MeDayEvent[]; // 그 날 본인 예약 (시간순)
+  hasPasses: boolean; // 잔여 있는 권 보유 (안내 문구 분기용)
+  options: MeDayOption[]; // 그 날 예약 후보 (미래 한정)
 };
 
 const ME_WEEKDAY = [
@@ -665,10 +677,12 @@ function ymdUtc(d: Date): string {
   )}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-export async function loadMeDayBooking(
+// 데이 시트 데이터 — 그 날 본인 예약 + (미래면) 예약 후보.
+// 트레이너 캘린더/회차 인원 조회를 병렬화 — 시트 여는 체감 속도 핵심.
+export async function loadMeDaySheet(
   slug: string,
   dateKey: string, // "YYYY-MM-DD"
-): Promise<MeDayBookingResult> {
+): Promise<MeDaySheetData> {
   const user = await requireGymCustomer(slug);
   const business = user.business!;
   const gymId = business.id;
@@ -680,133 +694,220 @@ export async function loadMeDayBooking(
   ];
   const dayUtcMid = new Date(Date.UTC(y, mon - 1, d));
   const dayEnd = new Date(dayUtcMid.getTime() + 24 * 60 * 60 * 1000);
+  const isFuture =
+    dayUtcMid.getTime() >
+    gymTodayUtcMidnight(business.timeZone).getTime();
 
-  const packages = await prisma.package.findMany({
+  // 데이 시트 응답속도 = DB 왕복 횟수 × 왕복지연. 왕복을 줄이고 겹친다.
+  //
+  // events 쿼리는 곧바로 출발시키되 await 는 끝까지 미룬다 — 다음 트립을
+  // 막는 건 packages 뿐이라, events 는 트립 2·3 과 겹쳐 임계경로서 빠진다.
+  const eventsPromise = prisma.reservation.findMany({
+    where: {
+      gymId,
+      customerUserId: user.id,
+      startAt: { gte: dayUtcMid, lt: dayEnd },
+      status: { notIn: ["CANCELLED", "REJECTED"] },
+    },
+    select: {
+      id: true,
+      startAt: true,
+      scheduledClassId: true,
+      status: true,
+      service: { select: { name: true, capacity: true } },
+      staff: { select: { user: { select: { name: true } } } },
+    },
+    orderBy: { startAt: "asc" },
+  });
+  const toEvents = (
+    rows: Awaited<typeof eventsPromise>,
+  ): MeDayEvent[] =>
+    rows.map((r) => ({
+      id: r.id,
+      kind:
+        r.scheduledClassId !== null || (r.service?.capacity ?? 1) !== 1
+          ? "group"
+          : "pt",
+      startMin:
+        r.startAt.getUTCHours() * 60 + r.startAt.getUTCMinutes(),
+      label: r.service?.name ?? "서비스",
+      staffName: r.staff?.user.name ?? "",
+      status: r.status,
+    }));
+
+  // 트립 1 — 보유 권. 다음 트립을 막는 유일한 선행 조회.
+  const pkgs = await prisma.package.findMany({
     where: { gymId, userId: user.id, remainingCount: { gt: 0 } },
     select: {
       id: true,
+      remainingCount: true,
       assignedStaffId: true,
-      assignedStaff: {
-        select: { user: { select: { name: true } } },
+      assignedStaff: { select: { user: { select: { name: true } } } },
+      service: {
+        select: {
+          id: true,
+          name: true,
+          capacity: true,
+          deductCount: true,
+        },
       },
-      service: { select: { id: true, name: true, capacity: true } },
     },
     orderBy: { createdAt: "asc" }, // FIFO
   });
-  const hasPasses = packages.length > 0;
+
+  // 과거/오늘은 예약 후보 계산 불필요 — 예약은 미래만.
+  if (!isFuture) {
+    return {
+      events: toEvents(await eventsPromise),
+      hasPasses: false,
+      options: [],
+    };
+  }
+
+  const hasPasses = pkgs.length > 0;
   const options: MeDayOption[] = [];
 
-  // --- 1:1 — 서비스별 1장(FIFO), 트레이너별로 묶어 캘린더 1회만 로드.
-  // 그날 불가하면 빼지 않고 available:false + 사유로 노출. ---
-  const seenSvc = new Set<string>();
-  const byTrainer = new Map<
-    string,
-    { packageId: string; serviceName: string; trainerName: string }[]
-  >();
-  for (const p of packages) {
+  // 1:1 — 서비스별로 묶는다(pkgs 가 createdAt asc 라 FIFO 순서 유지).
+  type Pkg1to1 = (typeof pkgs)[number];
+  const svc1to1 = new Map<string, Pkg1to1[]>();
+  for (const p of pkgs) {
     if (p.service.capacity !== 1 || !p.assignedStaffId) continue;
-    if (seenSvc.has(p.service.id)) continue;
-    seenSvc.add(p.service.id);
-    const arr = byTrainer.get(p.assignedStaffId) ?? [];
-    arr.push({
-      packageId: p.id,
-      serviceName: p.service.name,
-      trainerName: p.assignedStaff?.user.name ?? "",
-    });
-    byTrainer.set(p.assignedStaffId, arr);
+    const arr = svc1to1.get(p.service.id) ?? [];
+    arr.push(p);
+    svc1to1.set(p.service.id, arr);
   }
-  for (const [staffId, pkgs] of byTrainer) {
-    const cal = await loadTrainerCalendar(
-      gymId,
-      staffId,
-      "",
-      business.timeZone,
-    );
-    const day = cal.days.find(
-      (x) => x.year === y && x.month === mon && x.day === d,
-    );
-    let available = false;
-    let reason: "off" | "leave" | "full" | null = null;
-    if (!day || day.state === "closed") {
-      reason = "off";
-    } else if (day.state === "off") {
-      // GridDay.reason 이 있으면 휴가, 없으면 정기 휴무 요일.
-      reason = day.reason ? "leave" : "off";
-    } else if (day.cells.some((c) => c.kind === "free")) {
-      available = true;
-    } else {
-      reason = "full";
-    }
-    for (const pk of pkgs) {
-      options.push({
-        kind: "oneToOne",
-        packageId: pk.packageId,
-        serviceName: pk.serviceName,
-        trainerName: pk.trainerName,
-        available,
-        reason,
-      });
-    }
-  }
-
-  // --- 단체 — 그 날 회차 + 정원 여유 + 미등록 ---
+  const oneToOnePkgs = [...svc1to1.values()].flat();
+  const staffIds = [
+    ...new Set(oneToOnePkgs.map((p) => p.assignedStaffId!)),
+  ];
+  const oneToOnePkgIds = oneToOnePkgs.map((p) => p.id);
   const groupServiceIds = [
     ...new Set(
-      packages
-        .filter((p) => p.service.capacity > 1)
-        .map((p) => p.service.id),
+      pkgs.filter((p) => p.service.capacity > 1).map((p) => p.service.id),
     ),
   ];
-  if (groupServiceIds.length > 0) {
-    const wd = ME_WEEKDAY[dayUtcMid.getUTCDay()]!;
-    const schedules = await prisma.scheduledClass.findMany({
-      where: {
-        gymId,
-        active: true,
-        serviceId: { in: groupServiceIds },
-        validFrom: { lte: dayUtcMid },
-        OR: [{ validUntil: null }, { validUntil: { gte: dayUtcMid } }],
-      },
-      select: {
-        id: true,
-        kind: true,
-        weekdays: true,
-        specificDate: true,
-        startMinute: true,
-        service: { select: { name: true, capacity: true } },
-      },
-    });
-    for (const sc of schedules) {
-      if (sc.kind === "ONE_OFF") {
-        if (!sc.specificDate || ymdUtc(sc.specificDate) !== dateKey) {
-          continue;
-        }
-      } else if (!sc.weekdays.includes(wd)) {
-        continue;
-      }
-      const dayResvs = await prisma.reservation.findMany({
+
+  // 트립 2 — 마지막 왕복. 한 배치에 모두 병렬:
+  //  - 트레이너 그날 가용성
+  //  - 단체수업 schedule (그날 어떤 회차가 열리나)
+  //  - 1:1 권별 미완료 예약 수 (소진 판정)
+  //  - 그날 단체수업 등록 현황 (정원·본인등록 판정) — serviceId 로 거르므로
+  //    schedule 매칭을 안 기다려도 돼 같은 배치에 넣을 수 있다.
+  const [avails, schedules, openCounts, groupEnrollRows] =
+    await Promise.all([
+      Promise.all(
+        staffIds.map((id) =>
+          loadTrainerDayAvailability(gymId, id, dayUtcMid),
+        ),
+      ),
+      prisma.scheduledClass.findMany({
         where: {
           gymId,
-          scheduledClassId: sc.id,
+          active: true,
+          serviceId: { in: groupServiceIds },
+          validFrom: { lte: dayUtcMid },
+          OR: [{ validUntil: null }, { validUntil: { gte: dayUtcMid } }],
+        },
+        select: {
+          id: true,
+          kind: true,
+          weekdays: true,
+          specificDate: true,
+          startMinute: true,
+          service: { select: { name: true, capacity: true } },
+        },
+      }),
+      prisma.reservation.groupBy({
+        by: ["packageId"],
+        where: {
+          packageId: { in: oneToOnePkgIds },
+          status: { in: [...OPEN_STATUSES] },
+        },
+        _count: { _all: true },
+      }),
+      prisma.reservation.findMany({
+        where: {
+          gymId,
           startAt: { gte: dayUtcMid, lt: dayEnd },
           status: { notIn: ["CANCELLED", "REJECTED"] },
+          scheduledClass: { serviceId: { in: groupServiceIds } },
         },
-        select: { customerUserId: true },
-      });
-      if (dayResvs.some((r) => r.customerUserId === user.id)) continue;
-      if (dayResvs.length >= sc.service.capacity) continue;
-      options.push({
-        kind: "group",
-        scheduleId: sc.id,
-        serviceName: sc.service.name,
-        startMin: sc.startMinute,
-      });
+        select: { scheduledClassId: true, customerUserId: true },
+      }),
+    ]);
+  const availByStaff = new Map(staffIds.map((id, i) => [id, avails[i]]));
+  const openByPkg = new Map(
+    openCounts.map((g) => [g.packageId, g._count._all]),
+  );
+
+  // 1:1 옵션 — 서비스별 1줄. 예약 여유 있는 권(FIFO·미완료 예약 선점분
+  // 차감)이 없으면 "전부 소진", 트레이너가 그날 안 되면 사유로 비활성.
+  for (const [, svcPkgs] of svc1to1) {
+    const display = svcPkgs[0]!;
+    const deduct = display.service.deductCount;
+    const bookable =
+      svcPkgs.find(
+        (p) =>
+          p.remainingCount - (openByPkg.get(p.id) ?? 0) * deduct >=
+          deduct,
+      ) ?? null;
+    let available = false;
+    let reason: "off" | "leave" | "full" | "exhausted" | null = null;
+    if (!bookable) {
+      reason = "exhausted";
+    } else {
+      const av = availByStaff.get(bookable.assignedStaffId!);
+      if (!av || av.state === "closed") {
+        reason = "off";
+      } else if (av.state === "off") {
+        reason = av.onLeave ? "leave" : "off";
+      } else if (av.hasFree) {
+        available = true;
+      } else {
+        reason = "full";
+      }
     }
+    options.push({
+      kind: "oneToOne",
+      packageId: (bookable ?? display).id,
+      serviceName: display.service.name,
+      trainerName: (bookable ?? display).assignedStaff?.user.name ?? "",
+      available,
+      reason,
+    });
+  }
+
+  // 단체수업 — 그날 열리는 회차를, 트립 2 에서 받은 등록 현황으로
+  // 정원·본인등록 판정(추가 왕복 없음).
+  const wd = ME_WEEKDAY[dayUtcMid.getUTCDay()]!;
+  const enrolledByClass = new Map<string, string[]>();
+  for (const r of groupEnrollRows) {
+    if (!r.scheduledClassId) continue;
+    const arr = enrolledByClass.get(r.scheduledClassId) ?? [];
+    arr.push(r.customerUserId);
+    enrolledByClass.set(r.scheduledClassId, arr);
+  }
+  for (const sc of schedules) {
+    const runsToday =
+      sc.kind === "ONE_OFF"
+        ? sc.specificDate != null && ymdUtc(sc.specificDate) === dateKey
+        : sc.weekdays.includes(wd);
+    if (!runsToday) continue;
+    const enrolled = enrolledByClass.get(sc.id) ?? [];
+    if (enrolled.includes(user.id)) continue; // 이미 등록
+    if (enrolled.length >= sc.service.capacity) continue; // 정원 마감
+    options.push({
+      kind: "group",
+      scheduleId: sc.id,
+      serviceName: sc.service.name,
+      startMin: sc.startMinute,
+    });
   }
 
   // 단체수업(시간순) -> 1:1 가능 -> 1:1 비활성 순.
   const sortKey = (o: MeDayOption): number =>
     o.kind === "group" ? o.startMin : o.available ? 100000 : 100001;
   options.sort((a, b) => sortKey(a) - sortKey(b));
-  return { hasPasses, options };
+  // events 는 위 트립들과 겹쳐 흘렀으므로 여기선 보통 이미 끝나 있다.
+  return { events: toEvents(await eventsPromise), hasPasses, options };
 }

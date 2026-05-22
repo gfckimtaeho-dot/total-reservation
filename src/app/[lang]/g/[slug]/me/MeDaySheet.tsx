@@ -6,18 +6,20 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import {
-  loadMeDayBooking,
+  loadMeDaySheet,
   joinScheduledClass,
   cancelReservation,
   cancelGroupEnrollment,
-  type MeDayBookingResult,
+  type MeDaySheetData,
 } from "./actions";
 import type { MeCalCell } from "@/lib/calendar/meCalendar";
 
 // 고객 캘린더 날짜 클릭 시 뜨는 데이 시트(모달).
 //  - 과거/오늘: 그 날 본인 예약을 서비스명/강사/시간으로 표시(액션 없음).
-//  - 미래: 기존 예약(변경·취소) + 예약하기. 예약 후보는 loadMeDayBooking 으로
-//    "그 날 실제 가능한 것"만 받는다 — 트레이너 휴무·정원 마감을 미리 거른다.
+//  - 미래: 기존 예약(변경·취소) + 예약하기. 후보는 loadMeDaySheet 로 "그 날
+//    실제 가능한 것"만 — 트레이너 휴무/정원 마감을 미리 거른다.
+//  - 액션(취소·등록) 뒤 시트를 닫지 않고 그 자리에서 데이터를 다시 받아
+//    갱신한다 — 한 날에 여러 건을 연속 처리할 수 있게.
 // 헤더의 backdrop-blur 가 fixed 자식을 가두므로 createPortal 로 body 에 띄운다.
 
 type Rel = "past" | "today" | "future";
@@ -38,6 +40,7 @@ export function MeDaySheet({
   rel,
   withinHorizon,
   onClose,
+  onChanged,
 }: {
   slug: string;
   lang: string;
@@ -45,41 +48,46 @@ export function MeDaySheet({
   rel: Rel;
   withinHorizon: boolean;
   onClose: () => void;
+  // 액션 후 캘린더 그리드를 갱신하도록 부모에 알린다.
+  onChanged: () => void;
 }) {
   const t = useTranslations("me");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  // 인라인 확인 — 취소·등록 같은 결과 있는 액션은 한 번 더 확인. 키 = 행 식별자.
+  // 인라인 확인 — 취소·등록은 한 번 더 확인. 키 = 행 식별자.
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
   const isFuture = rel === "future";
-  // 예약하기 섹션 노출 조건 — 미래 + 영업일 + 예약 가능 기간 안.
   const showBooking = isFuture && cell.isOpen && withinHorizon;
 
-  const [booking, setBooking] = useState<MeDayBookingResult | null>(null);
-  const [loadingBooking, setLoadingBooking] = useState(showBooking);
+  // 초기엔 월 스냅샷(cell.events)으로 즉시 표시 → 마운트 후 라이브 재조회.
+  const [data, setData] = useState<MeDaySheetData>({
+    events: cell.events,
+    hasPasses: false,
+    options: [],
+  });
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!showBooking) return;
     let alive = true;
-    loadMeDayBooking(slug, cell.dayKey)
-      .then((r) => {
+    loadMeDaySheet(slug, cell.dayKey)
+      .then((fresh) => {
         if (alive) {
-          setBooking(r);
-          setLoadingBooking(false);
+          setData(fresh);
+          setLoaded(true);
         }
       })
       .catch(() => {
         if (alive) {
-          setLoadingBooking(false);
+          setLoaded(true);
           setError(t("meDayError"));
         }
       });
     return () => {
       alive = false;
     };
-    // cell.dayKey 고정 — 시트는 한 날짜에 대해 한 번만 연다.
+    // cell.dayKey 고정 — 시트는 한 날짜에 대해 한 번 연다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -96,18 +104,19 @@ export function MeDaySheet({
     new Date(Date.UTC(y, m - 1, d)).getUTCDay()
   ];
 
-  function finish() {
-    setError(null);
-    onClose();
-    router.refresh();
-  }
-
+  // 액션 — 성공 시 시트를 닫지 않고 데이터를 다시 받아 갱신.
   function act(fn: () => Promise<{ ok: boolean }>) {
     setError(null);
     startTransition(async () => {
       const r = await fn();
-      if (r.ok) finish();
-      else setError(t("meDayError"));
+      if (!r.ok) {
+        setError(t("meDayError"));
+        return;
+      }
+      setConfirmKey(null);
+      const fresh = await loadMeDaySheet(slug, cell.dayKey);
+      setData(fresh);
+      onChanged();
     });
   }
 
@@ -154,13 +163,13 @@ export function MeDaySheet({
         )}
 
         {/* 내 예약 — 과거/오늘/미래 공통, 있을 때만 */}
-        {cell.events.length > 0 && (
+        {data.events.length > 0 && (
           <section className="mt-4">
             <h3 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400">
               {t("meDayMyReservations")}
             </h3>
             <ul className="mt-2 space-y-2">
-              {cell.events.map((ev) => {
+              {data.events.map((ev) => {
                 const done = ev.status === "COMPLETED";
                 const canAct = isFuture && cell.isOpen && !done;
                 const rowKey = `ev-${ev.id}`;
@@ -240,19 +249,19 @@ export function MeDaySheet({
             <h3 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400">
               {t("meDayBook")}
             </h3>
-            {loadingBooking ? (
+            {!loaded ? (
               <p className="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-zinc-400">
                 {t("meDayLoading")}
               </p>
-            ) : !booking || booking.options.length === 0 ? (
+            ) : data.options.length === 0 ? (
               <p className="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs leading-relaxed text-zinc-400">
-                {booking?.hasPasses
+                {data.hasPasses
                   ? t("meDayNoneToday")
                   : t("meDayNoPass")}
               </p>
             ) : (
               <ul className="mt-2 space-y-2">
-                {booking.options.map((opt) => {
+                {data.options.map((opt) => {
                   if (opt.kind === "group") {
                     const rowKey = `gc-${opt.scheduleId}`;
                     return (
@@ -301,21 +310,25 @@ export function MeDaySheet({
                       </li>
                     );
                   }
-                  // 1:1 — 그날 불가해도 빼지 않고 사유와 함께 비활성으로.
+                  // 1:1 — 그날 불가해도 빼지 않고 사유와 함께 노출(예약 버튼은 숨김).
                   const sub = opt.available
                     ? opt.trainerName
                       ? t("meDayWithTrainer", { name: opt.trainerName })
                       : ""
-                    : opt.reason === "leave"
-                      ? t("meDayTrainerLeave", { trainer: opt.trainerName })
-                      : opt.reason === "full"
-                        ? t("meDayTrainerFull", {
+                    : opt.reason === "exhausted"
+                      ? t("meDayExhausted")
+                      : opt.reason === "leave"
+                        ? t("meDayTrainerLeave", {
                             trainer: opt.trainerName,
                           })
-                        : t("meDayTrainerOff", {
-                            trainer: opt.trainerName,
-                            weekday: wd,
-                          });
+                        : opt.reason === "full"
+                          ? t("meDayTrainerFull", {
+                              trainer: opt.trainerName,
+                            })
+                          : t("meDayTrainerOff", {
+                              trainer: opt.trainerName,
+                              weekday: wd,
+                            });
                   return (
                     <li
                       key={`pkg-${opt.packageId}`}
@@ -346,7 +359,6 @@ export function MeDaySheet({
                             </div>
                           )}
                         </div>
-                        {/* 불가한 날은 예약 버튼 자체를 숨김 — 사유 텍스트만 남긴다. */}
                         {opt.available && (
                           <button
                             type="button"
@@ -397,7 +409,7 @@ function InlineConfirm({
         type="button"
         disabled={pending}
         onClick={onYes}
-        className="rounded-full bg-rose-400/20 px-3 py-1.5 text-xs font-semibold text-rose-200 ring-1 ring-rose-400/40 disabled:opacity-50"
+        className="rounded-full bg-amber-400 px-3.5 py-1.5 text-xs font-bold text-zinc-950 hover:bg-amber-300 disabled:opacity-50"
       >
         {t("meDayYes")}
       </button>
@@ -405,7 +417,7 @@ function InlineConfirm({
         type="button"
         disabled={pending}
         onClick={onNo}
-        className="rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-300 ring-1 ring-white/15 disabled:opacity-50"
+        className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-zinc-200 ring-1 ring-white/20 disabled:opacity-50"
       >
         {t("cancelConfirmNo")}
       </button>

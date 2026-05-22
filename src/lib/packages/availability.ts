@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db/client";
 // 새 예약 1건은 deductCount 만큼 소비하므로 가용 >= deductCount 여야 허용.
 
 // 완료 전이라 장차 잔여를 깎을(소진 예정) 예약 상태.
-const OPEN_STATUSES = ["PENDING_PAYMENT", "CONFIRMED"] as const;
+export const OPEN_STATUSES = ["PENDING_PAYMENT", "CONFIRMED"] as const;
 
 // 권 1장의 현재 가용 횟수 — 미완료 예약의 소진 예정분을 차감한 값.
 export async function packageAvailableCount(

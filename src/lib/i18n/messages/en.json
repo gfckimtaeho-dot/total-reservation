@@ -929,7 +929,8 @@
     "meDayWithTrainer": "with {name}",
     "meDayTrainerOff": "{trainer} — off on {weekday}",
     "meDayTrainerLeave": "{trainer} — on leave",
-    "meDayTrainerFull": "{trainer} — fully booked this day"
+    "meDayTrainerFull": "{trainer} — fully booked this day",
+    "meDayExhausted": "All booking sessions on this pass are used up"
   },
   "services": {
     "pageTitle": "Services",

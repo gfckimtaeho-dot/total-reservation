@@ -929,7 +929,8 @@
     "meDayWithTrainer": "{name} 트레이너",
     "meDayTrainerOff": "{trainer} 트레이너 · {weekday}요일은 업무일이 아닙니다",
     "meDayTrainerLeave": "{trainer} 트레이너 · 휴가 중입니다",
-    "meDayTrainerFull": "{trainer} 트레이너 · 이 날 예약이 마감되었습니다"
+    "meDayTrainerFull": "{trainer} 트레이너 · 이 날 예약이 마감되었습니다",
+    "meDayExhausted": "서비스권의 예약 가능 횟수를 모두 사용했습니다"
   },
   "services": {
     "pageTitle": "서비스 등록",
