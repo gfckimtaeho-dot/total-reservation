@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ChevronLeft } from "lucide-react";
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
-import { gymTodayUtcMidnight } from "@/lib/calendar/gymTime";
+import { gymTodayUtcMidnight, gymTodayRange } from "@/lib/calendar/gymTime";
 import { PackageTrainerCard } from "./PackageTrainerCard";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -58,6 +58,33 @@ export default async function HoldingsPage({
   const personal = packages.filter((p) => p.service.capacity === 1);
   const group = packages.filter((p) => p.service.capacity > 1);
   const empty = memberships.length === 0 && packages.length === 0;
+
+  // 패키지별 "재예약 필요" 건수 — 트레이너 변경 후 자동 변경 못 한 미래
+  // 예약(staffId != assignedStaffId). 카드의 재예약 배지 노출에 사용.
+  const { end: todayEnd } = gymTodayRange(business.timeZone);
+  const pendingRebookByPkg = new Map<string, number>();
+  if (personal.length > 0) {
+    const futureResv = await prisma.reservation.findMany({
+      where: {
+        gymId: business.id,
+        packageId: { in: personal.map((p) => p.id) },
+        scheduledClassId: null,
+        status: { notIn: ["CANCELLED", "REJECTED", "COMPLETED", "NO_SHOW"] },
+        startAt: { gte: todayEnd },
+      },
+      select: { packageId: true, staffId: true },
+    });
+    for (const r of futureResv) {
+      if (!r.packageId) continue;
+      const pkg = personal.find((p) => p.id === r.packageId);
+      if (pkg?.assignedStaffId && r.staffId !== pkg.assignedStaffId) {
+        pendingRebookByPkg.set(
+          r.packageId,
+          (pendingRebookByPkg.get(r.packageId) ?? 0) + 1,
+        );
+      }
+    }
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-100">
@@ -175,6 +202,10 @@ export default async function HoldingsPage({
                       )}
                     </div>
                     <PackageTrainerCard
+                      slug={slug}
+                      lang={lang}
+                      packageId={p.id}
+                      pendingRebookCount={pendingRebookByPkg.get(p.id) ?? 0}
                       assignedStaff={
                         p.assignedStaff
                           ? {

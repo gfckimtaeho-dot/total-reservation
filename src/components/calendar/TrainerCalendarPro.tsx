@@ -13,6 +13,7 @@ import {
   rescheduleReservation,
   completeReservation,
   uncompleteReservation,
+  cancelReservation,
 } from "@/app/[lang]/g/[slug]/dashboard/reservation-actions";
 import Link from "next/link";
 import {
@@ -56,7 +57,10 @@ type Picked = {
 };
 
 type Cust = { id: string; name: string; phone: string | null };
-type Modal = null | { t: "addRes"; g: GridDay; slotMin: number };
+type Modal =
+  | null
+  | { t: "addRes"; g: GridDay; slotMin: number }
+  | { t: "cancelRes" };
 
 export function TrainerCalendarPro({
   data,
@@ -400,8 +404,15 @@ export function TrainerCalendarPro({
       uncompleteReservation({ slug, reservationId: picked.evId }),
     );
   }
+  // 예약 취소 — 트레이너 재량(당일 포함). 확인 모달 거쳐 실행.
+  function doCancel() {
+    if (!picked) return;
+    run(() => cancelReservation({ slug, reservationId: picked.evId }));
+  }
 
   const canMove = picked && picked.rel !== "past" && !picked.completed;
+  // 취소 가능 = 지난 예약 아님 + 미완료 (이동과 동일 조건).
+  const canCancel = picked && picked.rel !== "past" && !picked.completed;
   // 완료는 당일 수업만.
   const canComplete =
     picked && picked.rel === "today" && !picked.completed;
@@ -1015,6 +1026,16 @@ export function TrainerCalendarPro({
                     )}
                   </div>
                 )}
+                {!picked.completed && (
+                  <button
+                    type="button"
+                    disabled={pending || !canCancel}
+                    onClick={() => setModal({ t: "cancelRes" })}
+                    className="mt-2 w-full rounded-lg border border-rose-400/40 bg-rose-400/10 py-3 text-sm font-semibold text-rose-300 transition hover:bg-rose-400/20 disabled:opacity-30"
+                  >
+                    {t("cancelBooking")}
+                  </button>
+                )}
                 {picked.completed && picked.rel === "today" && (
                   <button
                     type="button"
@@ -1167,6 +1188,44 @@ export function TrainerCalendarPro({
                     className="rounded-md border border-white/15 px-3 py-1.5 text-xs text-zinc-400"
                   >
                     {t("close")}
+                  </button>
+                </div>
+              </>
+            )}
+            {modal.t === "cancelRes" && picked && (
+              <>
+                <h3 className="font-heading text-base text-white">
+                  {t("cancelBooking")}
+                </h3>
+                <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                  <div className="text-sm font-medium text-white">
+                    {picked.name}
+                  </div>
+                  <div className="mt-0.5 text-xs text-zinc-400">
+                    {picked.service} · {picked.whenLabel}
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-zinc-300">
+                  {t("cancelConfirm")}
+                </p>
+                {err && (
+                  <p className="mt-2 text-sm text-rose-400">{err}</p>
+                )}
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-md border border-white/15 px-3 py-1.5 text-xs text-zinc-400"
+                  >
+                    {t("close")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={doCancel}
+                    className="rounded-md border border-rose-400/40 bg-rose-400/15 px-3 py-1.5 text-xs font-semibold text-rose-300 disabled:opacity-50"
+                  >
+                    {t("cancelYes")}
                   </button>
                 </div>
               </>

@@ -31,6 +31,7 @@ type Owned =
       ok: true;
       gymId: string;
       timeZone: string;
+      actorUserId: string;
       res: NonNullable<
         Awaited<ReturnType<typeof prisma.reservation.findFirst>>
       >;
@@ -55,7 +56,13 @@ async function loadOwned(
       return { ok: false, error: "본인 예약만 변경할 수 있습니다" };
     }
   }
-  return { ok: true, gymId, timeZone: auth.business!.timeZone, res };
+  return {
+    ok: true,
+    gymId,
+    timeZone: auth.business!.timeZone,
+    actorUserId: auth.id,
+    res,
+  };
 }
 
 export async function rescheduleReservation(input: {
@@ -105,9 +112,20 @@ export async function rescheduleReservation(input: {
   });
   if (clash) return { ok: false, error: "그 시간에 이미 다른 예약이 있습니다" };
 
-  await prisma.reservation.update({
-    where: { id: res.id },
-    data: { startAt: newStart, endAt: newEnd },
+  // 트레이너 일정변경 — 당일 변경도 분쟁 소지가 있어 ReservationLog 로 흔적을 남긴다.
+  await prisma.$transaction(async (tx) => {
+    await tx.reservation.update({
+      where: { id: res.id },
+      data: { startAt: newStart, endAt: newEnd },
+    });
+    await tx.reservationLog.create({
+      data: {
+        gymId,
+        reservationId: res.id,
+        action: "CHANGED_BY_STAFF",
+        actorUserId: owned.actorUserId,
+      },
+    });
   });
   revalidatePath(`/ko/g/${input.slug}/dashboard`);
   revalidatePath(`/en/g/${input.slug}/dashboard`);
@@ -161,20 +179,45 @@ export async function completeReservation(input: {
   return { ok: true };
 }
 
+// 트레이너 예약 취소 — 당일도 허용(트레이너 재량). 정책:
+//  - 지난 예약(시작일 < 오늘)은 취소 불가.
+//  - 완료/노쇼 처리된 예약은 취소 불가(완료 취소 먼저).
+//  - 이미 취소/거절이면 멱등 ok.
+//  - 횟수는 손대지 않는다 — 차감은 완료 시에만이라 미완료 취소는 복구할
+//    몫이 없다(고객 cancelReservation 과 동일 모델). 사고 등 고객 무귀책
+//    상황에서 고객이 횟수를 잃지 않는다.
+//  - ReservationLog(CANCELLED_BY_STAFF) 로 누가 언제 취소했는지 흔적을 남긴다.
 export async function cancelReservation(input: {
   slug: string;
   reservationId: string;
 }): Promise<Result> {
   const owned = await loadOwned(input.slug, input.reservationId);
   if (!owned.ok) return { ok: false, error: owned.error };
-  const { res } = owned;
+  const { gymId, res } = owned;
 
   if (dayKeyUtc(res.startAt) < todayKey(owned.timeZone)) {
     return { ok: false, error: "지난 예약은 취소할 수 없습니다" };
   }
-  await prisma.reservation.update({
-    where: { id: res.id },
-    data: { status: "CANCELLED" },
+  if (res.status === "COMPLETED" || res.status === "NO_SHOW") {
+    return { ok: false, error: "완료·노쇼 처리된 예약입니다" };
+  }
+  if (res.status === "CANCELLED" || res.status === "REJECTED") {
+    return { ok: true }; // 이미 취소됨 — 멱등
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.reservation.update({
+      where: { id: res.id },
+      data: { status: "CANCELLED" },
+    });
+    await tx.reservationLog.create({
+      data: {
+        gymId,
+        reservationId: res.id,
+        action: "CANCELLED_BY_STAFF",
+        actorUserId: owned.actorUserId,
+      },
+    });
   });
   revalidatePath(`/ko/g/${input.slug}/dashboard`);
   revalidatePath(`/en/g/${input.slug}/dashboard`);
