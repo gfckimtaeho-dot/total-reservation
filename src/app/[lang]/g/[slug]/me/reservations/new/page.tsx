@@ -11,7 +11,7 @@ export default async function NewReservationPage({
   searchParams,
 }: {
   params: Promise<{ lang: string; slug: string }>;
-  searchParams: Promise<{ pkg?: string }>;
+  searchParams: Promise<{ pkg?: string; date?: string }>;
 }) {
   const { lang, slug } = await params;
   const sp = await searchParams;
@@ -62,8 +62,18 @@ export default async function NewReservationPage({
     business.timeZone,
   );
 
+  // date 파라미터(고객 캘린더에서 날짜 클릭 진입)면 그 하루만, 없으면
+  // 내일부터 2주. date 가 캘린더 범위 밖/과거면 빈 배열 → "빈 시간 없음".
   const firstIdx = cal.todayIdx + 1;
-  const days = cal.days.slice(firstIdx, firstIdx + 14);
+  const days = sp.date
+    ? cal.days.filter(
+        (d, i) =>
+          i > cal.todayIdx &&
+          `${d.year}-${String(d.month).padStart(2, "0")}-${String(
+            d.day,
+          ).padStart(2, "0")}` === sp.date,
+      )
+    : cal.days.slice(firstIdx, firstIdx + 14);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-100">
@@ -90,7 +100,7 @@ export default async function NewReservationPage({
             {t("newTrainer", { name: pkg.assignedStaff.user.name })}
           </div>
           <p className="mt-2 text-xs leading-relaxed text-zinc-400">
-            {t("newHint")}
+            {sp.date ? t("newHintDate") : t("newHint")}
           </p>
           <NewReservationPicker
             slug={slug}
@@ -98,6 +108,7 @@ export default async function NewReservationPage({
             packageId={pkg.id}
             days={days}
             slotAxis={cal.slotAxis}
+            dateMode={Boolean(sp.date)}
           />
         </section>
       </main>

@@ -32,7 +32,7 @@ export default async function CustomerHomePage({
   const [
     closureToday,
     membershipCount,
-    packageCount,
+    packages,
     todayReservations,
     calMonth,
     accessQr,
@@ -48,12 +48,19 @@ export default async function CustomerHomePage({
         endDate: { gte: todayMid },
       },
     }),
-    prisma.package.count({
+    prisma.package.findMany({
       where: {
         gymId: business.id,
         userId: user.id,
         remainingCount: { gt: 0 },
       },
+      select: {
+        id: true,
+        assignedStaffId: true,
+        service: { select: { id: true, name: true, capacity: true } },
+      },
+      // FIFO — 데이 시트가 같은 서비스 권이 여럿이면 먼저 산 것부터 쓴다.
+      orderBy: { createdAt: "asc" },
     }),
     prisma.reservation.findMany({
       where: {
@@ -80,7 +87,7 @@ export default async function CustomerHomePage({
     requestAccessQr(slug),
   ]);
 
-  const hasAnyPass = membershipCount > 0 || packageCount > 0;
+  const hasAnyPass = membershipCount > 0 || packages.length > 0;
   // 트레이너 대시보드 오늘 날짜 라벨과 동일 형식: "5/22 (목) · 2026"
   const todayWd = new Intl.DateTimeFormat(
     lang === "en" ? "en-US" : "ko-KR",
@@ -141,7 +148,21 @@ export default async function CustomerHomePage({
 
           {!hasAnyPass && <NoPassNotice t={t} />}
 
-          <MeCalendar slug={slug} lang={lang} initial={calMonth} />
+          <MeCalendar
+            slug={slug}
+            lang={lang}
+            initial={calMonth}
+            todayKey={ymdKey(todayMid)}
+            maxBookKey={ymdKey(
+              new Date(
+                Date.UTC(
+                  todayMid.getUTCFullYear(),
+                  todayMid.getUTCMonth() + 3,
+                  todayMid.getUTCDate(),
+                ),
+              ),
+            )}
+          />
 
           <PwaCard />
         </div>
@@ -298,6 +319,14 @@ function NoPassNotice({ t }: { t: T }) {
 
 function suffixTrainer(lang: string): string {
   return lang === "en" ? "" : "트레이너";
+}
+
+// UTC 파츠 기준 "YYYY-MM-DD" — meCalendar 의 dayKey 와 같은 포맷.
+function ymdKey(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(
+    2,
+    "0",
+  )}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
 // startAt 은 UTC-naive(Manila 벽시계 = UTC 파츠)라 timeZone 변환 없이

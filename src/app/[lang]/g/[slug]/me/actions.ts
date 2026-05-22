@@ -17,6 +17,7 @@ import {
   loadMeCalendarMonth,
   type MeCalendarMonth,
 } from "@/lib/calendar/meCalendar";
+import { loadTrainerCalendar } from "@/lib/calendar/trainerCalendarPro";
 
 export type AccessQrResult =
   | { ok: true; qr: string; expiresYmd: string }
@@ -152,6 +153,71 @@ export async function cancelReservation(
   }
 
   // 당일/과거 잠금: startAt < 내일 자정(Manila) 이면 거부.
+  const { end: todayEnd } = gymTodayRange(user.business!.timeZone);
+  if (res.startAt < todayEnd) {
+    return { ok: false, reason: "sameDayOrPast" };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.reservation.update({
+      where: { id: res.id },
+      data: { status: "CANCELLED" },
+    });
+    await tx.reservationLog.create({
+      data: {
+        gymId,
+        reservationId: res.id,
+        action: "CANCELLED_BY_CUSTOMER",
+        actorUserId: user.id,
+      },
+    });
+  });
+
+  revalidatePath(`/ko/g/${slug}/me`);
+  revalidatePath(`/en/g/${slug}/me`);
+  return { ok: true };
+}
+
+// 단체수업 등록 취소(고객 셀프). 1:1 cancelReservation 과 같은 모델 —
+// 단체 예약(scheduledClassId 있음)만, 당일/과거 잠금, 잔여는 손대지 않음
+// (완료 시에만 차감). status=CANCELLED + ReservationLog.
+export type CancelGroupResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason:
+        | "notFound"
+        | "notOwner"
+        | "notGroup"
+        | "sameDayOrPast"
+        | "alreadyClosed";
+    };
+
+export async function cancelGroupEnrollment(
+  slug: string,
+  reservationId: string,
+): Promise<CancelGroupResult> {
+  const user = await requireGymCustomer(slug);
+  const gymId = user.business!.id;
+
+  const res = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    select: {
+      id: true,
+      gymId: true,
+      customerUserId: true,
+      scheduledClassId: true,
+      status: true,
+      startAt: true,
+    },
+  });
+  if (!res || res.gymId !== gymId) return { ok: false, reason: "notFound" };
+  if (res.customerUserId !== user.id) return { ok: false, reason: "notOwner" };
+  if (res.scheduledClassId === null) return { ok: false, reason: "notGroup" };
+  if (["CANCELLED", "REJECTED", "COMPLETED", "NO_SHOW"].includes(res.status)) {
+    return { ok: false, reason: "alreadyClosed" };
+  }
+
   const { end: todayEnd } = gymTodayRange(user.business!.timeZone);
   if (res.startAt < todayEnd) {
     return { ok: false, reason: "sameDayOrPast" };
@@ -552,4 +618,195 @@ export async function meCalendarMonth(
     year,
     month,
   );
+}
+
+// 데이 시트(미래 날짜) 예약 후보 — 그 날 "실제로" 예약 가능한 것만 추린다.
+//   1:1: 담당 트레이너가 그 날 근무 + 빈 슬롯이 하나라도 있어야 노출.
+//   단체: 그 날 수업 회차가 있고 정원 여유 + 본인 미등록이어야 노출.
+// 같은 서비스 1:1 권이 여럿이면 먼저 산 1장(FIFO)만 후보로 — 차감도 그것부터.
+// 1:1 은 그날 불가해도 빼지 않고 사유와 함께 비활성으로 노출한다 —
+// 고객은 트레이너 휴무 요일을 모르므로, 안 보이면 오히려 당황한다.
+export type MeDayOption =
+  | {
+      kind: "oneToOne";
+      packageId: string;
+      serviceName: string;
+      trainerName: string;
+      available: boolean;
+      // 비활성 사유 — off: 트레이너 휴무 요일, leave: 휴가, full: 예약 마감
+      reason: "off" | "leave" | "full" | null;
+    }
+  | {
+      kind: "group";
+      scheduleId: string;
+      serviceName: string;
+      startMin: number;
+    };
+
+export type MeDayBookingResult = {
+  hasPasses: boolean; // 잔여 있는 권을 하나라도 보유 (안내 문구 분기용)
+  options: MeDayOption[];
+};
+
+const ME_WEEKDAY = [
+  "SUN",
+  "MON",
+  "TUE",
+  "WED",
+  "THU",
+  "FRI",
+  "SAT",
+] as const;
+
+function ymdUtc(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(
+    2,
+    "0",
+  )}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+export async function loadMeDayBooking(
+  slug: string,
+  dateKey: string, // "YYYY-MM-DD"
+): Promise<MeDayBookingResult> {
+  const user = await requireGymCustomer(slug);
+  const business = user.business!;
+  const gymId = business.id;
+
+  const [y, mon, d] = dateKey.split("-").map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  const dayUtcMid = new Date(Date.UTC(y, mon - 1, d));
+  const dayEnd = new Date(dayUtcMid.getTime() + 24 * 60 * 60 * 1000);
+
+  const packages = await prisma.package.findMany({
+    where: { gymId, userId: user.id, remainingCount: { gt: 0 } },
+    select: {
+      id: true,
+      assignedStaffId: true,
+      assignedStaff: {
+        select: { user: { select: { name: true } } },
+      },
+      service: { select: { id: true, name: true, capacity: true } },
+    },
+    orderBy: { createdAt: "asc" }, // FIFO
+  });
+  const hasPasses = packages.length > 0;
+  const options: MeDayOption[] = [];
+
+  // --- 1:1 — 서비스별 1장(FIFO), 트레이너별로 묶어 캘린더 1회만 로드.
+  // 그날 불가하면 빼지 않고 available:false + 사유로 노출. ---
+  const seenSvc = new Set<string>();
+  const byTrainer = new Map<
+    string,
+    { packageId: string; serviceName: string; trainerName: string }[]
+  >();
+  for (const p of packages) {
+    if (p.service.capacity !== 1 || !p.assignedStaffId) continue;
+    if (seenSvc.has(p.service.id)) continue;
+    seenSvc.add(p.service.id);
+    const arr = byTrainer.get(p.assignedStaffId) ?? [];
+    arr.push({
+      packageId: p.id,
+      serviceName: p.service.name,
+      trainerName: p.assignedStaff?.user.name ?? "",
+    });
+    byTrainer.set(p.assignedStaffId, arr);
+  }
+  for (const [staffId, pkgs] of byTrainer) {
+    const cal = await loadTrainerCalendar(
+      gymId,
+      staffId,
+      "",
+      business.timeZone,
+    );
+    const day = cal.days.find(
+      (x) => x.year === y && x.month === mon && x.day === d,
+    );
+    let available = false;
+    let reason: "off" | "leave" | "full" | null = null;
+    if (!day || day.state === "closed") {
+      reason = "off";
+    } else if (day.state === "off") {
+      // GridDay.reason 이 있으면 휴가, 없으면 정기 휴무 요일.
+      reason = day.reason ? "leave" : "off";
+    } else if (day.cells.some((c) => c.kind === "free")) {
+      available = true;
+    } else {
+      reason = "full";
+    }
+    for (const pk of pkgs) {
+      options.push({
+        kind: "oneToOne",
+        packageId: pk.packageId,
+        serviceName: pk.serviceName,
+        trainerName: pk.trainerName,
+        available,
+        reason,
+      });
+    }
+  }
+
+  // --- 단체 — 그 날 회차 + 정원 여유 + 미등록 ---
+  const groupServiceIds = [
+    ...new Set(
+      packages
+        .filter((p) => p.service.capacity > 1)
+        .map((p) => p.service.id),
+    ),
+  ];
+  if (groupServiceIds.length > 0) {
+    const wd = ME_WEEKDAY[dayUtcMid.getUTCDay()]!;
+    const schedules = await prisma.scheduledClass.findMany({
+      where: {
+        gymId,
+        active: true,
+        serviceId: { in: groupServiceIds },
+        validFrom: { lte: dayUtcMid },
+        OR: [{ validUntil: null }, { validUntil: { gte: dayUtcMid } }],
+      },
+      select: {
+        id: true,
+        kind: true,
+        weekdays: true,
+        specificDate: true,
+        startMinute: true,
+        service: { select: { name: true, capacity: true } },
+      },
+    });
+    for (const sc of schedules) {
+      if (sc.kind === "ONE_OFF") {
+        if (!sc.specificDate || ymdUtc(sc.specificDate) !== dateKey) {
+          continue;
+        }
+      } else if (!sc.weekdays.includes(wd)) {
+        continue;
+      }
+      const dayResvs = await prisma.reservation.findMany({
+        where: {
+          gymId,
+          scheduledClassId: sc.id,
+          startAt: { gte: dayUtcMid, lt: dayEnd },
+          status: { notIn: ["CANCELLED", "REJECTED"] },
+        },
+        select: { customerUserId: true },
+      });
+      if (dayResvs.some((r) => r.customerUserId === user.id)) continue;
+      if (dayResvs.length >= sc.service.capacity) continue;
+      options.push({
+        kind: "group",
+        scheduleId: sc.id,
+        serviceName: sc.service.name,
+        startMin: sc.startMinute,
+      });
+    }
+  }
+
+  // 단체수업(시간순) -> 1:1 가능 -> 1:1 비활성 순.
+  const sortKey = (o: MeDayOption): number =>
+    o.kind === "group" ? o.startMin : o.available ? 100000 : 100001;
+  options.sort((a, b) => sortKey(a) - sortKey(b));
+  return { hasPasses, options };
 }

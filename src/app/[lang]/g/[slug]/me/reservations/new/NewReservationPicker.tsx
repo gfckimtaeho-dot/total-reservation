@@ -12,12 +12,15 @@ export function NewReservationPicker({
   packageId,
   days,
   slotAxis,
+  dateMode = false,
 }: {
   slug: string;
   lang: string;
   packageId: string;
   days: GridDay[];
   slotAxis: number[];
+  // 캘린더에서 날짜를 찍어 들어온 단일 날짜 모드 — 빈자리 없을 때 안내 문구가 다르다.
+  dateMode?: boolean;
 }) {
   const t = useTranslations("me");
   const router = useRouter();
@@ -70,7 +73,7 @@ export function NewReservationPicker({
   if (openDays.length === 0) {
     return (
       <div className="mt-4 rounded-md bg-zinc-900/80 p-4 text-sm text-zinc-400 ring-1 ring-zinc-800">
-        {t("newNoSlots")}
+        {t(dateMode ? "newNoSlotsDate" : "newNoSlots")}
       </div>
     );
   }
