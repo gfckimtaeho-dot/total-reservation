@@ -80,23 +80,10 @@ export function NewReservationPicker({
 
   return (
     <div className="mt-4 space-y-3">
-      {openDays.map(({ d, i }) => (
-        <DayBlock
-          key={`${d.year}-${d.month}-${d.day}`}
-          d={d}
-          dayIdx={i}
-          slotAxis={slotAxis}
-          chosen={chosen}
-          onPick={(slotIdx) => {
-            setError(null);
-            setChosen({ dayIdx: i, slotIdx });
-          }}
-          lang={lang}
-        />
-      ))}
-
+      {/* 확인 박스 — 시간 목록 위에 두고 sticky 로 고정. 시간을 고르면
+          스크롤 위치와 무관하게 항상 화면에 보인다(아래로 안 찾게). */}
       {chosen && (
-        <div className="mt-4 rounded-md border border-rose-300/40 bg-zinc-900/80 p-4 backdrop-blur">
+        <div className="sticky top-2 z-20 rounded-md border border-rose-300/50 bg-zinc-900 p-4 shadow-xl shadow-black/60">
           <div className="font-medium text-zinc-100">
             {t("newConfirmTitle")}
           </div>
@@ -126,6 +113,21 @@ export function NewReservationPicker({
           </div>
         </div>
       )}
+
+      {openDays.map(({ d, i }) => (
+        <DayBlock
+          key={`${d.year}-${d.month}-${d.day}`}
+          d={d}
+          dayIdx={i}
+          slotAxis={slotAxis}
+          chosen={chosen}
+          onPick={(slotIdx) => {
+            setError(null);
+            setChosen({ dayIdx: i, slotIdx });
+          }}
+          lang={lang}
+        />
+      ))}
     </div>
   );
 }

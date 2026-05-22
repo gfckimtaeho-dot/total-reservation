@@ -930,7 +930,9 @@
     "meDayTrainerOff": "{trainer} — off on {weekday}",
     "meDayTrainerLeave": "{trainer} — on leave",
     "meDayTrainerFull": "{trainer} — fully booked this day",
-    "meDayExhausted": "All booking sessions on this pass are used up"
+    "meDayExhausted": "All booking sessions on this pass are used up",
+    "packageAvailableBig": "{n} available to book",
+    "packageStatLine": "Total {total} · Done {done} · Booked {booked}"
   },
   "services": {
     "pageTitle": "Services",

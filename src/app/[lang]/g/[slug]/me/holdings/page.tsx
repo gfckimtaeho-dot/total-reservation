@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { gymTodayUtcMidnight, gymTodayRange } from "@/lib/calendar/gymTime";
+import { OPEN_STATUSES } from "@/lib/packages/availability";
 import { PackageTrainerCard } from "./PackageTrainerCard";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -39,7 +40,14 @@ export default async function HoldingsPage({
         remainingCount: { gt: 0 },
       },
       include: {
-        service: { select: { id: true, name: true, capacity: true } },
+        service: {
+          select: {
+            id: true,
+            name: true,
+            capacity: true,
+            deductCount: true,
+          },
+        },
         assignedStaff: {
           select: {
             id: true,
@@ -58,6 +66,23 @@ export default async function HoldingsPage({
   const personal = packages.filter((p) => p.service.capacity === 1);
   const group = packages.filter((p) => p.service.capacity > 1);
   const empty = memberships.length === 0 && packages.length === 0;
+
+  // 패키지별 미완료(예약중) 예약 수 — 예약 가능 횟수 계산용.
+  // 예약중(회) = open 예약 수 x 회당 차감, 예약 가능 = 잔여 - 예약중.
+  const openByPkg = new Map<string, number>();
+  if (packages.length > 0) {
+    const openGroups = await prisma.reservation.groupBy({
+      by: ["packageId"],
+      where: {
+        packageId: { in: packages.map((p) => p.id) },
+        status: { in: [...OPEN_STATUSES] },
+      },
+      _count: { _all: true },
+    });
+    for (const g of openGroups) {
+      if (g.packageId) openByPkg.set(g.packageId, g._count._all);
+    }
+  }
 
   // 패키지별 "재예약 필요" 건수 — 트레이너 변경 후 자동 변경 못 한 미래
   // 예약(staffId != assignedStaffId). 카드의 재예약 배지 노출에 사용.
@@ -185,12 +210,13 @@ export default async function HoldingsPage({
                         <div className="text-sm font-medium text-white">
                           {p.service.name}
                         </div>
-                        <div className="mt-0.5 text-xs text-zinc-400">
-                          {t("packageRemaining", {
-                            remaining: p.remainingCount,
-                            total: p.totalCount,
-                          })}
-                        </div>
+                        <PackageCounts
+                          totalCount={p.totalCount}
+                          remainingCount={p.remainingCount}
+                          deductCount={p.service.deductCount}
+                          openCount={openByPkg.get(p.id) ?? 0}
+                          t={t}
+                        />
                       </div>
                       {p.assignedStaffId && (
                         <a
@@ -240,12 +266,13 @@ export default async function HoldingsPage({
                         <div className="text-sm font-medium text-white">
                           {p.service.name}
                         </div>
-                        <div className="mt-0.5 text-xs text-zinc-400">
-                          {t("packageRemaining", {
-                            remaining: p.remainingCount,
-                            total: p.totalCount,
-                          })}
-                        </div>
+                        <PackageCounts
+                          totalCount={p.totalCount}
+                          remainingCount={p.remainingCount}
+                          deductCount={p.service.deductCount}
+                          openCount={openByPkg.get(p.id) ?? 0}
+                          t={t}
+                        />
                       </div>
                     </div>
                     <RefundPlaceholder t={t} />
@@ -274,6 +301,47 @@ function Section({
       </h2>
       {children}
     </section>
+  );
+}
+
+// 횟수권 상태 — "예약 가능"을 크게, 총/완료/예약중은 작게 보조로.
+//   완료    = 총 - 잔여 (수업 끝나며 차감된 만큼)
+//   예약중  = 미완료 예약 수 x 회당 차감 (잡아뒀고 아직 안 끝난 몫)
+//   예약가능 = 잔여 - 예약중 (지금 더 잡을 수 있는 몫)
+function PackageCounts({
+  totalCount,
+  remainingCount,
+  deductCount,
+  openCount,
+  t,
+}: {
+  totalCount: number;
+  remainingCount: number;
+  deductCount: number;
+  openCount: number;
+  t: T;
+}) {
+  const completed = totalCount - remainingCount;
+  const booked = openCount * deductCount;
+  const available = Math.max(0, remainingCount - booked);
+  return (
+    <div className="mt-1">
+      <div
+        className={
+          "font-heading text-base tracking-tight " +
+          (available > 0 ? "text-emerald-300" : "text-zinc-500")
+        }
+      >
+        {t("packageAvailableBig", { n: available })}
+      </div>
+      <div className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
+        {t("packageStatLine", {
+          total: totalCount,
+          done: completed,
+          booked,
+        })}
+      </div>
+    </div>
   );
 }
 
