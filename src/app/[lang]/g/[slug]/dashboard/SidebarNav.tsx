@@ -30,7 +30,7 @@ function items(lang: string, slug: string): Item[] {
     { key: "trainers", href: `/${lang}/g/${slug}/trainers` },
     { key: "hours", href: `/${lang}/g/${slug}/hours` },
     { key: "products", href: `/${lang}/g/${slug}/products` },
-    { key: "revenue", href: null },
+    { key: "revenue", href: `/${lang}/g/${slug}/revenue` },
     { key: "refunds", href: `/${lang}/g/${slug}/refunds` },
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
   ];
@@ -97,6 +97,7 @@ function keyFromHref(href: string): ActiveKey | null {
   if (href.endsWith("/hours")) return "hours";
   if (href.endsWith("/products")) return "products";
   if (href.endsWith("/services")) return "services";
+  if (href.endsWith("/revenue")) return "revenue";
   if (href.endsWith("/refunds")) return "refunds";
   if (href.endsWith("/settings")) return "settings";
   return null;
@@ -174,6 +175,7 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
             n.key === "hours" ||
             n.key === "products" ||
             n.key === "services" ||
+            n.key === "revenue" ||
             n.key === "refunds" ||
             n.key === "settings") &&
           effectiveKey === n.key;
