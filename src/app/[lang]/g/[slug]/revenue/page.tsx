@@ -184,8 +184,11 @@ export default async function RevenuePage({
       owner: s.owner,
       refund,
       net: s.owner - refund,
+      // 한쪽이 0이면 % 차이가 의미 없음 — "어제 대비 -100%" 같은 경계값을
+      // 안 보이도록 둘 다 양수일 때만 계산. (분자 0=영업 0의 신호이지
+      // "감소율"의 신호가 아님.)
       delta:
-        prevTotal > 0
+        prevTotal > 0 && s.total > 0
           ? Math.round(((s.total - prevTotal) / prevTotal) * 100)
           : null,
       deltaLabel,
@@ -416,15 +419,15 @@ export default async function RevenuePage({
             <div className={`flex items-center gap-3 text-xs ${tk.sub}`}>
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className={`inline-block h-2.5 w-2.5 rounded-sm ${tk.segSession}`}
-                />
-                {t("legendSessionPay")}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span
                   className={`inline-block h-2.5 w-2.5 rounded-sm ${tk.segBase}`}
                 />
                 {t("legendBasePay")}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className={`inline-block h-2.5 w-2.5 rounded-sm ${tk.segSession}`}
+                />
+                {t("legendSessionPay")}
               </span>
             </div>
           </div>
@@ -432,15 +435,15 @@ export default async function RevenuePage({
             <div className={`mt-2 text-sm ${tk.sub}`}>{t("noData")}</div>
           ) : (
             <>
-              {/* 헤더 — 모든 셀 중앙(헤더 규칙), 숫자 셀은 우측정렬(컬럼별) */}
+              {/* 헤더 — 데이터 정렬에 맞춤(트레이너=좌, 숫자컬럼=우). 데이터보다 크고 진하게. */}
               <div
-                className={`mt-3 hidden border-b ${tk.rowBorder} pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] ${tk.sub} sm:grid sm:grid-cols-[minmax(8rem,1.2fr)_minmax(0,2fr)_minmax(0,3.5fr)]`}
+                className={`mt-3 hidden border-b ${tk.rowBorder} pb-2 text-sm font-bold ${tk.num} sm:grid sm:grid-cols-[minmax(8rem,1.2fr)_minmax(0,2fr)_minmax(0,3.5fr)] sm:items-end sm:gap-4`}
               >
-                <div className="text-center">{t("colTrainer")}</div>
-                <div className="text-center"></div>
-                <div className="grid grid-cols-3 text-center">
-                  <div>{t("colSessionPay")}</div>
+                <div className="text-left">{t("colTrainer")}</div>
+                <div></div>
+                <div className="grid grid-cols-3 gap-2 text-right">
                   <div>{t("colBasePay")}</div>
+                  <div>{t("colSessionPay")}</div>
                   <div>{t("colTotalPay")}</div>
                 </div>
               </div>
@@ -464,28 +467,28 @@ export default async function RevenuePage({
                       <div>
                         <div
                           className={`flex h-3 w-full overflow-hidden rounded-full ${tk.segTrack}`}
-                          aria-label={`${money(tp.sessionPhp)} + ${money(tp.basePhp)}`}
+                          aria-label={`${money(tp.basePhp)} + ${money(tp.sessionPhp)}`}
                         >
-                          {sessionPct > 0 && (
-                            <div
-                              className={tk.segSession}
-                              style={{ width: `${sessionPct}%` }}
-                            />
-                          )}
                           {basePct > 0 && (
                             <div
                               className={tk.segBase}
                               style={{ width: `${basePct}%` }}
                             />
                           )}
+                          {sessionPct > 0 && (
+                            <div
+                              className={tk.segSession}
+                              style={{ width: `${sessionPct}%` }}
+                            />
+                          )}
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-right tabular-nums">
                         <div className={`text-sm ${tk.sub}`}>
-                          {money(tp.sessionPhp)}
+                          {money(tp.basePhp)}
                         </div>
                         <div className={`text-sm ${tk.sub}`}>
-                          {money(tp.basePhp)}
+                          {money(tp.sessionPhp)}
                         </div>
                         <div
                           className={`font-heading text-base ${tk.num}`}
@@ -506,8 +509,8 @@ export default async function RevenuePage({
                 </div>
                 <div />
                 <div className="grid grid-cols-3 gap-2 text-right tabular-nums">
-                  <div className={`text-sm ${tk.sub}`}>{money(sessionTotal)}</div>
                   <div className={`text-sm ${tk.sub}`}>{money(baseTotal)}</div>
+                  <div className={`text-sm ${tk.sub}`}>{money(sessionTotal)}</div>
                   <div className={`font-heading text-base font-semibold ${tk.num}`}>
                     {money(payTotal)}
                   </div>

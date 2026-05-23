@@ -41,6 +41,17 @@ const TONE = {
 // 세그먼트 색 — 3테마 공통. 순수익=에메랄드, 트레이너 지급=스카이.
 const C_OWNER = "bg-emerald-400";
 const C_PAYOUT = "bg-sky-400";
+const C_OWNER_TEXT = "text-emerald-500";
+const C_PAYOUT_TEXT = "text-sky-500";
+
+// 막대 라벨용 천/백만 축약. 0은 빈 문자열(라벨 생략).
+function fmtK(n: number): string {
+  if (n === 0) return "";
+  if (n < 1000) return String(n);
+  if (n < 10000) return `${(n / 1000).toFixed(1)}K`;
+  if (n < 1000000) return `${Math.round(n / 1000)}K`;
+  return `${(n / 1000000).toFixed(1)}M`;
+}
 
 export function RevenueChart({
   tone,
@@ -75,6 +86,16 @@ export function RevenueChart({
   const visibleOf = (b: Bar) =>
     (showOwner ? b.owner : 0) + (showPayout ? payoutOf(b) : 0);
   const maxVal = Math.max(1, ...series.map(visibleOf));
+
+  // 보이는 기간 전체 합계 — 차트 안 금액 카드(총매출/순수익/트레이너 지급).
+  // 막대 토글(showOwner/showPayout)과 무관, 항상 풀 합계.
+  const sumTotal = series.reduce((s, b) => s + b.total, 0);
+  const sumOwner = series.reduce((s, b) => s + b.owner, 0);
+  const sumPayout = sumTotal - sumOwner;
+  // 일별(30+ 막대)에서도 K-단위 라벨이 보이게 — 막대 폭이 좁으면 컨테이너
+  // 최소폭을 늘려서 가로 스크롤로 흐르게 한다. 22px/막대면 "12K" 안 잘림.
+  const narrow = series.length > 14;
+  const minChartWidth = narrow ? `${series.length * 22}px` : undefined;
 
   function push(p: { view: View; y: number; m: number }) {
     startTransition(() => {
@@ -164,6 +185,29 @@ export function RevenueChart({
         </div>
       </div>
 
+      {/* 기간 합계 — 총매출 / 순수익 / 트레이너 지급. 막대 토글과 무관 항상 표시. */}
+      <div
+        className={`mt-3 grid grid-cols-3 gap-3 rounded-xl ${tk.track} px-3 py-2.5`}
+      >
+        <SumCell
+          label={t("sumTotal")}
+          value={money(sumTotal)}
+          tk={tk}
+        />
+        <SumCell
+          label={t("legendOwner")}
+          value={money(sumOwner)}
+          tk={tk}
+          valueClass={C_OWNER_TEXT}
+        />
+        <SumCell
+          label={t("legendPayout")}
+          value={money(sumPayout)}
+          tk={tk}
+          valueClass={C_PAYOUT_TEXT}
+        />
+      </div>
+
       {/* 세그먼트 토글 칩 */}
       <div className="mt-3 flex gap-2">
         <SegChip
@@ -199,7 +243,7 @@ export function RevenueChart({
       <div className="mt-2 overflow-x-auto">
         <div
           className="flex items-end gap-1"
-          style={{ minWidth: series.length > 16 ? "640px" : undefined }}
+          style={{ minWidth: minChartWidth }}
         >
           {series.map((b, i) => {
             const ownerH = showOwner
@@ -209,25 +253,46 @@ export function RevenueChart({
               ? (payoutOf(b) / maxVal) * 100
               : 0;
             const on = sel === i;
+            const barTotal = visibleOf(b);
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => setSel(on ? null : i)}
                 className="flex flex-1 flex-col items-center gap-1"
-                style={{ minWidth: "14px" }}
+                style={{ minWidth: narrow ? "22px" : "14px" }}
               >
+                <span
+                  className={`min-h-[12px] tabular-nums ${
+                    narrow ? "text-[8.5px]" : "text-[9px]"
+                  } ${on ? tk.text : tk.sub}`}
+                >
+                  {fmtK(barTotal)}
+                </span>
                 <div
                   className={`flex h-28 w-full flex-col justify-end rounded-sm ${tk.track}`}
                 >
                   <div
-                    className={`w-full rounded-t-sm ${C_PAYOUT}`}
+                    className={`flex w-full items-center justify-center overflow-hidden rounded-t-sm ${C_PAYOUT}`}
                     style={{ height: `${payoutH}%` }}
-                  />
+                  >
+                    {/* 세그먼트 높이가 충분히(픽셀 ≈10px) 클 때만 안 라벨 표시. */}
+                    {payoutH >= 9 && (
+                      <span className="text-[8px] font-semibold tabular-nums text-white">
+                        {fmtK(payoutOf(b))}
+                      </span>
+                    )}
+                  </div>
                   <div
-                    className={`w-full ${C_OWNER}`}
+                    className={`flex w-full items-center justify-center overflow-hidden ${C_OWNER}`}
                     style={{ height: `${ownerH}%` }}
-                  />
+                  >
+                    {ownerH >= 9 && (
+                      <span className="text-[8px] font-semibold tabular-nums text-white">
+                        {fmtK(b.owner)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <span
                   className={`text-[9px] tabular-nums ${
@@ -240,6 +305,33 @@ export function RevenueChart({
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SumCell({
+  label,
+  value,
+  tk,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  tk: { text: string; sub: string };
+  valueClass?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className={`truncate text-[10px] uppercase tracking-[0.16em] ${tk.sub}`}>
+        {label}
+      </div>
+      <div
+        className={`mt-0.5 truncate font-heading text-base tabular-nums ${
+          valueClass ?? tk.text
+        }`}
+      >
+        {value}
       </div>
     </div>
   );
