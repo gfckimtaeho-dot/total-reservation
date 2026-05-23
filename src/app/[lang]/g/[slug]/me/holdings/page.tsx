@@ -1,7 +1,7 @@
 import type { Viewport } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Undo2 } from "lucide-react";
 
 // V18 Sunset Peach — 화이트 테마. 모바일 상태바도 흰색.
 export const viewport: Viewport = {
@@ -331,7 +331,8 @@ function packageCounts(
   return { completed, booked, available };
 }
 
-// 환불 신청 링크 — 동결 안 된 권에만. 환불 신청 페이지로.
+// 환불 신청 링크 — PackageTrainerCard footer 의 환불 버튼과 동일 스타일.
+// 회원권/단체 권 카드 하단에 단독으로 사용 (PT 권은 PackageTrainerCard 안에서).
 function RefundLink({
   lang,
   slug,
@@ -346,11 +347,12 @@ function RefundLink({
   t: T;
 }) {
   return (
-    <div className="mt-3 border-t border-orange-100 pt-2">
+    <div className="mt-3">
       <a
         href={`/${lang}/g/${slug}/me/holdings/refund?kind=${kind}&id=${id}`}
-        className="text-[11px] text-zinc-500 underline-offset-2 hover:text-orange-600 hover:underline"
+        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50"
       >
+        <Undo2 size={13} />
         {t("holdingsRefundRequest")}
       </a>
     </div>
