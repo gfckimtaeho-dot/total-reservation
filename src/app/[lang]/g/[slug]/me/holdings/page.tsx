@@ -158,85 +158,90 @@ export default async function HoldingsPage({
             </div>
           )}
 
-          {memberships.length > 0 && (
-            <Section title={t("holdingsSectionMembership")}>
-              <ul className="space-y-2">
-                {memberships.map((m) => {
-                  const daysLeft = Math.max(
-                    0,
-                    Math.round(
-                      (m.endDate.getTime() - todayMid.getTime()) / MS_PER_DAY,
-                    ),
-                  );
-                  const soon = daysLeft <= 7;
-                  const expiresLabel = formatDate(m.endDate, lang);
-                  return (
-                    <li
-                      key={m.id}
-                      className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur"
+          {/* 카드 타입 소제목 폐기 — 카드 디자인 자체로 종류가 명확하고
+              한 줄당 한 권으로 한눈에 보임. 공간 확보를 위해 모든 카드를
+              한 ul 로 통합. 정렬은 회원권 → 1:1 → 단체 순(중요도 + 자주 봄). */}
+          {(memberships.length > 0 || packages.length > 0) && (
+            <ul className="space-y-2">
+              {memberships.map((m) => {
+                const daysLeft = Math.max(
+                  0,
+                  Math.round(
+                    (m.endDate.getTime() - todayMid.getTime()) / MS_PER_DAY,
+                  ),
+                );
+                const soon = daysLeft <= 7;
+                const expiresLabel = formatDate(m.endDate, lang);
+                return (
+                  <li
+                    key={m.id}
+                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur"
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="truncate text-2xl font-bold tracking-tight text-zinc-900">
+                        {m.plan?.name ?? t("membershipsTitle")}
+                      </span>
+                      <span
+                        className={
+                          "shrink-0 text-xl font-bold tabular-nums " +
+                          (soon ? "text-amber-700" : "text-emerald-700")
+                        }
+                      >
+                        {t("membershipDaysLeft", { n: daysLeft })}
+                      </span>
+                    </div>
+                    <div
+                      className={
+                        "mt-1 text-sm " +
+                        (soon ? "text-amber-700" : "text-zinc-500")
+                      }
                     >
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium text-zinc-900">
-                            {m.plan?.name ?? t("membershipsTitle")}
-                          </div>
-                          <div
-                            className={
-                              "mt-0.5 text-xs " +
-                              (soon ? "text-amber-700" : "text-zinc-500")
-                            }
-                          >
-                            {t("membershipExpiresOn", { date: expiresLabel })}
-                          </div>
-                        </div>
-                        {m.refundedAt ? (
-                          <RefundedBadge t={t} />
-                        ) : (
-                          <div
-                            className={
-                              "shrink-0 font-heading text-sm tabular-nums " +
-                              (soon ? "text-amber-700" : "text-emerald-700")
-                            }
-                          >
-                            {t("membershipDaysLeft", { n: daysLeft })}
-                          </div>
-                        )}
-                      </div>
-                      {!m.refundedAt && (
-                        <RefundLink
-                          lang={lang}
-                          slug={slug}
-                          kind="MEMBERSHIP"
-                          id={m.id}
-                          t={t}
-                        />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </Section>
-          )}
+                      {t("membershipExpiresOn", { date: expiresLabel })}
+                    </div>
+                    <RefundLink
+                      lang={lang}
+                      slug={slug}
+                      kind="MEMBERSHIP"
+                      id={m.id}
+                      t={t}
+                    />
+                  </li>
+                );
+              })}
 
-          {personal.length > 0 && (
-            <Section title={t("holdingsSectionPersonal")}>
-              <ul className="space-y-2">
-                {personal.map((p) => (
+              {personal.map((p) => {
+                const counts = packageCounts(
+                  p.totalCount,
+                  p.remainingCount,
+                  p.service.deductCount,
+                  openByPkg.get(p.id) ?? 0,
+                );
+                return (
                   <li
                     key={p.id}
-                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur"
+                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur"
                   >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-zinc-900">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="truncate text-2xl font-bold tracking-tight text-zinc-900">
                         {p.service.name}
-                      </div>
-                      <PackageCounts
-                        totalCount={p.totalCount}
-                        remainingCount={p.remainingCount}
-                        deductCount={p.service.deductCount}
-                        openCount={openByPkg.get(p.id) ?? 0}
-                        t={t}
-                      />
+                      </span>
+                      <span
+                        className={
+                          "shrink-0 text-xl font-bold tabular-nums " +
+                          (counts.available > 0
+                            ? "text-emerald-700"
+                            : "text-zinc-400")
+                        }
+                      >
+                        {t("packageAvailableBig", { n: counts.available })}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-sm tabular-nums text-zinc-500">
+                      {t("packageStatLine", {
+                        total: p.totalCount,
+                        done: counts.completed,
+                        booked: counts.booked,
+                      })}
                     </div>
                     <PackageTrainerCard
                       slug={slug}
@@ -255,50 +260,54 @@ export default async function HoldingsPage({
                       }
                     />
                   </li>
-                ))}
-              </ul>
-            </Section>
-          )}
+                );
+              })}
 
-          {group.length > 0 && (
-            <Section title={t("holdingsSectionGroup")}>
-              <ul className="space-y-2">
-                {group.map((p) => (
+              {group.map((p) => {
+                const counts = packageCounts(
+                  p.totalCount,
+                  p.remainingCount,
+                  p.service.deductCount,
+                  openByPkg.get(p.id) ?? 0,
+                );
+                return (
                   <li
                     key={p.id}
-                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur"
+                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur"
                   >
                     <div className="flex items-baseline justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-zinc-900">
-                          {p.service.name}
-                        </div>
-                        {p.refundedAt ? (
-                          <RefundedBadge t={t} />
-                        ) : (
-                          <PackageCounts
-                            totalCount={p.totalCount}
-                            remainingCount={p.remainingCount}
-                            deductCount={p.service.deductCount}
-                            openCount={openByPkg.get(p.id) ?? 0}
-                            t={t}
-                          />
-                        )}
-                      </div>
+                      <span className="truncate text-2xl font-bold tracking-tight text-zinc-900">
+                        {p.service.name}
+                      </span>
+                      <span
+                        className={
+                          "shrink-0 text-xl font-bold tabular-nums " +
+                          (counts.available > 0
+                            ? "text-emerald-700"
+                            : "text-zinc-400")
+                        }
+                      >
+                        {t("packageAvailableBig", { n: counts.available })}
+                      </span>
                     </div>
-                    {!p.refundedAt && (
-                      <RefundLink
-                        lang={lang}
-                        slug={slug}
-                        kind="PACKAGE"
-                        id={p.id}
-                        t={t}
-                      />
-                    )}
+                    <div className="mt-1 text-sm tabular-nums text-zinc-500">
+                      {t("packageStatLine", {
+                        total: p.totalCount,
+                        done: counts.completed,
+                        booked: counts.booked,
+                      })}
+                    </div>
+                    <RefundLink
+                      lang={lang}
+                      slug={slug}
+                      kind="PACKAGE"
+                      id={p.id}
+                      t={t}
+                    />
                   </li>
-                ))}
-              </ul>
-            </Section>
+                );
+              })}
+            </ul>
           )}
         </div>
       </main>
@@ -306,62 +315,20 @@ export default async function HoldingsPage({
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section>
-      <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-// 횟수권 상태 — "예약 가능"을 크게, 총/완료/예약중은 작게 보조로.
+// 횟수권 상태 계산.
 //   완료    = 총 - 잔여 (수업 끝나며 차감된 만큼)
 //   예약중  = 미완료 예약 수 x 회당 차감 (잡아뒀고 아직 안 끝난 몫)
 //   예약가능 = 잔여 - 예약중 (지금 더 잡을 수 있는 몫)
-function PackageCounts({
-  totalCount,
-  remainingCount,
-  deductCount,
-  openCount,
-  t,
-}: {
-  totalCount: number;
-  remainingCount: number;
-  deductCount: number;
-  openCount: number;
-  t: T;
-}) {
+function packageCounts(
+  totalCount: number,
+  remainingCount: number,
+  deductCount: number,
+  openCount: number,
+): { completed: number; booked: number; available: number } {
   const completed = totalCount - remainingCount;
   const booked = openCount * deductCount;
   const available = Math.max(0, remainingCount - booked);
-  return (
-    <div className="mt-1">
-      <div
-        className={
-          "font-heading text-base tracking-tight " +
-          (available > 0 ? "text-emerald-700" : "text-zinc-400")
-        }
-      >
-        {t("packageAvailableBig", { n: available })}
-      </div>
-      <div className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
-        {t("packageStatLine", {
-          total: totalCount,
-          done: completed,
-          booked,
-        })}
-      </div>
-    </div>
-  );
+  return { completed, booked, available };
 }
 
 // 환불 신청 링크 — 동결 안 된 권에만. 환불 신청 페이지로.
@@ -386,15 +353,6 @@ function RefundLink({
       >
         {t("holdingsRefundRequest")}
       </a>
-    </div>
-  );
-}
-
-// 환불 신청된 권 — "환불 처리 중" 배지. 예약/변경 불가.
-function RefundedBadge({ t }: { t: T }) {
-  return (
-    <div className="mt-1.5 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
-      {t("holdingsRefundPending")}
     </div>
   );
 }
