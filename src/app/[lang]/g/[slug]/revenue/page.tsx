@@ -162,13 +162,16 @@ export default async function RevenuePage({
 
   type Kpi = {
     label: string;
-    total: number;
-    owner: number;
-    refund: number;
-    net: number;
+    total: number; // 매출(환불 차감 net)
+    owner: number; // 사장 몫(환불 차감 net) — payout만 빠진 게 아니라 환불도 빠짐
+    refund: number; // 정보 라인용 — 그 기간 환불 총액
     delta: number | null;
     deltaLabel: string;
   };
+  // 매출 산식 — sales 합에서 환불 차감(사장 부담). payout은 매출의 일부였으니
+  // total에서 빼고, owner에서도 빼면 트레이너 지급은 그대로(=total-owner) 보존.
+  // 환불 시점은 requestedAt — 정책상 신청 시점에 권 동결+미래예약 취소가
+  // 즉시 일어나 매출 손실 확정([[decision_refund_policy]]).
   function kpi(
     label: string,
     deltaLabel: string,
@@ -177,19 +180,21 @@ export default async function RevenuePage({
   ): Kpi {
     const s = sumSales(pred);
     const refund = sumRefunds(pred);
-    const prevTotal = sumSales(prevPred).total;
+    const prev = sumSales(prevPred);
+    const prevRefund = sumRefunds(prevPred);
+    const total = s.total - refund;
+    const owner = s.owner - refund;
+    const prevTotal = prev.total - prevRefund;
     return {
       label,
-      total: s.total,
-      owner: s.owner,
+      total,
+      owner,
       refund,
-      net: s.owner - refund,
       // 한쪽이 0이면 % 차이가 의미 없음 — "어제 대비 -100%" 같은 경계값을
-      // 안 보이도록 둘 다 양수일 때만 계산. (분자 0=영업 0의 신호이지
-      // "감소율"의 신호가 아님.)
+      // 안 보이도록 둘 다 양수일 때만 계산.
       delta:
-        prevTotal > 0 && s.total > 0
-          ? Math.round(((s.total - prevTotal) / prevTotal) * 100)
+        prevTotal > 0 && total > 0
+          ? Math.round(((total - prevTotal) / prevTotal) * 100)
           : null,
       deltaLabel,
     };
@@ -253,17 +258,28 @@ export default async function RevenuePage({
     periodLabel = t("periodDecade", { from: anchorY - 9, to: anchorY });
   }
 
-  const periodSales = await prisma.sale.findMany({
-    where: {
-      gymId: business.id,
-      createdAt: { gte: rangeFrom, lt: rangeTo },
-    },
-    select: {
-      totalPaidPhp: true,
-      ownerRevenuePhp: true,
-      createdAt: true,
-    },
-  });
+  // 차트도 KPI와 같은 산식으로 — sales + 환불을 한 bucket에 합쳐 환불 차감.
+  // 둘이 분리되면 막대 합과 KPI total이 갈라져서 사용자 혼란.
+  const [periodSales, periodRefunds] = await Promise.all([
+    prisma.sale.findMany({
+      where: {
+        gymId: business.id,
+        createdAt: { gte: rangeFrom, lt: rangeTo },
+      },
+      select: {
+        totalPaidPhp: true,
+        ownerRevenuePhp: true,
+        createdAt: true,
+      },
+    }),
+    prisma.refundRequest.findMany({
+      where: {
+        gymId: business.id,
+        requestedAt: { gte: rangeFrom, lt: rangeTo },
+      },
+      select: { refundPhp: true, requestedAt: true },
+    }),
+  ]);
   const byBucket = new Map<string, Money>();
   for (const s of periodSales) {
     const k = gymYmd(s.createdAt, tz);
@@ -272,6 +288,16 @@ export default async function RevenuePage({
     const cur = byBucket.get(bk) ?? { total: 0, owner: 0 };
     cur.total += s.totalPaidPhp;
     cur.owner += s.ownerRevenuePhp;
+    byBucket.set(bk, cur);
+  }
+  // 환불 차감 — total과 owner에서 동일 금액 빼서 payout(=total-owner) 불변 유지.
+  for (const r of periodRefunds) {
+    const k = gymYmd(r.requestedAt, tz);
+    if (!inPeriod(k)) continue;
+    const bk = bucketKey(k);
+    const cur = byBucket.get(bk) ?? { total: 0, owner: 0 };
+    cur.total -= r.refundPhp;
+    cur.owner -= r.refundPhp;
     byBucket.set(bk, cur);
   }
   const series = bucketLabels.map((bk, i) => ({
@@ -342,7 +368,9 @@ export default async function RevenuePage({
           {t("title")}
         </h1>
 
-        {/* KPI 3장 — 총매출 + 사장몫 + 환불 + 순이익 */}
+        {/* KPI 3장 — 매출(환불 차감 net) + 사장몫(net) + 환불 정보.
+            산식: 매출 = sales - 환불, 사장 몫 = ownerRevenue - 환불. 둘 다
+            환불을 한 번만 빼서 트레이너 지급(=매출-사장몫)은 변동 없음. */}
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {kpis.map((k) => (
             <div
@@ -381,17 +409,12 @@ export default async function RevenuePage({
                   label={t("sumOwner")}
                   value={money(k.owner)}
                   tk={tk}
+                  strong
                 />
                 <KpiLine
                   label={t("sumRefund")}
                   value={`- ${money(k.refund)}`}
                   tk={tk}
-                />
-                <KpiLine
-                  label={t("sumNet")}
-                  value={money(k.net)}
-                  tk={tk}
-                  strong
                 />
               </dl>
             </div>
