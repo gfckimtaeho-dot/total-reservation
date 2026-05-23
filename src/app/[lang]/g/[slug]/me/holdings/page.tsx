@@ -29,11 +29,11 @@ export default async function HoldingsPage({
 
   const todayMid = gymTodayUtcMidnight(business.timeZone);
 
-  // 환불 완료(COMPLETED RefundRequest)된 권은 보유 화면에서 사라짐. 환불
-  // 신청만 된(refundedAt 있지만 status=PENDING) 권은 "환불 처리 중" 배지로
-  // 표시 유지 — 사장 송금/지급 후 고객 화면에서 자연스럽게 정리.
-  const NOT_COMPLETED_REFUND = {
-    NOT: { refundRequests: { some: { status: "COMPLETED" as const } } },
+  // 환불 신청된 권은 status 무관하게 보유 화면에서 즉시 제외 — 신청 시점부터
+  // 권은 사용 동결, 화면에 남아있어 봐야 사용자에게 혼란. 환불 진행 상황은
+  // 별도 알림/페이지에서 (미구현).
+  const NO_REFUND_REQUEST = {
+    refundRequests: { none: {} },
   };
   const [memberships, packages] = await Promise.all([
     prisma.membership.findMany({
@@ -41,7 +41,7 @@ export default async function HoldingsPage({
         gymId: business.id,
         userId: user.id,
         endDate: { gte: todayMid },
-        ...NOT_COMPLETED_REFUND,
+        ...NO_REFUND_REQUEST,
       },
       include: { plan: { select: { name: true } } },
       orderBy: { endDate: "asc" },
@@ -51,7 +51,7 @@ export default async function HoldingsPage({
         gymId: business.id,
         userId: user.id,
         remainingCount: { gt: 0 },
-        ...NOT_COMPLETED_REFUND,
+        ...NO_REFUND_REQUEST,
       },
       include: {
         service: {
@@ -226,64 +226,34 @@ export default async function HoldingsPage({
                     key={p.id}
                     className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur"
                   >
-                    <div className="flex items-baseline justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-zinc-900">
-                          {p.service.name}
-                        </div>
-                        {p.refundedAt ? (
-                          <RefundedBadge t={t} />
-                        ) : (
-                          <PackageCounts
-                            totalCount={p.totalCount}
-                            remainingCount={p.remainingCount}
-                            deductCount={p.service.deductCount}
-                            openCount={openByPkg.get(p.id) ?? 0}
-                            t={t}
-                          />
-                        )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-zinc-900">
+                        {p.service.name}
                       </div>
-                      {!p.refundedAt && p.assignedStaffId && (
-                        <a
-                          href={`/${lang}/g/${slug}/me/reservations/new?pkg=${p.id}`}
-                          className="shrink-0 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_4px_14px_-6px_rgba(251,146,60,0.6)] hover:brightness-110"
-                        >
-                          {t("actionBook")}
-                        </a>
-                      )}
-                    </div>
-                    {!p.refundedAt && (
-                      <PackageTrainerCard
-                        slug={slug}
-                        lang={lang}
-                        packageId={p.id}
-                        pendingRebookCount={
-                          pendingRebookByPkg.get(p.id) ?? 0
-                        }
-                        assignedStaff={
-                          p.assignedStaff
-                            ? {
-                                name: p.assignedStaff.user.name,
-                                phone: p.assignedStaff.user.phone,
-                                photoUrl: p.assignedStaff.photoUrl,
-                                specialty:
-                                  p.assignedStaff.specialties[0] ?? null,
-                                career: p.assignedStaff.career,
-                                bio: p.assignedStaff.bio,
-                              }
-                            : null
-                        }
-                      />
-                    )}
-                    {!p.refundedAt && (
-                      <RefundLink
-                        lang={lang}
-                        slug={slug}
-                        kind="PACKAGE"
-                        id={p.id}
+                      <PackageCounts
+                        totalCount={p.totalCount}
+                        remainingCount={p.remainingCount}
+                        deductCount={p.service.deductCount}
+                        openCount={openByPkg.get(p.id) ?? 0}
                         t={t}
                       />
-                    )}
+                    </div>
+                    <PackageTrainerCard
+                      slug={slug}
+                      lang={lang}
+                      packageId={p.id}
+                      pendingRebookCount={pendingRebookByPkg.get(p.id) ?? 0}
+                      assignedStaff={
+                        p.assignedStaff
+                          ? {
+                              name: p.assignedStaff.user.name,
+                              photoUrl: p.assignedStaff.photoUrl,
+                              specialty:
+                                p.assignedStaff.specialties[0] ?? null,
+                            }
+                          : null
+                      }
+                    />
                   </li>
                 ))}
               </ul>

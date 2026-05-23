@@ -1,15 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
-import {
-  ChevronDown,
-  Phone,
-  MessageCircle,
-  UserCog,
-  CalendarClock,
-} from "lucide-react";
+import { UserCog, CalendarClock, Undo2 } from "lucide-react";
 
+// PT 권 카드 안 — 트레이너 표시 + 액션 버튼 row.
+// 표시는 사진 + 이름 + 전공 한 줄. 소개/연락/채팅 펼침 X (사용자 요청).
+// 액션: 트레이너 변경 / (필요 시) 재예약 / 환불 신청 — 한 줄 wrap.
 export function PackageTrainerCard({
   slug,
   lang,
@@ -23,20 +19,16 @@ export function PackageTrainerCard({
   pendingRebookCount: number;
   assignedStaff: {
     name: string;
-    phone: string | null;
     photoUrl: string | null;
     specialty: string | null;
-    career: string | null;
-    bio: string | null;
   } | null;
 }) {
   const t = useTranslations("me");
-  const [open, setOpen] = useState(false);
 
   const trainerHref = `/${lang}/g/${slug}/me/holdings/${packageId}/trainer`;
   const rebookHref = `/${lang}/g/${slug}/me/holdings/${packageId}/rebook`;
+  const refundHref = `/${lang}/g/${slug}/me/holdings/refund?kind=PACKAGE&id=${packageId}`;
 
-  // 트레이너 변경 + (필요 시) 재예약 진입 — 카드 종류와 무관하게 항상 노출.
   const footer = (
     <div className="mt-2 flex flex-wrap gap-2">
       <a
@@ -55,6 +47,13 @@ export function PackageTrainerCard({
           {t("holdingsRebookBadge", { n: pendingRebookCount })}
         </a>
       )}
+      <a
+        href={refundHref}
+        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50"
+      >
+        <Undo2 size={13} />
+        {t("holdingsRefundRequest")}
+      </a>
     </div>
   );
 
@@ -71,63 +70,25 @@ export function PackageTrainerCard({
 
   return (
     <div className="mt-3">
-      <div className="rounded-lg border border-orange-100 bg-orange-50/60">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center gap-3 p-3 text-left"
-        >
-          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-rose-500">
-            {assignedStaff.photoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={assignedStaff.photoUrl}
-                alt={assignedStaff.name}
-                className="h-full w-full object-cover"
-              />
-            )}
-          </div>
-          <div className="flex-1 text-sm font-medium text-zinc-900">
-            {assignedStaff.name}
-            {assignedStaff.specialty && (
-              <span className="ml-2 text-[10px] font-normal text-zinc-500">
-                {assignedStaff.specialty}
-              </span>
-            )}
-          </div>
-          <ChevronDown
-            size={14}
-            className={"text-zinc-400 transition " + (open ? "rotate-180" : "")}
-          />
-        </button>
-        {open && (
-          <div className="space-y-2 border-t border-orange-100 px-3 pb-3 pt-2 text-xs text-zinc-700">
-            {assignedStaff.career && (
-              <div className="text-[11px] text-zinc-500">
-                {assignedStaff.career}
-              </div>
-            )}
-            {assignedStaff.bio && <p>{assignedStaff.bio}</p>}
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {assignedStaff.phone && (
-                <a
-                  href={`tel:${assignedStaff.phone}`}
-                  className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] text-emerald-700 ring-1 ring-emerald-300"
-                >
-                  <Phone size={10} /> {assignedStaff.phone}
-                </a>
-              )}
-              <button
-                type="button"
-                disabled
-                className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-[10px] text-sky-700/70 ring-1 ring-sky-200"
-                title={t("chatComingSoon")}
-              >
-                <MessageCircle size={10} /> {t("chatLabel")}
-              </button>
-            </div>
-          </div>
-        )}
+      <div className="flex items-center gap-3 rounded-lg border border-orange-100 bg-orange-50/60 p-3">
+        <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-rose-500">
+          {assignedStaff.photoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={assignedStaff.photoUrl}
+              alt={assignedStaff.name}
+              className="h-full w-full object-cover"
+            />
+          )}
+        </div>
+        <div className="flex-1 text-sm font-medium text-zinc-900">
+          {assignedStaff.name}
+          {assignedStaff.specialty && (
+            <span className="ml-2 text-[10px] font-normal text-zinc-500">
+              {assignedStaff.specialty}
+            </span>
+          )}
+        </div>
       </div>
       {footer}
     </div>
