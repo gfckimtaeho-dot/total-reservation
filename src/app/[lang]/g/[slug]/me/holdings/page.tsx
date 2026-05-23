@@ -350,9 +350,9 @@ function RefundLink({
     <div className="mt-3">
       <a
         href={`/${lang}/g/${slug}/me/holdings/refund?kind=${kind}&id=${id}`}
-        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50"
+        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50"
       >
-        <Undo2 size={13} />
+        <Undo2 size={16} />
         {t("holdingsRefundRequest")}
       </a>
     </div>

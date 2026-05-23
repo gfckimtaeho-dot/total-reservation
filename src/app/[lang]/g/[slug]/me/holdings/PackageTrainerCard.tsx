@@ -30,28 +30,28 @@ export function PackageTrainerCard({
   const refundHref = `/${lang}/g/${slug}/me/holdings/refund?kind=PACKAGE&id=${packageId}`;
 
   const footer = (
-    <div className="mt-2 flex flex-wrap gap-2">
+    <div className="mt-3 flex flex-wrap gap-2">
       <a
         href={trainerHref}
-        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-700 ring-1 ring-orange-200 hover:bg-orange-50"
+        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-700 ring-1 ring-orange-200 hover:bg-orange-50"
       >
-        <UserCog size={13} />
+        <UserCog size={16} />
         {t("holdingsChangeTrainer")}
       </a>
       {pendingRebookCount > 0 && (
         <a
           href={rebookHref}
-          className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-200"
+          className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-200"
         >
-          <CalendarClock size={13} />
+          <CalendarClock size={16} />
           {t("holdingsRebookBadge", { n: pendingRebookCount })}
         </a>
       )}
       <a
         href={refundHref}
-        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50"
+        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50"
       >
-        <Undo2 size={13} />
+        <Undo2 size={16} />
         {t("holdingsRefundRequest")}
       </a>
     </div>
