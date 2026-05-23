@@ -40,7 +40,16 @@ export async function completeRefund(
     },
   });
 
+  // ToBe — 고객 알림 발송("환불이 완료되었습니다"). 알림 인프라(웹 push/
+  // 인앱 인박스) 구축 후 여기서 트리거. 이메일은 도달률 낮아 안 씀.
+  // 권은 자동으로 고객 보유 화면(/me, /me/holdings)에서 사라짐(COMPLETED
+  // RefundRequest 가진 권은 쿼리 제외).
+
   revalidatePath(`/ko/g/${slug}/refunds`);
   revalidatePath(`/en/g/${slug}/refunds`);
+  revalidatePath(`/ko/g/${slug}/me`);
+  revalidatePath(`/en/g/${slug}/me`);
+  revalidatePath(`/ko/g/${slug}/me/holdings`);
+  revalidatePath(`/en/g/${slug}/me/holdings`);
   return { ok: true };
 }

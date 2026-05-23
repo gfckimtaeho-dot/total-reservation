@@ -50,11 +50,13 @@ export default async function CustomerHomePage({
         gymId: business.id,
         userId: user.id,
         endDate: { gte: todayMid },
+        // 환불 신청한 권은 메인에서 즉시 숨김(횟수권과 일관). 환불 진행 추적은
+        // /me/holdings 의 "환불 처리 중" 배지로. 완료된 환불은 holdings 에서도 사라짐.
+        refundedAt: null,
       },
       select: {
         id: true,
         endDate: true,
-        refundedAt: true,
         plan: { select: { name: true } },
       },
       orderBy: { endDate: "asc" },
@@ -110,6 +112,7 @@ export default async function CustomerHomePage({
 
   const hasAnyPass = memberships.length > 0 || packages.length > 0;
   // 회원권 카드 행용 — holdings 페이지와 동일 산식(daysLeft 7 이하 amber).
+  // 환불 신청/완료된 권은 쿼리에서 제외했으므로 여기선 모두 활성권.
   const memberRows = memberships.map((m) => {
     const daysLeft = Math.max(
       0,
@@ -122,7 +125,6 @@ export default async function CustomerHomePage({
       name: m.plan?.name ?? t("membershipsTitle"),
       endDate: m.endDate,
       daysLeft,
-      refunded: m.refundedAt != null,
     };
   });
 
@@ -399,7 +401,6 @@ function PassSummary({
     name: string;
     endDate: Date;
     daysLeft: number;
-    refunded: boolean;
   }[];
   passes: {
     name: string;
@@ -427,25 +428,17 @@ function PassSummary({
                 {m.name}
               </span>
               <div className="flex shrink-0 items-baseline gap-2">
-                {m.refunded ? (
-                  <span className="text-[11px] text-amber-200">
-                    {t("holdingsRefundPending")}
-                  </span>
-                ) : (
-                  <>
-                    <span
-                      className={
-                        "text-sm font-semibold tabular-nums " +
-                        (soon ? "text-amber-200" : "text-emerald-300")
-                      }
-                    >
-                      {t("membershipDaysLeft", { n: m.daysLeft })}
-                    </span>
-                    <span className="text-[11px] tabular-nums text-zinc-500">
-                      {formatExpiry(m.endDate, lang)}
-                    </span>
-                  </>
-                )}
+                <span
+                  className={
+                    "text-sm font-semibold tabular-nums " +
+                    (soon ? "text-amber-200" : "text-emerald-300")
+                  }
+                >
+                  {t("membershipDaysLeft", { n: m.daysLeft })}
+                </span>
+                <span className="text-[11px] tabular-nums text-zinc-500">
+                  {formatExpiry(m.endDate, lang)}
+                </span>
               </div>
             </li>
           );

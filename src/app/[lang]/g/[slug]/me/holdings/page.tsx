@@ -23,12 +23,19 @@ export default async function HoldingsPage({
 
   const todayMid = gymTodayUtcMidnight(business.timeZone);
 
+  // 환불 완료(COMPLETED RefundRequest)된 권은 보유 화면에서 사라짐. 환불
+  // 신청만 된(refundedAt 있지만 status=PENDING) 권은 "환불 처리 중" 배지로
+  // 표시 유지 — 사장 송금/지급 후 고객 화면에서 자연스럽게 정리.
+  const NOT_COMPLETED_REFUND = {
+    NOT: { refundRequests: { some: { status: "COMPLETED" as const } } },
+  };
   const [memberships, packages] = await Promise.all([
     prisma.membership.findMany({
       where: {
         gymId: business.id,
         userId: user.id,
         endDate: { gte: todayMid },
+        ...NOT_COMPLETED_REFUND,
       },
       include: { plan: { select: { name: true } } },
       orderBy: { endDate: "asc" },
@@ -38,6 +45,7 @@ export default async function HoldingsPage({
         gymId: business.id,
         userId: user.id,
         remainingCount: { gt: 0 },
+        ...NOT_COMPLETED_REFUND,
       },
       include: {
         service: {
