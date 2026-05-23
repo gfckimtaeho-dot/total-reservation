@@ -39,44 +39,41 @@ export async function requestAccessQr(
 
   const tz = user.business!.timeZone;
   const today = gymTodayUtcMidnight(tz);
-  const { end: endOfDay } = gymTodayRange(tz);
+  const { start: startOfDay, end: endOfDay } = gymTodayRange(tz);
 
-  // 가장 늦게 끝나는 유효 회원권 — 표시용 "마지막 날"의 출처.
-  const validMembership = await prisma.membership.findFirst({
-    where: { userId, gymId, endDate: { gte: today } },
-    orderBy: { endDate: "desc" },
-    select: { endDate: true },
-  });
-
-  let eligible = Boolean(validMembership);
-  if (!eligible) {
-    const { start, end } = gymTodayRange(tz);
-    const reservationToday = await prisma.reservation.findFirst({
+  // 자격 판정 = 회원권 OR 오늘 예약. 둘 다 OR 조건이라 동시에 fetch + 결과 합산
+  // → 한 왕복 절약 (기존 순차 await -> 병렬 Promise.all). qrToken 재사용 조회도
+  // 자격과 독립적이라 같은 배치에 묶어 한 번에 처리.
+  const now = new Date();
+  const [validMembership, reservationToday, existing] = await Promise.all([
+    prisma.membership.findFirst({
+      where: { userId, gymId, endDate: { gte: today } },
+      orderBy: { endDate: "desc" },
+      select: { endDate: true },
+    }),
+    prisma.reservation.findFirst({
       where: {
         customerUserId: userId,
         gymId,
-        startAt: { gte: start, lt: end },
+        startAt: { gte: startOfDay, lt: endOfDay },
         status: { notIn: ["CANCELLED", "REJECTED"] },
       },
       select: { id: true },
-    });
-    eligible = Boolean(reservationToday);
-  }
+    }),
+    prisma.qrToken.findFirst({
+      where: {
+        userId,
+        gymId,
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      orderBy: { issuedAt: "desc" },
+      select: { token: true, expiresAt: true },
+    }),
+  ]);
+  const eligible = Boolean(validMembership) || Boolean(reservationToday);
 
   if (!eligible) return { ok: false, reason: "noAccess" };
-
-  // 오늘 아직 유효한 토큰이 있으면 재사용(탭마다 row 폭증 방지).
-  const now = new Date();
-  const existing = await prisma.qrToken.findFirst({
-    where: {
-      userId,
-      gymId,
-      usedAt: null,
-      expiresAt: { gt: now },
-    },
-    orderBy: { issuedAt: "desc" },
-    select: { token: true, expiresAt: true },
-  });
 
   let token: string;
   let expiresAt: Date;

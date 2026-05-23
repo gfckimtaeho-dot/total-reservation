@@ -28,9 +28,16 @@ export default async function MeCalendarPage({
   const t = await getTranslations("me");
 
   const todayMid = gymTodayUtcMidnight(business.timeZone);
-  const fortnight = await loadMeFortnight(business.id, user.id, todayMid);
-  // 오늘 옵션을 SSR 로 함께 — 진입 즉시 옵션 영역이 채워짐.
-  const initialSheet = await loadMeDaySheet(slug, fortnight.todayKey);
+  // todayKey 는 todayMid 에서 직접 도출 가능하므로 fortnight 결과를 기다리지
+  // 않고 즉시 계산 → fortnight 와 오늘 daysheet 를 병렬 fetch (SSR 직렬 호출
+  // 200~400ms 절약).
+  const todayKey = `${todayMid.getUTCFullYear()}-${String(
+    todayMid.getUTCMonth() + 1,
+  ).padStart(2, "0")}-${String(todayMid.getUTCDate()).padStart(2, "0")}`;
+  const [fortnight, initialSheet] = await Promise.all([
+    loadMeFortnight(business.id, user.id, todayMid),
+    loadMeDaySheet(slug, todayKey),
+  ]);
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 font-sans text-zinc-900">
