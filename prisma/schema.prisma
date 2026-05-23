@@ -114,6 +114,7 @@ enum PriceChangeEntity {
   PACKAGE_PLAN_PRICE
   COMBO_PLAN_PRICE
   PROMOTION_VALUE
+  STAFF_BASE_SALARY
 }
 
 // 환불 대상 종류 — 횟수권 / 회원권.
@@ -407,29 +408,33 @@ model InviteToken {
 // ─── Staff (가맹점 ↔ User 트레이너·매니저·사장 link) ─────
 
 model Staff {
-  id              String      @id @default(cuid())
-  gymId           String
-  business        Business    @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId          String      @unique
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role            Role
-  photoUrl        String?
-  bio             String?
-  career          String?
-  specialties     Specialty[] @default([])
-  customSpecialty String?
-  weeklyOffDays   Weekday[]   @default([])
+  id                   String      @id @default(cuid())
+  gymId                String
+  business             Business    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId               String      @unique
+  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role                 Role
+  photoUrl             String?
+  bio                  String?
+  career               String?
+  specialties          Specialty[] @default([])
+  customSpecialty      String?
+  weeklyOffDays        Weekday[]   @default([])
   // 정기 출근 시간(자정 기준 분, Manila). 기본 10:00~22:00.
   // 가용시간 = gym 영업시간 ∩ [workStartMin, workEndMin] − 휴무/휴가.
   // "새벽 3시 PT" 방지 — 고객 예약 가능 창 산정의 트레이너 측 경계.
-  workStartMin    Int?        @default(600)
-  workEndMin      Int?        @default(1320)
+  workStartMin         Int?        @default(600)
+  workEndMin           Int?        @default(1320)
   // 트레이너 개인 휴게(자정 기준 분, Manila). 보통 없음(null). 있으면 그 구간
   // 슬롯은 예약 불가 — 매장 영업시간 휴게와 별개로 추가 차감.
-  breakStartMin   Int?
-  breakEndMin     Int?
-  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
+  breakStartMin        Int?
+  breakEndMin          Int?
+  // 월 기본급(PHP). 트레이너가 청소·관리 등 수업 외 업무도 수행하기에 고정급
+  // 항목이 필요. 0 허용(수업당 payout만 받는 트레이너). 변경 시
+  // PriceChangeLog(entityType=STAFF_BASE_SALARY) row 생성.
+  monthlyBaseSalaryPhp Int         @default(0)
+  createdAt            DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime    @updatedAt @db.Timestamptz(3)
 
   reservations     Reservation[]
   images           StaffImage[]
@@ -769,11 +774,11 @@ model PriceChangeLog {
 // 금액·횟수는 신청 시점 스냅샷으로 고정(분쟁 추적). 사장이 송금/직접지급
 // 후 status=COMPLETED 로 마감. 거절 플로우는 없음.
 model RefundRequest {
-  id           String      @id @default(cuid())
-  gymId        String
-  business     Business    @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String   @id @default(cuid())
+  gymId    String
+  business Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   kind         RefundKind
   // kind 에 따라 하나만 채워진다. 권 삭제 시 환불 기록은 보존(SetNull).
@@ -783,10 +788,10 @@ model RefundRequest {
   membership   Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
 
   // 신청 시점 스냅샷 — 불변. 매출/환불 분쟁 추적용.
-  serviceName    String  // 서비스명 또는 회원권명
+  serviceName    String // 서비스명 또는 회원권명
   trainerName    String? // 횟수권 담당 트레이너(회원권은 null)
-  paidPhp        Int     // 원 결제가
-  refundPhp      Int     // 환불 금액 (올림 적용)
+  paidPhp        Int // 원 결제가
+  refundPhp      Int // 환불 금액 (올림 적용)
   // 횟수권: 회 단위 / 회원권: 일 단위. total = completed + today + refund.
   totalUnits     Int
   completedUnits Int // 완료된 수업 / 회원권 경과일
@@ -815,38 +820,38 @@ model RefundRequest {
 }
 
 model Package {
-  id             String       @id @default(cuid())
-  gymId          String
-  business       Business     @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  serviceId      String
-  service        Service      @relation(fields: [serviceId], references: [id])
-  totalCount     Int
-  remainingCount Int
-  pricePhp       Int
+  id              String       @id @default(cuid())
+  gymId           String
+  business        Business     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId       String
+  service         Service      @relation(fields: [serviceId], references: [id])
+  totalCount      Int
+  remainingCount  Int
+  pricePhp        Int
   // 결제 시점 Service.payoutPhp 스냅샷(frozen). 이후 Service.payoutPhp가 바뀌어도
   // 이미 팔린 패키지의 트레이너 지급액은 불변. 기존 인스턴스 호환 위해 default 0.
-  payoutPhp      Int          @default(0)
+  payoutPhp       Int          @default(0)
   // 발급 원천 추적 — Sale 도입 전 인스턴스는 null. plan 삭제 시 매출은 Sale에 보존.
-  planId         String?
-  plan           PackagePlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
-  saleId         String?
-  sale           Sale?        @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  planId          String?
+  plan            PackagePlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  saleId          String?
+  sale            Sale?        @relation(fields: [saleId], references: [id], onDelete: SetNull)
   // 권 단위 담당 트레이너(소프트 기본값). 발급 시 발급 트레이너로 자동 지정 —
   // 고객 화면의 "내 트레이너" 표시 + 예약 변경 시 빈 슬롯 산출의 기준점.
   // 하드 제약 아님: 고객은 다른 트레이너로 분산 예약 가능, staff 비활성 시 SetNull.
   assignedStaffId String?
-  assignedStaff   Staff?      @relation(fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  assignedStaff   Staff?       @relation(fields: [assignedStaffId], references: [id], onDelete: SetNull)
   // 환불 신청 시각 — null 이 아니면 환불 진행/완료된 동결 상태(예약 불가).
-  refundedAt     DateTime?    @db.Timestamptz(3)
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  refundedAt      DateTime?    @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
 
   reservations   Reservation[]
   refundRequests RefundRequest[]
-  updatedAt    DateTime      @default(now()) @updatedAt @db.Timestamptz(3)
-  createdById  String?
-  updatedById  String?
+  updatedAt      DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById    String?
+  updatedById    String?
 
   @@index([gymId, userId])
   @@index([saleId])
