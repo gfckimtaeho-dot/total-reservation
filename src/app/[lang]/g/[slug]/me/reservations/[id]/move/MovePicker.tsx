@@ -59,7 +59,8 @@ export function MovePicker({
     startTransition(async () => {
       const r = await moveReservation(slug, reservationId, iso);
       if (r.ok) {
-        router.push(`/${lang}/g/${slug}/me`);
+        // 변경 성공 후 메인이 아닌 예약 캘린더로 — 사용자 흐름 유지.
+        router.push(`/${lang}/g/${slug}/me/calendar`);
         router.refresh();
       } else {
         setError(t("moveError"));
@@ -69,7 +70,7 @@ export function MovePicker({
 
   if (openDays.length === 0) {
     return (
-      <div className="mt-4 rounded-md bg-zinc-900/80 p-4 text-sm text-zinc-400 ring-1 ring-zinc-800">
+      <div className="mt-4 rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-600 ring-1 ring-zinc-200">
         {t("moveNoSlots")}
       </div>
     );
@@ -93,22 +94,22 @@ export function MovePicker({
       ))}
 
       {chosen && (
-        <div className="mt-4 rounded-md bg-zinc-900 p-4 ring-1 ring-amber-500/40">
-          <div className="font-medium text-zinc-100">
+        <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-amber-300 shadow-[0_15px_40px_-15px_rgba(249,115,22,0.45)]">
+          <div className="font-medium text-zinc-900">
             {t("moveConfirmTitle")}
           </div>
-          <div className="mt-1 text-xs text-zinc-400">
+          <div className="mt-1 text-xs text-zinc-500">
             {formatChosen(days[chosen.dayIdx], slotAxis[chosen.slotIdx], lang)}
           </div>
           {error && (
-            <div className="mt-2 text-xs text-rose-400">{error}</div>
+            <div className="mt-2 text-xs text-rose-700">{error}</div>
           )}
           <div className="mt-3 flex gap-2">
             <button
               type="button"
               onClick={onSubmit}
               disabled={pending}
-              className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-400 disabled:opacity-60"
+              className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
             >
               {pending ? t("moveSubmitting") : t("moveConfirmYes")}
             </button>
@@ -116,7 +117,7 @@ export function MovePicker({
               type="button"
               onClick={() => setChosen(null)}
               disabled={pending}
-              className="rounded-md bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 ring-1 ring-zinc-700 hover:bg-zinc-700 disabled:opacity-60"
+              className="rounded-md bg-white px-3 py-1.5 text-xs text-zinc-700 ring-1 ring-zinc-200 hover:bg-zinc-50 disabled:opacity-60"
             >
               {t("moveConfirmNo")}
             </button>
@@ -153,8 +154,8 @@ function DayBlock({
   ).format(new Date(Date.UTC(d.year, d.month - 1, d.day, 12, 0, 0)));
 
   return (
-    <div className="rounded-xl bg-zinc-900/80 p-3 ring-1 ring-zinc-800">
-      <div className="px-1 text-xs font-semibold text-zinc-300">
+    <div className="rounded-2xl border border-orange-200/60 bg-white/90 p-3 backdrop-blur">
+      <div className="px-1 text-xs font-semibold text-zinc-700">
         {dateLabel}
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
@@ -170,8 +171,8 @@ function DayBlock({
               className={
                 "rounded-md px-3 py-1.5 text-xs font-medium tabular-nums ring-1 transition " +
                 (isPicked
-                  ? "bg-emerald-500/20 text-emerald-100 ring-emerald-400"
-                  : "bg-zinc-900 text-zinc-100 ring-zinc-700 hover:bg-zinc-800 hover:ring-zinc-600")
+                  ? "bg-emerald-500 text-white ring-emerald-400"
+                  : "bg-white text-zinc-700 ring-orange-200 hover:bg-orange-50 hover:ring-orange-300")
               }
             >
               {formatMin(slotAxis[slotIdx])}

@@ -84,8 +84,8 @@ export function TrainerChangeFlow({
 
   return (
     <>
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
+      <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
           {t("trainerChangePickHint")}
         </div>
         <ul className="mt-3 space-y-2">
@@ -97,9 +97,9 @@ export function TrainerChangeFlow({
                   type="button"
                   onClick={() => pick(tr)}
                   disabled={classifying || applying}
-                  className="flex w-full items-start gap-3 rounded-xl border border-white/10 bg-zinc-900/50 p-3 text-left transition hover:border-rose-300/40 hover:bg-zinc-900/80 disabled:opacity-50"
+                  className="flex w-full items-start gap-3 rounded-2xl border border-orange-100 bg-white p-3 text-left transition hover:border-orange-300 hover:bg-orange-50 disabled:opacity-50"
                 >
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-pink-500">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-rose-500">
                     {tr.photoUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -111,34 +111,34 @@ export function TrainerChangeFlow({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="text-sm font-medium text-white">
+                      <span className="text-sm font-medium text-zinc-900">
                         {tr.name}
                       </span>
                       {tr.specialties.length > 0 && (
-                        <span className="text-[11px] text-zinc-400">
+                        <span className="text-[11px] text-zinc-500">
                           {tr.specialties.join(" · ")}
                         </span>
                       )}
                     </div>
                     {tr.career && (
-                      <div className="mt-1 text-[11px] text-zinc-400">
+                      <div className="mt-1 text-[11px] text-zinc-500">
                         {tr.career}
                       </div>
                     )}
                     {tr.bio && (
-                      <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-600">
                         {tr.bio}
                       </p>
                     )}
                   </div>
                   {loading ? (
-                    <span className="shrink-0 text-[11px] text-zinc-400">
+                    <span className="shrink-0 text-[11px] text-zinc-500">
                       {t("trainerChangeChecking")}
                     </span>
                   ) : (
                     <ChevronRight
                       size={16}
-                      className="mt-0.5 shrink-0 text-zinc-500"
+                      className="mt-0.5 shrink-0 text-zinc-400"
                     />
                   )}
                 </button>
@@ -147,7 +147,7 @@ export function TrainerChangeFlow({
           })}
         </ul>
         {error && !preview && (
-          <div className="mt-3 text-xs text-rose-400">{error}</div>
+          <div className="mt-3 text-xs text-rose-700">{error}</div>
         )}
       </section>
 
@@ -187,7 +187,6 @@ function SummaryModal({
   onClose: () => void;
 }) {
   const t = useTranslations("me");
-  // 모달은 사용자 클릭 후에만 렌더 — SSR 시점엔 안 뜨므로 createPortal 직접 호출 안전.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -201,22 +200,22 @@ function SummaryModal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
       <div
-        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+        className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900 p-6 shadow-2xl">
-        <div className="font-heading text-lg tracking-tight text-white">
+      <div className="relative w-full max-w-md rounded-3xl border border-orange-200/80 bg-white p-6 shadow-[0_30px_80px_-20px_rgba(249,115,22,0.45)]">
+        <div className="font-heading text-lg font-bold tracking-tight text-zinc-900">
           {t("trainerChangeSummaryTitle", { name: trainerName })}
         </div>
 
         {!hasFuture ? (
-          <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+          <p className="mt-3 text-sm leading-relaxed text-zinc-700">
             {t("trainerChangeNoFuture")}
           </p>
         ) : (
           <div className="mt-3 space-y-3">
             {autoCount > 0 && (
-              <div className="rounded-xl border border-sky-400/25 bg-sky-400/10 p-3 text-sm text-sky-100">
+              <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
                 {t("trainerChangeAutoLine", {
                   n: autoCount,
                   name: trainerName,
@@ -224,15 +223,15 @@ function SummaryModal({
               </div>
             )}
             {conflicts.length > 0 && (
-              <div className="rounded-xl border border-amber-300/25 bg-amber-300/10 p-3">
-                <div className="text-sm text-amber-100">
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
+                <div className="text-sm text-amber-800">
                   {t("trainerChangeConflictLine", { n: conflicts.length })}
                 </div>
                 <ul className="mt-2 space-y-1">
                   {conflicts.map((c) => (
                     <li
                       key={c.id}
-                      className="text-xs tabular-nums text-amber-200/90"
+                      className="text-xs tabular-nums text-amber-700"
                     >
                       {formatResv(c.startIso, c.serviceName, lang)}
                     </li>
@@ -244,7 +243,7 @@ function SummaryModal({
         )}
 
         {error && (
-          <div className="mt-3 text-xs text-rose-400">{error}</div>
+          <div className="mt-3 text-xs text-rose-700">{error}</div>
         )}
 
         <div className="mt-5 flex gap-2">
@@ -252,7 +251,7 @@ function SummaryModal({
             type="button"
             onClick={onConfirm}
             disabled={applying}
-            className="flex-1 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_4px_18px_-6px_rgba(251,146,60,0.6)] hover:brightness-110 disabled:opacity-60"
+            className="flex-1 rounded-full bg-gradient-to-r from-orange-500 to-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_15px_40px_-15px_rgba(249,115,22,0.55)] hover:brightness-110 disabled:opacity-60"
           >
             {applying
               ? t("trainerChangeApplying")
@@ -262,7 +261,7 @@ function SummaryModal({
             type="button"
             onClick={onClose}
             disabled={applying}
-            className="rounded-full bg-white/5 px-4 py-2.5 text-sm text-zinc-200 ring-1 ring-white/15 hover:bg-white/10 disabled:opacity-60"
+            className="rounded-full bg-white px-4 py-2.5 text-sm text-zinc-700 ring-1 ring-orange-200 hover:bg-orange-50 disabled:opacity-60"
           >
             {t("trainerChangeConfirmNo")}
           </button>
@@ -273,7 +272,6 @@ function SummaryModal({
   );
 }
 
-// 예약 startAt 은 UTC-naive(벽시계) — timeZone:"UTC" 로 읽어야 저장값 그대로.
 function formatResv(iso: string, serviceName: string, lang: string): string {
   const d = new Date(iso);
   const label = new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {

@@ -137,5 +137,10 @@
   }
   html {
     @apply font-sans;
+    /* iOS Safari/PWA 가 일부 컨텍스트에서 텍스트를 자동 확대하는 것 차단.
+       아이폰/안드로이드 사이 글자 크기가 다르게 보이는 원인 중 하나.
+       (Tailwind v4 preflight 가 처리해줘야 하지만 안전하게 명시.) */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 }

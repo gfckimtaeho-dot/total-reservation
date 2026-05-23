@@ -41,7 +41,7 @@ export function PackageTrainerCard({
     <div className="mt-2 flex flex-wrap gap-2">
       <a
         href={trainerHref}
-        className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-[11px] font-medium text-zinc-200 ring-1 ring-white/15 hover:bg-white/10"
+        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-700 ring-1 ring-orange-200 hover:bg-orange-50"
       >
         <UserCog size={13} />
         {t("holdingsChangeTrainer")}
@@ -49,7 +49,7 @@ export function PackageTrainerCard({
       {pendingRebookCount > 0 && (
         <a
           href={rebookHref}
-          className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-3 py-1.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-300/30 hover:bg-amber-400/25"
+          className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-200"
         >
           <CalendarClock size={13} />
           {t("holdingsRebookBadge", { n: pendingRebookCount })}
@@ -61,7 +61,7 @@ export function PackageTrainerCard({
   if (!assignedStaff) {
     return (
       <div className="mt-3">
-        <div className="rounded-lg border border-amber-300/20 bg-amber-300/5 p-2.5 text-[11px] text-amber-200/90">
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-[11px] text-amber-700">
           {t("packageNoTrainer")}
         </div>
         {footer}
@@ -71,13 +71,13 @@ export function PackageTrainerCard({
 
   return (
     <div className="mt-3">
-      <div className="rounded-lg border border-white/5 bg-zinc-900/40">
+      <div className="rounded-lg border border-orange-100 bg-orange-50/60">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-center gap-3 p-3 text-left"
         >
-          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-pink-500">
+          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-rose-500">
             {assignedStaff.photoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -87,23 +87,23 @@ export function PackageTrainerCard({
               />
             )}
           </div>
-          <div className="flex-1 text-sm font-medium text-white">
+          <div className="flex-1 text-sm font-medium text-zinc-900">
             {assignedStaff.name}
             {assignedStaff.specialty && (
-              <span className="ml-2 text-[10px] font-normal text-zinc-400">
+              <span className="ml-2 text-[10px] font-normal text-zinc-500">
                 {assignedStaff.specialty}
               </span>
             )}
           </div>
           <ChevronDown
             size={14}
-            className={"text-zinc-500 transition " + (open ? "rotate-180" : "")}
+            className={"text-zinc-400 transition " + (open ? "rotate-180" : "")}
           />
         </button>
         {open && (
-          <div className="space-y-2 border-t border-white/5 px-3 pb-3 pt-2 text-xs text-zinc-300">
+          <div className="space-y-2 border-t border-orange-100 px-3 pb-3 pt-2 text-xs text-zinc-700">
             {assignedStaff.career && (
-              <div className="text-[11px] text-zinc-400">
+              <div className="text-[11px] text-zinc-500">
                 {assignedStaff.career}
               </div>
             )}
@@ -112,7 +112,7 @@ export function PackageTrainerCard({
               {assignedStaff.phone && (
                 <a
                   href={`tel:${assignedStaff.phone}`}
-                  className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] text-emerald-200 ring-1 ring-emerald-400/30"
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] text-emerald-700 ring-1 ring-emerald-300"
                 >
                   <Phone size={10} /> {assignedStaff.phone}
                 </a>
@@ -120,7 +120,7 @@ export function PackageTrainerCard({
               <button
                 type="button"
                 disabled
-                className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-1 text-[10px] text-sky-200/60 ring-1 ring-sky-400/20"
+                className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-1 text-[10px] text-sky-700/70 ring-1 ring-sky-200"
                 title={t("chatComingSoon")}
               >
                 <MessageCircle size={10} /> {t("chatLabel")}

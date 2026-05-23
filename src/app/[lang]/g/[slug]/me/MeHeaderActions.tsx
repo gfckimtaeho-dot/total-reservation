@@ -23,7 +23,7 @@ export function MeHeaderActions({
   const [qrOpen, setQrOpen] = useState(false);
 
   const btnCls =
-    "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-zinc-100 backdrop-blur-md transition hover:bg-white/10 active:scale-95";
+    "inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-full border border-orange-200 bg-white px-4 py-2 text-xs font-medium text-orange-700 transition hover:bg-orange-50 active:scale-95";
 
   return (
     <>
@@ -86,19 +86,19 @@ function QrDialog({
       aria-modal="true"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-zinc-950/75 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-xs rounded-2xl border border-white/10 bg-zinc-950 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.7)] ring-1 ring-rose-300/30"
+        className="relative w-full max-w-xs rounded-3xl border border-orange-200/80 bg-white p-5 shadow-[0_30px_80px_-20px_rgba(249,115,22,0.45)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
             {t("qrTitle")}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
+            className="rounded-full p-1 text-zinc-500 hover:bg-orange-50 hover:text-orange-700"
             aria-label="close"
           >
             <X size={16} />
@@ -108,7 +108,7 @@ function QrDialog({
         <div className="mt-3 flex flex-col items-center">
           {result.ok ? (
             <>
-              <div className="rounded-2xl bg-white p-3 shadow-[0_0_40px_-10px_rgba(252,165,165,0.4)]">
+              <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-rose-50 p-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={result.qr}
@@ -117,23 +117,23 @@ function QrDialog({
                 />
               </div>
               <div className="mt-3 text-center">
-                <div className="font-heading text-lg tracking-tight text-white">
+                <div className="font-heading text-lg font-bold tracking-tight text-zinc-900">
                   {memberName}
                 </div>
-                <div className="mt-1 text-[11px] text-zinc-400">
+                <div className="mt-1 text-[11px] text-zinc-500">
                   {t("qrHint")}
                 </div>
-                <div className="mt-0.5 text-[10px] text-zinc-500">
+                <div className="mt-0.5 text-[10px] tabular-nums text-orange-600">
                   {t("qrExpires", { date: result.expiresYmd })}
                 </div>
               </div>
             </>
           ) : (
             <div className="py-2 text-center">
-              <div className="font-heading text-sm tracking-tight text-amber-200">
+              <div className="font-heading text-sm tracking-tight text-amber-700">
                 {t("qrNoAccessTitle")}
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-zinc-300">
+              <p className="mt-2 text-xs leading-relaxed text-zinc-600">
                 {t("qrNoAccessBody")}
               </p>
             </div>

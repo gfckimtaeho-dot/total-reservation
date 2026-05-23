@@ -1,7 +1,12 @@
+import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ChevronLeft } from "lucide-react";
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+};
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { loadRefundPreview, type RefundKindArg } from "../refund-actions";
 import { RefundFlow } from "./RefundFlow";
@@ -40,26 +45,22 @@ export default async function RefundPage({
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-100">
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-[28rem] w-[28rem] rounded-full bg-rose-400/20 blur-3xl" />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 font-sans text-zinc-900">
+      <div className="pointer-events-none absolute -top-32 left-1/4 h-[28rem] w-[28rem] rounded-full bg-orange-200/60 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 right-0 h-[24rem] w-[28rem] rounded-full bg-rose-200/50 blur-3xl" />
 
-      <header className="relative border-b border-white/5">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-6 py-5">
+      <header className="relative border-b border-orange-100">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-6 py-3">
+          <div className="text-2xl font-bold tracking-tight text-zinc-900">
+            {t("refundTitle")}
+          </div>
           <Link
             href={`/${lang}/g/${slug}/me/holdings`}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 hover:bg-orange-50"
             aria-label={t("refundBack")}
           >
             <ChevronLeft size={18} />
           </Link>
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
-              {business.name}
-            </div>
-            <div className="mt-0.5 font-heading text-lg tracking-tight text-white">
-              {t("refundTitle")}
-            </div>
-          </div>
         </div>
       </header>
 

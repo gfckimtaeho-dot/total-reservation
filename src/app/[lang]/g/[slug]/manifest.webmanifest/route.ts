@@ -51,8 +51,11 @@ export async function GET(
     start_url: entry,
     scope: `${base}/`,
     display: "standalone",
-    background_color: "#09090b",
-    theme_color: "#09090b",
+    // V18 Sunset Peach 채택 후 — 고객용은 화이트 chrome, 운영용은 어제 다크 그대로.
+    // PWA 재설치 시 splash/상태바 색이 페이지 톤과 일치한다. 기존 설치된 PWA 는
+    // manifest 캐시가 보존되므로 사용자가 제거 후 재추가해야 갱신된다.
+    background_color: isStaff ? "#09090b" : "#ffffff",
+    theme_color: isStaff ? "#09090b" : "#ffffff",
     icons: [
       { src: "/icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icon/512", sizes: "512x512", type: "image/png", purpose: "any" },

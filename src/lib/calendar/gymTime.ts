@@ -32,6 +32,37 @@ export function gymTodayRange(
   return { start, end: new Date(start.getTime() + MS_PER_DAY) };
 }
 
+// 매장 타임존 기준 "지금"을 UTC-naive(벽시계 → UTC 파츠)로 반환.
+// startAt/endAt 등 UTC-naive 저장값과 같은 표현이라 직접 비교 가능.
+// "당일 + 1시간 이후" 룰 등 시각 비교에 사용.
+export function gymNowUtcNaive(
+  timeZone: string,
+  now: Date = new Date(),
+): Date {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const num = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  return new Date(
+    Date.UTC(
+      num("year"),
+      num("month") - 1,
+      num("day"),
+      num("hour"),
+      num("minute"),
+      num("second"),
+    ),
+  );
+}
+
 export type MonthInfo = {
   year: number;
   month: number; // 1-12

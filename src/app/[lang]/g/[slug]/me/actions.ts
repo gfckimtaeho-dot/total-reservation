@@ -8,16 +8,17 @@ import { generateAccessToken } from "@/lib/auth/accessToken";
 import {
   gymTodayUtcMidnight,
   gymTodayRange,
+  gymNowUtcNaive,
 } from "@/lib/calendar/gymTime";
+
+// PT 예약 사전 룰 — 신규/변경은 "현재 시각 + 1시간 이후" 슬롯만. 트레이너가
+// 갑작스러운 요청에 휘둘리지 않도록 1시간 버퍼. 단체수업은 별도(수업 시작 전).
+const PT_BOOK_BUFFER_MS = 60 * 60 * 1000;
 import {
   packageAvailableCount,
   pickBookablePackage,
   OPEN_STATUSES,
 } from "@/lib/packages/availability";
-import {
-  loadMeCalendarMonth,
-  type MeCalendarMonth,
-} from "@/lib/calendar/meCalendar";
 import { loadTrainerDayAvailability } from "@/lib/calendar/trainerCalendarPro";
 
 export type AccessQrResult =
@@ -247,7 +248,7 @@ export async function cancelGroupEnrollment(
 // 1:1 신규 예약(고객 셀프). 정책:
 //   - 본인 보유 + 1:1 권(service.capacity 1) + remainingCount > 0
 //   - 권에 assignedStaff 가 있어야(없으면 프런트 안내)
-//   - 새 시각은 내일 이후
+//   - 새 시각은 매장 현재시각 + 1시간 이후 (PT_BOOK_BUFFER)
 //   - 같은 staff 충돌 거부 (1:1 정원 1)
 //   - status=CONFIRMED + ReservationLog CREATED. remainingCount 는 완료 시 차감(트레이너 측 모델과 일관).
 export type CreateResult =
@@ -260,7 +261,7 @@ export type CreateResult =
         | "notPersonal"
         | "noRemaining"
         | "noTrainer"
-        | "sameDayOrPast"
+        | "tooSoon"
         | "invalidTarget"
         | "conflict";
     };
@@ -302,8 +303,10 @@ export async function createReservation(
   if (Number.isNaN(newStart.getTime()))
     return { ok: false, reason: "invalidTarget" };
 
-  const { end: todayEnd } = gymTodayRange(user.business!.timeZone);
-  if (newStart < todayEnd) return { ok: false, reason: "sameDayOrPast" };
+  // PT 신규: 매장 현재시각 + 1시간 이후만. 사장 결정 (당일도 허용 + 1h 버퍼).
+  const gymNow = gymNowUtcNaive(user.business!.timeZone);
+  const earliestStart = new Date(gymNow.getTime() + PT_BOOK_BUFFER_MS);
+  if (newStart < earliestStart) return { ok: false, reason: "tooSoon" };
 
   const newEnd = new Date(
     newStart.getTime() + pkg.service.durationMin * 60_000,
@@ -430,8 +433,10 @@ export async function joinScheduledClass(
   const startAt = new Date(Date.UTC(year, month - 1, day, h, m, 0));
   const endAt = new Date(startAt.getTime() + sched.service.durationMin * 60_000);
 
-  // 과거 차단(당일 지난 슬롯도 포함)
-  if (startAt.getTime() < Date.now()) {
+  // 단체수업: 수업 시작 전이면 OK. 매장 타임존(UTC-naive)으로 비교 — startAt 과
+  // 같은 표현이라 직접 비교. 이전엔 Date.now() 직접 비교라 타임존 무시 버그가 있었음.
+  const gymNow = gymNowUtcNaive(user.business!.timeZone);
+  if (startAt < gymNow) {
     return { ok: false, reason: "pastSession" };
   }
 
@@ -516,8 +521,8 @@ async function fallbackStaffId(
 }
 
 // 1:1 예약 변경(고객 셀프). 정책:
-//   - 본인 + 1:1 + 미래(내일이후 시작) 만 변경 가능
-//   - 새 시간도 내일 이후(당일 잠금)
+//   - 본인 + 1:1 + 시작 1시간 이상 남은 예약만 변경 가능
+//   - 새 시각도 매장 현재 + 1시간 이후
 //   - 같은 staff 의 같은 길이로만 이동 (다른 트레이너/다른 서비스 불가)
 //   - 새 시각 슬롯에 다른 비-DEAD 예약이 있으면 충돌 거부
 export type MoveResult =
@@ -528,7 +533,7 @@ export type MoveResult =
         | "notFound"
         | "notOwner"
         | "notPersonal"
-        | "sameDayOrPast"
+        | "tooSoon"
         | "invalidTarget"
         | "conflict"
         | "alreadyClosed";
@@ -557,17 +562,19 @@ export async function moveReservation(
     return { ok: false, reason: "alreadyClosed" };
   }
 
-  const { end: todayEnd } = gymTodayRange(user.business!.timeZone);
-  if (res.startAt < todayEnd) {
-    return { ok: false, reason: "sameDayOrPast" };
+  // PT 변경: 기존/새 시각 모두 매장 현재 + 1시간 이후. (당일 변경 허용)
+  const gymNow = gymNowUtcNaive(user.business!.timeZone);
+  const earliestStart = new Date(gymNow.getTime() + PT_BOOK_BUFFER_MS);
+  if (res.startAt < earliestStart) {
+    return { ok: false, reason: "tooSoon" };
   }
 
   const newStart = new Date(newStartIso);
   if (Number.isNaN(newStart.getTime())) {
     return { ok: false, reason: "invalidTarget" };
   }
-  if (newStart < todayEnd) {
-    return { ok: false, reason: "sameDayOrPast" };
+  if (newStart < earliestStart) {
+    return { ok: false, reason: "tooSoon" };
   }
   const durationMs = res.endAt.getTime() - res.startAt.getTime();
   const newEnd = new Date(newStart.getTime() + durationMs);
@@ -604,23 +611,6 @@ export async function moveReservation(
   revalidatePath(`/ko/g/${slug}/me`);
   revalidatePath(`/en/g/${slug}/me`);
   return { ok: true };
-}
-
-// 고객 대시보드 캘린더 월 네비게이션 — 클라이언트(MeCalendar)가 전달/다음달
-// 버튼마다 호출. 페이지 전체를 다시 안 받고 캘린더만 갱신.
-export async function meCalendarMonth(
-  slug: string,
-  year: number,
-  month: number,
-): Promise<MeCalendarMonth> {
-  const user = await requireGymCustomer(slug);
-  return loadMeCalendarMonth(
-    user.business!.id,
-    user.id,
-    gymTodayUtcMidnight(user.business!.timeZone),
-    year,
-    month,
-  );
 }
 
 // 데이 시트(미래 날짜) 예약 후보 — 그 날 "실제로" 예약 가능한 것만 추린다.
@@ -696,9 +686,14 @@ export async function loadMeDaySheet(
   ];
   const dayUtcMid = new Date(Date.UTC(y, mon - 1, d));
   const dayEnd = new Date(dayUtcMid.getTime() + 24 * 60 * 60 * 1000);
-  const isFuture =
-    dayUtcMid.getTime() >
-    gymTodayUtcMidnight(business.timeZone).getTime();
+  const todayUtcMid = gymTodayUtcMidnight(business.timeZone);
+  const isPast = dayUtcMid.getTime() < todayUtcMid.getTime();
+  const isToday = dayUtcMid.getTime() === todayUtcMid.getTime();
+  // 오늘은 신규 정책상 예약 가능 (사장 결정: PT 1h 버퍼 / 단체 시작시각 전).
+  const gymNow = gymNowUtcNaive(business.timeZone);
+  const gymNowMin = isToday
+    ? gymNow.getUTCHours() * 60 + gymNow.getUTCMinutes()
+    : -1;
 
   // 데이 시트 응답속도 = DB 왕복 횟수 × 왕복지연. 왕복을 줄이고 겹친다.
   //
@@ -762,8 +757,8 @@ export async function loadMeDaySheet(
     orderBy: { createdAt: "asc" }, // FIFO
   });
 
-  // 과거/오늘은 예약 후보 계산 불필요 — 예약은 미래만.
-  if (!isFuture) {
+  // 과거 날짜는 예약 후보 계산 불필요 — 예약은 오늘부터.
+  if (isPast) {
     return {
       events: toEvents(await eventsPromise),
       hasPasses: false,
@@ -900,6 +895,8 @@ export async function loadMeDaySheet(
         ? sc.specificDate != null && ymdUtc(sc.specificDate) === dateKey
         : sc.weekdays.includes(wd);
     if (!runsToday) continue;
+    // 오늘 회차는 시작시각 이후면 제외 — joinScheduledClass 의 pastSession 룰과 일치.
+    if (isToday && sc.startMinute <= gymNowMin) continue;
     const enrolled = enrolledByClass.get(sc.id) ?? [];
     if (enrolled.includes(user.id)) continue; // 이미 등록
     if (enrolled.length >= sc.service.capacity) continue; // 정원 마감

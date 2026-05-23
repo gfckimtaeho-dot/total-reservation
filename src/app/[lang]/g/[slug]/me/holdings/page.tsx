@@ -1,6 +1,12 @@
+import type { Viewport } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ChevronLeft } from "lucide-react";
+
+// V18 Sunset Peach — 화이트 테마. 모바일 상태바도 흰색.
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+};
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { gymTodayUtcMidnight, gymTodayRange } from "@/lib/calendar/gymTime";
@@ -120,38 +126,33 @@ export default async function HoldingsPage({
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-100">
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-[28rem] w-[28rem] rounded-full bg-rose-400/20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-32 top-1/3 h-[24rem] w-[24rem] rounded-full bg-orange-400/15 blur-3xl" />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 font-sans text-zinc-900">
+      <div className="pointer-events-none absolute -top-32 left-1/4 h-[28rem] w-[28rem] rounded-full bg-orange-200/60 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 right-0 h-[24rem] w-[28rem] rounded-full bg-rose-200/50 blur-3xl" />
 
-      <header className="relative border-b border-white/5">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-6 py-5">
+      <header className="relative border-b border-orange-100">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-6 py-3">
+          <div className="text-2xl font-bold tracking-tight text-zinc-900">
+            {t("holdingsTitle")}
+          </div>
           <Link
             href={`/${lang}/g/${slug}/me`}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 hover:bg-orange-50"
             aria-label={t("holdingsBack")}
           >
             <ChevronLeft size={18} />
           </Link>
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
-              {business.name}
-            </div>
-            <div className="mt-0.5 font-heading text-lg tracking-tight text-white">
-              {t("holdingsTitle")}
-            </div>
-          </div>
         </div>
       </header>
 
       <main className="relative">
         <div className="mx-auto max-w-3xl space-y-5 px-6 py-6">
           {empty && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-              <div className="font-heading text-sm tracking-tight text-zinc-200">
+            <div className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+              <div className="font-heading text-sm tracking-tight text-zinc-900">
                 {t("noActiveTitle")}
               </div>
-              <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+              <p className="mt-1.5 text-xs leading-relaxed text-zinc-600">
                 {t("noActiveBody")}
               </p>
             </div>
@@ -172,17 +173,17 @@ export default async function HoldingsPage({
                   return (
                     <li
                       key={m.id}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl"
+                      className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur"
                     >
                       <div className="flex items-baseline justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-white">
+                          <div className="text-sm font-medium text-zinc-900">
                             {m.plan?.name ?? t("membershipsTitle")}
                           </div>
                           <div
                             className={
                               "mt-0.5 text-xs " +
-                              (soon ? "text-amber-200" : "text-zinc-400")
+                              (soon ? "text-amber-700" : "text-zinc-500")
                             }
                           >
                             {t("membershipExpiresOn", { date: expiresLabel })}
@@ -194,7 +195,7 @@ export default async function HoldingsPage({
                           <div
                             className={
                               "shrink-0 font-heading text-sm tabular-nums " +
-                              (soon ? "text-amber-200" : "text-zinc-200")
+                              (soon ? "text-amber-700" : "text-emerald-700")
                             }
                           >
                             {t("membershipDaysLeft", { n: daysLeft })}
@@ -223,11 +224,11 @@ export default async function HoldingsPage({
                 {personal.map((p) => (
                   <li
                     key={p.id}
-                    className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl"
+                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur"
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-zinc-900">
                           {p.service.name}
                         </div>
                         {p.refundedAt ? (
@@ -295,11 +296,11 @@ export default async function HoldingsPage({
                 {group.map((p) => (
                   <li
                     key={p.id}
-                    className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl"
+                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur"
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-zinc-900">
                           {p.service.name}
                         </div>
                         {p.refundedAt ? (
@@ -344,7 +345,7 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
+      <h2 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
         {title}
       </h2>
       {children}
@@ -377,7 +378,7 @@ function PackageCounts({
       <div
         className={
           "font-heading text-base tracking-tight " +
-          (available > 0 ? "text-emerald-300" : "text-zinc-500")
+          (available > 0 ? "text-emerald-700" : "text-zinc-400")
         }
       >
         {t("packageAvailableBig", { n: available })}
@@ -408,10 +409,10 @@ function RefundLink({
   t: T;
 }) {
   return (
-    <div className="mt-3 border-t border-white/5 pt-2">
+    <div className="mt-3 border-t border-orange-100 pt-2">
       <a
         href={`/${lang}/g/${slug}/me/holdings/refund?kind=${kind}&id=${id}`}
-        className="text-[11px] text-zinc-400 underline-offset-2 hover:text-rose-200 hover:underline"
+        className="text-[11px] text-zinc-500 underline-offset-2 hover:text-orange-600 hover:underline"
       >
         {t("holdingsRefundRequest")}
       </a>
@@ -422,7 +423,7 @@ function RefundLink({
 // 환불 신청된 권 — "환불 처리 중" 배지. 예약/변경 불가.
 function RefundedBadge({ t }: { t: T }) {
   return (
-    <div className="mt-1.5 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-medium text-amber-200">
+    <div className="mt-1.5 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
       {t("holdingsRefundPending")}
     </div>
   );

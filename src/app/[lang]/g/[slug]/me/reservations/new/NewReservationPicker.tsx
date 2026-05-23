@@ -13,14 +13,18 @@ export function NewReservationPicker({
   days,
   slotAxis,
   dateMode = false,
+  todayKey,
+  minTodayStartMin,
 }: {
   slug: string;
   lang: string;
   packageId: string;
   days: GridDay[];
   slotAxis: number[];
-  // 캘린더에서 날짜를 찍어 들어온 단일 날짜 모드 — 빈자리 없을 때 안내 문구가 다르다.
   dateMode?: boolean;
+  // 오늘 PT 1시간 버퍼 — 오늘 슬롯 중 이 시작시각 이전은 표시 X.
+  todayKey: string;
+  minTodayStartMin: number;
 }) {
   const t = useTranslations("me");
   const router = useRouter();
@@ -34,15 +38,29 @@ export function NewReservationPicker({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  function dayKeyOf(d: GridDay): string {
+    return `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+  }
+
+  function isSlotPickable(d: GridDay, slotIdx: number, c: GridDay["cells"][number]): boolean {
+    if (c.kind !== "free") return false;
+    // 오늘은 minTodayStartMin(현재+1h) 이후 슬롯만.
+    if (dayKeyOf(d) === todayKey && slotAxis[slotIdx] < minTodayStartMin) {
+      return false;
+    }
+    return true;
+  }
+
   const openDays = useMemo(
     () =>
       days
         .map((d, i) => ({ d, i }))
         .filter(({ d }) => {
           if (d.state !== "open") return false;
-          return d.cells.some((c) => c.kind === "free");
+          return d.cells.some((c, slotIdx) => isSlotPickable(d, slotIdx, c));
         }),
-    [days],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [days, todayKey, minTodayStartMin],
   );
 
   function isoFor(d: GridDay, startMin: number): string {
@@ -62,7 +80,9 @@ export function NewReservationPicker({
     startTransition(async () => {
       const r = await createReservation(slug, packageId, iso);
       if (r.ok) {
-        router.push(`/${lang}/g/${slug}/me`);
+        // 예약 성공 후 메인이 아닌 예약 캘린더로 — 단체수업과 동일하게 현재 화면
+        // 유지(또는 한 단계 뒤). 사용자가 "한 번 등록 → 다음 선택" 흐름을 끊지 않음.
+        router.push(`/${lang}/g/${slug}/me/calendar`);
         router.refresh();
       } else {
         setError(t("newError"));
@@ -72,7 +92,7 @@ export function NewReservationPicker({
 
   if (openDays.length === 0) {
     return (
-      <div className="mt-4 rounded-md bg-zinc-900/80 p-4 text-sm text-zinc-400 ring-1 ring-zinc-800">
+      <div className="mt-4 rounded-2xl bg-zinc-50 p-5 text-base text-zinc-600 ring-1 ring-zinc-200">
         {t(dateMode ? "newNoSlotsDate" : "newNoSlots")}
       </div>
     );
@@ -83,22 +103,22 @@ export function NewReservationPicker({
       {/* 확인 박스 — 시간 목록 위에 두고 sticky 로 고정. 시간을 고르면
           스크롤 위치와 무관하게 항상 화면에 보인다(아래로 안 찾게). */}
       {chosen && (
-        <div className="sticky top-2 z-20 rounded-md border border-rose-300/50 bg-zinc-900 p-4 shadow-xl shadow-black/60">
-          <div className="font-medium text-zinc-100">
+        <div className="sticky top-2 z-20 rounded-2xl border border-orange-300 bg-white p-5 shadow-[0_15px_40px_-15px_rgba(249,115,22,0.45)]">
+          <div className="text-2xl font-bold tracking-tight text-zinc-900">
             {t("newConfirmTitle")}
           </div>
-          <div className="mt-1 text-xs text-zinc-400">
+          <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-orange-700">
             {formatChosen(days[chosen.dayIdx], slotAxis[chosen.slotIdx], lang)}
           </div>
           {error && (
-            <div className="mt-2 text-xs text-rose-400">{error}</div>
+            <div className="mt-2 text-sm text-rose-700">{error}</div>
           )}
-          <div className="mt-3 flex gap-2">
+          <div className="mt-4 flex gap-2">
             <button
               type="button"
               onClick={onSubmit}
               disabled={pending}
-              className="rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_4px_18px_-6px_rgba(251,146,60,0.6)] hover:brightness-110 disabled:opacity-60"
+              className="rounded-full bg-gradient-to-r from-orange-500 to-rose-500 px-6 py-3 text-lg font-bold text-white shadow-[0_8px_20px_-8px_rgba(249,115,22,0.6)] hover:brightness-110 disabled:opacity-60"
             >
               {pending ? t("newSubmitting") : t("newConfirmYes")}
             </button>
@@ -106,7 +126,7 @@ export function NewReservationPicker({
               type="button"
               onClick={() => setChosen(null)}
               disabled={pending}
-              className="rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-200 ring-1 ring-white/15 hover:bg-white/10 disabled:opacity-60"
+              className="rounded-full bg-white px-5 py-3 text-lg font-semibold text-zinc-700 ring-1 ring-orange-200 hover:bg-orange-50 disabled:opacity-60"
             >
               {t("moveConfirmNo")}
             </button>
@@ -126,6 +146,8 @@ export function NewReservationPicker({
             setChosen({ dayIdx: i, slotIdx });
           }}
           lang={lang}
+          isDayToday={dayKeyOf(d) === todayKey}
+          minTodayStartMin={minTodayStartMin}
         />
       ))}
     </div>
@@ -139,6 +161,8 @@ function DayBlock({
   chosen,
   onPick,
   lang,
+  isDayToday,
+  minTodayStartMin,
 }: {
   d: GridDay;
   dayIdx: number;
@@ -146,6 +170,8 @@ function DayBlock({
   chosen: { dayIdx: number; slotIdx: number } | null;
   onPick: (slotIdx: number) => void;
   lang: string;
+  isDayToday: boolean;
+  minTodayStartMin: number;
 }) {
   const dateLabel = new Intl.DateTimeFormat(
     lang === "en" ? "en-US" : "ko-KR",
@@ -158,13 +184,15 @@ function DayBlock({
   ).format(new Date(Date.UTC(d.year, d.month - 1, d.day, 12, 0, 0)));
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3 backdrop-blur">
-      <div className="px-1 text-xs font-semibold text-zinc-200">
+    <div className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur">
+      <div className="px-1 text-2xl font-bold tracking-tight text-zinc-900">
         {dateLabel}
       </div>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         {d.cells.map((c, slotIdx) => {
           if (c.kind !== "free") return null;
+          // 오늘은 1h 버퍼 이전 슬롯 숨김.
+          if (isDayToday && slotAxis[slotIdx] < minTodayStartMin) return null;
           const isPicked =
             chosen?.dayIdx === dayIdx && chosen.slotIdx === slotIdx;
           return (
@@ -173,10 +201,10 @@ function DayBlock({
               type="button"
               onClick={() => onPick(slotIdx)}
               className={
-                "rounded-md px-3 py-1.5 text-xs font-medium tabular-nums ring-1 transition " +
+                "rounded-xl px-4 py-2.5 text-lg font-bold tabular-nums ring-1 transition " +
                 (isPicked
-                  ? "bg-gradient-to-br from-orange-500/30 to-purple-500/30 text-white ring-pink-300"
-                  : "bg-white/5 text-zinc-100 ring-white/15 hover:bg-rose-300/15 hover:ring-rose-300")
+                  ? "bg-gradient-to-r from-orange-500 to-rose-500 text-white ring-orange-400 shadow-[0_8px_20px_-8px_rgba(249,115,22,0.6)]"
+                  : "bg-white text-zinc-800 ring-orange-200 hover:bg-orange-50 hover:ring-orange-300")
               }
             >
               {formatMin(slotAxis[slotIdx])}

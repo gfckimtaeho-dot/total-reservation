@@ -1,11 +1,17 @@
+import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { ChevronLeft } from "lucide-react";
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { gymTodayRange } from "@/lib/calendar/gymTime";
 import { loadTrainerCalendar } from "@/lib/calendar/trainerCalendarPro";
 import { MovePicker } from "./MovePicker";
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+};
 
 export default async function ReservationMovePage({
   params,
@@ -48,7 +54,6 @@ export default async function ReservationMovePage({
     business.timeZone,
   );
 
-  // 내일부터 14일치만 잘라 클라이언트에 넘김.
   const firstIdx = cal.todayIdx + 1;
   const days = cal.days.slice(firstIdx, firstIdx + 14);
 
@@ -56,45 +61,47 @@ export default async function ReservationMovePage({
   const currentEnd = formatTime(res.endAt, lang);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
-          <div>
-            <Link
-              href={`/${lang}/g/${slug}/me`}
-              className="text-xs text-zinc-400 hover:text-zinc-100"
-            >
-              {t("moveBack")}
-            </Link>
-            <div className="mt-1 font-heading text-lg tracking-tight text-zinc-50">
-              {t("moveTitle")}
-            </div>
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 font-sans text-zinc-900">
+      <div className="pointer-events-none absolute -top-32 left-1/4 h-[28rem] w-[28rem] rounded-full bg-orange-200/60 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 right-0 h-[24rem] w-[28rem] rounded-full bg-rose-200/50 blur-3xl" />
+
+      <header className="relative border-b border-orange-100">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-6 py-3">
+          <div className="text-2xl font-bold tracking-tight text-zinc-900">
+            {t("moveTitle")}
           </div>
+          <Link
+            href={`/${lang}/g/${slug}/me/calendar`}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 hover:bg-orange-50"
+            aria-label={t("moveBack")}
+          >
+            <ChevronLeft size={18} />
+          </Link>
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="relative flex-1">
         <div className="mx-auto w-full max-w-3xl space-y-4 px-6 py-6">
-          <section className="rounded-2xl bg-zinc-900/60 p-5 ring-1 ring-zinc-800">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
+          <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-600">
               {t("moveCurrent")}
             </div>
-            <div className="mt-2 font-heading text-lg tracking-tight text-zinc-50">
+            <div className="mt-2 font-heading text-lg font-bold tracking-tight text-zinc-900">
               {res.service.name}
             </div>
-            <div className="mt-0.5 text-sm text-zinc-300">
+            <div className="mt-0.5 text-sm text-zinc-700">
               {currentStart} - {currentEnd}
             </div>
-            <div className="mt-0.5 text-xs text-zinc-400">
+            <div className="mt-0.5 text-xs text-zinc-500">
               {t("withStaff", { name: res.staff.user.name })}
             </div>
           </section>
 
-          <section className="rounded-2xl bg-zinc-900/60 p-5 ring-1 ring-zinc-800">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
+          <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-600">
               {t("moveTrainer", { name: res.staff.user.name })}
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+            <p className="mt-2 text-xs leading-relaxed text-zinc-500">
               {t("moveHint")}
             </p>
             <MovePicker

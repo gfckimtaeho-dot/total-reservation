@@ -37,7 +37,6 @@ export function RefundFlow({
   );
   const agreeWord = t("refundAgreeWord");
   const money = (n: number) => `₱${n.toLocaleString()}`;
-  // 올림으로 금액이 올라갔는지 — 산식 표시에 "올림" 표기.
   const rawHalf =
     (preview.paidPhp * preview.refundUnits) / preview.totalUnits / 2;
   const wasRounded = preview.refundPhp !== rawHalf;
@@ -74,11 +73,11 @@ export function RefundFlow({
   return (
     <div className="space-y-4">
       {/* 환불 내역 + 산정 방식 */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
+      <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
           {t("refundBreakdownTitle")}
         </div>
-        <div className="mt-2 font-heading text-base tracking-tight text-white">
+        <div className="mt-2 font-heading text-base font-bold tracking-tight text-zinc-900">
           {preview.serviceName}
         </div>
 
@@ -105,41 +104,39 @@ export function RefundFlow({
           />
         </dl>
 
-        {/* 산정 방식 — 환불 금액이 어떻게 나왔는지 산식으로 */}
-        <div className="mt-3 border-t border-white/10 pt-3">
-          <div className="text-[11px] font-semibold text-zinc-300">
+        <div className="mt-3 border-t border-orange-100 pt-3">
+          <div className="text-[11px] font-semibold text-zinc-700">
             {t("refundCalcLabel")}
           </div>
-          <div className="mt-1.5 text-xs leading-relaxed text-zinc-300">
+          <div className="mt-1.5 text-xs leading-relaxed text-zinc-700">
             ({money(preview.paidPhp)} ÷ {preview.totalUnits}) ×{" "}
             {preview.refundUnits} × 50%
           </div>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-xs text-zinc-500">=</span>
-            <span className="font-heading text-xl tracking-tight text-emerald-300">
+            <span className="font-heading text-xl font-bold tracking-tight text-emerald-700">
               {money(preview.refundPhp)}
             </span>
             {wasRounded && (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-zinc-400">
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-600">
                 {t("refundRounded")}
               </span>
             )}
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
             {t("refundCalcNote")}
           </p>
         </div>
       </section>
 
       {nothing ? (
-        <section className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-5 text-sm text-amber-100">
+        <section className="rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-800">
           {t("refundNothing")}
         </section>
       ) : (
         <>
-          {/* 수령 방법 */}
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
+          <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
               {t("refundPayoutTitle")}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -175,20 +172,19 @@ export function RefundFlow({
             )}
           </section>
 
-          {/* 환불 신청 동의 — 권 이름·환불 금액 명시 + 동의 입력 */}
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-200/90">
+          <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
               {t("refundAgreeTitle")}
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-3">
-              <span className="text-sm font-medium text-white">
+              <span className="text-sm font-medium text-zinc-900">
                 {preview.serviceName}
               </span>
-              <span className="font-heading text-lg tracking-tight text-emerald-300">
+              <span className="font-heading text-lg font-bold tracking-tight text-emerald-700">
                 {money(preview.refundPhp)}
               </span>
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-zinc-300">
+            <p className="mt-2 text-xs leading-relaxed text-zinc-700">
               {t("refundAgreeBody", {
                 name: preview.serviceName,
                 word: agreeWord,
@@ -199,17 +195,17 @@ export function RefundFlow({
               value={agree}
               onChange={(e) => setAgree(e.target.value)}
               placeholder={agreeWord}
-              className="mt-3 w-full rounded-lg border border-white/15 bg-zinc-950 px-3 py-2.5 text-sm text-white outline-none focus:border-rose-300/50"
+              className="mt-3 w-full rounded-lg border border-orange-200 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-orange-400"
             />
           </section>
 
-          {error && <div className="text-xs text-rose-400">{error}</div>}
+          {error && <div className="text-xs text-rose-700">{error}</div>}
 
           <button
             type="button"
             onClick={submit}
             disabled={!canSubmit || pending}
-            className="w-full rounded-full bg-gradient-to-r from-orange-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-[0_4px_18px_-6px_rgba(251,146,60,0.6)] hover:brightness-110 disabled:opacity-40"
+            className="w-full rounded-full bg-gradient-to-r from-orange-500 to-rose-500 py-3 text-sm font-semibold text-white shadow-[0_15px_40px_-15px_rgba(249,115,22,0.55)] hover:brightness-110 disabled:opacity-40"
           >
             {pending ? t("refundSubmitting") : t("refundSubmit")}
           </button>
@@ -230,11 +226,11 @@ function Row({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-zinc-400">{label}</dt>
+      <dt className="text-zinc-500">{label}</dt>
       <dd
         className={
           "tabular-nums " +
-          (strong ? "font-semibold text-white" : "text-zinc-200")
+          (strong ? "font-semibold text-zinc-900" : "text-zinc-700")
         }
       >
         {value}
@@ -259,8 +255,8 @@ function MethodButton({
       className={
         "rounded-xl border px-3 py-3 text-sm font-medium transition " +
         (active
-          ? "border-rose-300/60 bg-rose-300/10 text-white"
-          : "border-white/15 bg-white/5 text-zinc-300 hover:bg-white/10")
+          ? "border-orange-400 bg-orange-50 text-zinc-900"
+          : "border-orange-200 bg-white text-zinc-700 hover:bg-orange-50")
       }
     >
       {label}
@@ -279,12 +275,12 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-[11px] text-zinc-400">{label}</span>
+      <span className="text-[11px] text-zinc-500">{label}</span>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-white/15 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-rose-300/50"
+        className="mt-1 w-full rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-orange-400"
       />
     </label>
   );

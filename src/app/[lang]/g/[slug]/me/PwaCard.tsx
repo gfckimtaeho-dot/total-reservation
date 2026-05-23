@@ -36,19 +36,19 @@ export function PwaCard() {
   if (!show) return null;
 
   return (
-    <div className="relative rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+    <div className="relative rounded-3xl border border-orange-200/60 bg-white/90 p-6 backdrop-blur">
       <button
         type="button"
         onClick={dismiss}
         aria-label={t("pwaCardClose")}
-        className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-white/10 hover:text-zinc-100"
+        className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-orange-50 hover:text-orange-700"
       >
         ×
       </button>
-      <h3 className="pr-8 font-heading text-sm tracking-tight text-zinc-200">
+      <h3 className="pr-8 font-heading text-sm tracking-tight text-zinc-900">
         {t("pwaCardTitle")}
       </h3>
-      <p className="mt-2 pr-2 text-xs leading-relaxed text-zinc-400">
+      <p className="mt-2 pr-2 text-xs leading-relaxed text-zinc-600">
         {t("pwaCardBody")}
       </p>
     </div>
