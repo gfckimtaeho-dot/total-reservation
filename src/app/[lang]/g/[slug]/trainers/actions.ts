@@ -48,6 +48,9 @@ const createSchema = z.object({
   workEnd: z.string().optional().or(z.literal("")),
   breakStart: z.string().optional().or(z.literal("")),
   breakEnd: z.string().optional().or(z.literal("")),
+  // 월 기본급(PHP). 폼 number input → 문자열 → 정수. 음수 거부.
+  // 변경 시 PriceChangeLog 생성(updateTrainer). 신규 등록은 항상 0부터.
+  monthlyBaseSalaryPhp: z.coerce.number().int().min(0).default(0),
   note: z.string().optional().or(z.literal("")),
   imageUrls: z.array(z.string().url()).max(5).optional().default([]),
   // 등록 시 선택한 모국어 → User.locale. 기본 영어(폼 기본 선택값과 일치).
@@ -94,6 +97,7 @@ export async function createTrainer(
     workEnd: formData.get("workEnd") ?? "",
     breakStart: formData.get("breakStart") ?? "",
     breakEnd: formData.get("breakEnd") ?? "",
+    monthlyBaseSalaryPhp: formData.get("monthlyBaseSalaryPhp") ?? 0,
     note: formData.get("note") ?? "",
     imageUrls: (() => {
       const raw = formData.get("imageUrls");
@@ -193,6 +197,7 @@ export async function createTrainer(
           workEndMin: timeToMin(d.workEnd),
           breakStartMin: timeToMin(d.breakStart),
           breakEndMin: timeToMin(d.breakEnd),
+          monthlyBaseSalaryPhp: d.monthlyBaseSalaryPhp,
           photoUrl: d.imageUrls[0] ?? null,
         },
         select: { id: true },
@@ -248,6 +253,7 @@ export async function updateTrainer(
     workEnd: formData.get("workEnd") ?? "",
     breakStart: formData.get("breakStart") ?? "",
     breakEnd: formData.get("breakEnd") ?? "",
+    monthlyBaseSalaryPhp: formData.get("monthlyBaseSalaryPhp") ?? 0,
     note: formData.get("note") ?? "",
     imageUrls: (() => {
       const raw = formData.get("imageUrls");
@@ -351,9 +357,23 @@ export async function updateTrainer(
           workEndMin: timeToMin(d.workEnd),
           breakStartMin: timeToMin(d.breakStart),
           breakEndMin: timeToMin(d.breakEnd),
+          monthlyBaseSalaryPhp: d.monthlyBaseSalaryPhp,
           photoUrl: d.imageUrls[0] ?? null,
         },
       });
+      // 월 기본급 변경 시 감사 로그 — feedback_money_audit_log.
+      if (existing.monthlyBaseSalaryPhp !== d.monthlyBaseSalaryPhp) {
+        await tx.priceChangeLog.create({
+          data: {
+            gymId,
+            entityType: "STAFF_BASE_SALARY",
+            entityId: existing.id,
+            oldValuePhp: existing.monthlyBaseSalaryPhp,
+            newValuePhp: d.monthlyBaseSalaryPhp,
+            changedById: auth.id,
+          },
+        });
+      }
       await tx.staffImage.deleteMany({ where: { staffId: existing.id } });
       if (d.imageUrls.length > 0) {
         await tx.staffImage.createMany({

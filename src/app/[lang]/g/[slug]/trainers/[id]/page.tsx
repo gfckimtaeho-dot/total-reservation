@@ -362,6 +362,12 @@ export default async function TrainerDetailPage({
                 title={TITLE[theme]}
                 subtle={SUBTLE[theme]}
               />
+              <Row
+                label={t("detailSalary")}
+                value={`₱${staff.monthlyBaseSalaryPhp.toLocaleString()}`}
+                title={TITLE[theme]}
+                subtle={SUBTLE[theme]}
+              />
             </dl>
           </section>
 

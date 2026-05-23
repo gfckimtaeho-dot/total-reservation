@@ -114,6 +114,7 @@ export default async function EditTrainerPage({
     workEndMin: staff.workEndMin,
     breakStartMin: staff.breakStartMin,
     breakEndMin: staff.breakEndMin,
+    monthlyBaseSalaryPhp: staff.monthlyBaseSalaryPhp,
     note: u.note ?? "",
     imageUrls: staff.images.map((img) => img.url),
     locale: u.locale,

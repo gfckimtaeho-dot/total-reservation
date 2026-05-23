@@ -44,6 +44,9 @@ const TONE = {
     card: "border-ink/10 bg-white",
     num: "text-ink",
     rowBorder: "border-ink/5",
+    segSession: "bg-emerald-500",
+    segBase: "bg-sky-500",
+    segTrack: "bg-zinc-100",
   },
   black: {
     page: "bg-zinc-950 text-zinc-200",
@@ -57,6 +60,9 @@ const TONE = {
     card: "border-white/5 bg-zinc-900",
     num: "text-white",
     rowBorder: "border-white/5",
+    segSession: "bg-lime-400",
+    segBase: "bg-amber-300",
+    segTrack: "bg-white/10",
   },
   white: {
     page: "bg-violet-50/40",
@@ -70,6 +76,9 @@ const TONE = {
     card: "border-violet-100 bg-white",
     num: "text-ink",
     rowBorder: "border-violet-50",
+    segSession: "bg-violet-600",
+    segBase: "bg-amber-500",
+    segTrack: "bg-zinc-100",
   },
 } as const;
 
@@ -117,7 +126,11 @@ export default async function RevenuePage({
     }),
     prisma.staff.findMany({
       where: { gymId: business.id, role: { in: ["TRAINER", "MANAGER"] } },
-      select: { id: true, user: { select: { name: true } } },
+      select: {
+        id: true,
+        monthlyBaseSalaryPhp: true,
+        user: { select: { name: true } },
+      },
       orderBy: { user: { name: "asc" } },
     }),
   ]);
@@ -271,13 +284,23 @@ export default async function RevenuePage({
     ),
   );
   const trainerPay = trainers
-    .map((tr, i) => ({
-      name: tr.user.name,
-      sessions: perf[i].sessionCount,
-      payPhp: perf[i].grossPhp,
-    }))
-    .sort((a, b) => b.payPhp - a.payPhp);
-  const payTotal = trainerPay.reduce((s, x) => s + x.payPhp, 0);
+    .map((tr, i) => {
+      const sessionPhp = perf[i].grossPhp;
+      const basePhp = tr.monthlyBaseSalaryPhp;
+      return {
+        name: tr.user.name,
+        sessions: perf[i].sessionCount,
+        sessionPhp,
+        basePhp,
+        totalPhp: sessionPhp + basePhp,
+      };
+    })
+    .sort((a, b) => b.totalPhp - a.totalPhp);
+  const payTotal = trainerPay.reduce((s, x) => s + x.totalPhp, 0);
+  const sessionTotal = trainerPay.reduce((s, x) => s + x.sessionPhp, 0);
+  const baseTotal = trainerPay.reduce((s, x) => s + x.basePhp, 0);
+  // 누적바 정규화 기준 — 모든 행 동일 max로 비교 가능하게.
+  const maxPay = Math.max(1, ...trainerPay.map((x) => x.totalPhp));
 
   return (
     <div className={`flex min-h-screen ${tk.page}`}>
@@ -384,41 +407,113 @@ export default async function RevenuePage({
           series={series}
         />
 
-        {/* 트레이너별 월 지급액 — 월급 지급용 */}
+        {/* 트레이너별 월 지급액 — 수업 payout + 기본급 누적 + 총 지급 */}
         <div className={`mt-3 rounded-2xl border ${tk.card} p-4`}>
-          <div className="flex items-baseline justify-between">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className={`text-xs ${tk.sub}`}>
               {t("trainerPayTitle", { y: anchorY, m: anchorM })}
             </span>
-            <span className={`text-xs tabular-nums ${tk.sub}`}>
-              {t("payTotal")} {money(payTotal)}
-            </span>
+            <div className={`flex items-center gap-3 text-xs ${tk.sub}`}>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className={`inline-block h-2.5 w-2.5 rounded-sm ${tk.segSession}`}
+                />
+                {t("legendSessionPay")}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className={`inline-block h-2.5 w-2.5 rounded-sm ${tk.segBase}`}
+                />
+                {t("legendBasePay")}
+              </span>
+            </div>
           </div>
           {trainerPay.length === 0 ? (
             <div className={`mt-2 text-sm ${tk.sub}`}>{t("noData")}</div>
           ) : (
-            <ul className="mt-2">
-              {trainerPay.map((tp) => (
-                <li
-                  key={tp.name}
-                  className={`flex items-center justify-between border-t ${tk.rowBorder} py-2.5 first:border-t-0`}
-                >
-                  <div>
-                    <div className={`text-sm font-medium ${tk.num}`}>
-                      {tp.name}
-                    </div>
-                    <div className={`text-[11px] ${tk.sub}`}>
-                      {t("sessionCount", { n: tp.sessions })}
-                    </div>
+            <>
+              {/* 헤더 — 모든 셀 중앙(헤더 규칙), 숫자 셀은 우측정렬(컬럼별) */}
+              <div
+                className={`mt-3 hidden border-b ${tk.rowBorder} pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] ${tk.sub} sm:grid sm:grid-cols-[minmax(8rem,1.2fr)_minmax(0,2fr)_minmax(0,3.5fr)]`}
+              >
+                <div className="text-center">{t("colTrainer")}</div>
+                <div className="text-center"></div>
+                <div className="grid grid-cols-3 text-center">
+                  <div>{t("colSessionPay")}</div>
+                  <div>{t("colBasePay")}</div>
+                  <div>{t("colTotalPay")}</div>
+                </div>
+              </div>
+              <ul>
+                {trainerPay.map((tp) => {
+                  const sessionPct = (tp.sessionPhp / maxPay) * 100;
+                  const basePct = (tp.basePhp / maxPay) * 100;
+                  return (
+                    <li
+                      key={tp.name}
+                      className={`grid grid-cols-1 gap-2 border-t ${tk.rowBorder} py-3 first:border-t-0 sm:grid-cols-[minmax(8rem,1.2fr)_minmax(0,2fr)_minmax(0,3.5fr)] sm:items-center sm:gap-4`}
+                    >
+                      <div>
+                        <div className={`text-sm font-medium ${tk.num}`}>
+                          {tp.name}
+                        </div>
+                        <div className={`text-[11px] ${tk.sub}`}>
+                          {t("sessionCount", { n: tp.sessions })}
+                        </div>
+                      </div>
+                      <div>
+                        <div
+                          className={`flex h-3 w-full overflow-hidden rounded-full ${tk.segTrack}`}
+                          aria-label={`${money(tp.sessionPhp)} + ${money(tp.basePhp)}`}
+                        >
+                          {sessionPct > 0 && (
+                            <div
+                              className={tk.segSession}
+                              style={{ width: `${sessionPct}%` }}
+                            />
+                          )}
+                          {basePct > 0 && (
+                            <div
+                              className={tk.segBase}
+                              style={{ width: `${basePct}%` }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-right tabular-nums">
+                        <div className={`text-sm ${tk.sub}`}>
+                          {money(tp.sessionPhp)}
+                        </div>
+                        <div className={`text-sm ${tk.sub}`}>
+                          {money(tp.basePhp)}
+                        </div>
+                        <div
+                          className={`font-heading text-base ${tk.num}`}
+                        >
+                          {money(tp.totalPhp)}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {/* 합계 행 — 수업/기본급/총 */}
+              <div
+                className={`mt-2 grid grid-cols-1 gap-2 border-t ${tk.rowBorder} pt-3 sm:grid-cols-[minmax(8rem,1.2fr)_minmax(0,2fr)_minmax(0,3.5fr)] sm:items-center sm:gap-4`}
+              >
+                <div className={`text-xs font-semibold uppercase tracking-[0.18em] ${tk.sub}`}>
+                  {t("payTotal")}
+                </div>
+                <div />
+                <div className="grid grid-cols-3 gap-2 text-right tabular-nums">
+                  <div className={`text-sm ${tk.sub}`}>{money(sessionTotal)}</div>
+                  <div className={`text-sm ${tk.sub}`}>{money(baseTotal)}</div>
+                  <div className={`font-heading text-base font-semibold ${tk.num}`}>
+                    {money(payTotal)}
                   </div>
-                  <div
-                    className={`font-heading text-base tabular-nums ${tk.num}`}
-                  >
-                    {money(tp.payPhp)}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </main>

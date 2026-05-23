@@ -102,6 +102,7 @@ export type TrainerInitialValues = {
   workEndMin: number | null;
   breakStartMin: number | null;
   breakEndMin: number | null;
+  monthlyBaseSalaryPhp: number;
   note: string;
   imageUrls: string[];
   locale?: "en" | "ko";
@@ -172,6 +173,7 @@ export function TrainerForm({
     bio: iv?.bio ?? "",
     career: iv?.career ?? "",
     note: iv?.note ?? "",
+    monthlyBaseSalaryPhp: String(iv?.monthlyBaseSalaryPhp ?? 0),
   });
   function set<K extends keyof typeof fields>(k: K, v: string) {
     setFields((p) => ({ ...p, [k]: v }));
@@ -492,9 +494,37 @@ export function TrainerForm({
         </div>
       </section>
 
-      {/* Section 6 — Memo */}
+      {/* Section 6 — Monthly base salary */}
       <section className={sectionClass(5)}>
-        <SectionHead tk={tk} eyebrow="06" title={t("sectionMemo")} />
+        <SectionHead
+          tk={tk}
+          eyebrow="06"
+          title={t("sectionSalary")}
+          hint={t("monthlyBaseSalaryHint")}
+        />
+        <div className="mt-5 sm:max-w-xs">
+          <label className="flex flex-col gap-1.5">
+            <span className={`text-sm font-medium ${tk.text}`}>
+              {t("monthlyBaseSalary")}
+            </span>
+            <input
+              type="number"
+              name="monthlyBaseSalaryPhp"
+              min={0}
+              step={100}
+              inputMode="numeric"
+              placeholder={t("monthlyBaseSalaryPlaceholder")}
+              value={fields.monthlyBaseSalaryPhp}
+              onChange={(e) => set("monthlyBaseSalaryPhp", e.target.value)}
+              className={`h-11 rounded-md border px-3 text-sm tabular-nums transition focus:outline-none focus:ring-2 ${tk.field}`}
+            />
+          </label>
+        </div>
+      </section>
+
+      {/* Section 7 — Memo */}
+      <section className={sectionClass(6)}>
+        <SectionHead tk={tk} eyebrow="07" title={t("sectionMemo")} />
         <div className="mt-5">
           <TextArea
             tk={tk}

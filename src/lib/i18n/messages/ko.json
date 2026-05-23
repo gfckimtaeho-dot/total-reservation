@@ -253,6 +253,12 @@
     "trainerPayTitle": "{y}년 {m}월 트레이너 지급액",
     "payTotal": "합계",
     "sessionCount": "완료 {n}회",
+    "colTrainer": "트레이너",
+    "colSessionPay": "수업 지급",
+    "colBasePay": "기본급",
+    "colTotalPay": "총 지급",
+    "legendSessionPay": "수업",
+    "legendBasePay": "기본급",
     "type_MEMBERSHIP": "회원권",
     "type_PACKAGE": "횟수권",
     "type_COMBO": "콤보"
@@ -720,6 +726,7 @@
     "detailWorkTime": "정기 출근 시간",
     "detailBreakTime": "휴게 시간",
     "detailBreakNone": "없음",
+    "detailSalary": "월 기본급",
     "detailMemo": "메모 (사장 내부)",
     "detailLeaves": "휴가 이력",
     "detailNoLeaves": "기록 없음",
@@ -830,7 +837,11 @@
     "editSubmitting": "저장 중...",
     "language": "사용 언어",
     "langEnglish": "English",
-    "langKorean": "한국어"
+    "langKorean": "한국어",
+    "sectionSalary": "월 기본급",
+    "monthlyBaseSalary": "월 기본급 (PHP)",
+    "monthlyBaseSalaryPlaceholder": "0",
+    "monthlyBaseSalaryHint": "수업 외 업무(청소·관리 등)에 대한 고정 월급. 0이면 수업 payout만 받습니다. 변경 이력은 자동 기록됩니다."
   },
   "me": {
     "header": "내 회원증",

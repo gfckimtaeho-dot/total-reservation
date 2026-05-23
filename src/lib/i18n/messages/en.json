@@ -253,6 +253,12 @@
     "trainerPayTitle": "{y}-{m} trainer payout",
     "payTotal": "Total",
     "sessionCount": "{n} sessions done",
+    "colTrainer": "Trainer",
+    "colSessionPay": "Session pay",
+    "colBasePay": "Base salary",
+    "colTotalPay": "Total pay",
+    "legendSessionPay": "Session",
+    "legendBasePay": "Base",
     "type_MEMBERSHIP": "Membership",
     "type_PACKAGE": "Session pass",
     "type_COMBO": "Combo"
@@ -720,6 +726,7 @@
     "detailWorkTime": "Working hours",
     "detailBreakTime": "Break time",
     "detailBreakNone": "None",
+    "detailSalary": "Monthly base salary",
     "detailMemo": "Note (owner only)",
     "detailLeaves": "Leave history",
     "detailNoLeaves": "No records",
@@ -830,7 +837,11 @@
     "editSubmitting": "Saving...",
     "language": "Language",
     "langEnglish": "English",
-    "langKorean": "Korean"
+    "langKorean": "Korean",
+    "sectionSalary": "Monthly base salary",
+    "monthlyBaseSalary": "Base salary (PHP)",
+    "monthlyBaseSalaryPlaceholder": "0",
+    "monthlyBaseSalaryHint": "Fixed monthly pay for non-class work (cleaning, admin, etc.). 0 means session payout only. Changes are logged automatically."
   },
   "me": {
     "header": "My membership",
