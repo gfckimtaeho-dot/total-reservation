@@ -32,7 +32,7 @@ export default async function CustomerHomePage({
 
   const [
     closureToday,
-    membershipCount,
+    memberships,
     packages,
     todayReservations,
     calMonth,
@@ -42,12 +42,22 @@ export default async function CustomerHomePage({
       where: { gymId: business.id, date: todayMid },
       select: { kind: true, reason: true },
     }),
-    prisma.membership.count({
+    // 회원권 — 카운트만이 아니라 endDate/plan name까지 가져와 보유 카드에서
+    // 매일 "{n}일 남음"을 표시(7일 이내 amber). 이메일 만료 알림 cron 폐기에
+    // 따라 고객 도달 채널을 이 화면으로 일원화.
+    prisma.membership.findMany({
       where: {
         gymId: business.id,
         userId: user.id,
         endDate: { gte: todayMid },
       },
+      select: {
+        id: true,
+        endDate: true,
+        refundedAt: true,
+        plan: { select: { name: true } },
+      },
+      orderBy: { endDate: "asc" },
     }),
     prisma.package.findMany({
       where: {
@@ -98,7 +108,23 @@ export default async function CustomerHomePage({
     requestAccessQr(slug),
   ]);
 
-  const hasAnyPass = membershipCount > 0 || packages.length > 0;
+  const hasAnyPass = memberships.length > 0 || packages.length > 0;
+  // 회원권 카드 행용 — holdings 페이지와 동일 산식(daysLeft 7 이하 amber).
+  const memberRows = memberships.map((m) => {
+    const daysLeft = Math.max(
+      0,
+      Math.round(
+        (m.endDate.getTime() - todayMid.getTime()) / (24 * 60 * 60 * 1000),
+      ),
+    );
+    return {
+      id: m.id,
+      name: m.plan?.name ?? t("membershipsTitle"),
+      endDate: m.endDate,
+      daysLeft,
+      refunded: m.refundedAt != null,
+    };
+  });
 
   // 보유 현황 — 횟수권을 서비스별로 묶어 완료/예약중/예약가능 집계.
   // 같은 서비스 권이 여러 장이면 합산(어느 권으로든 예약 가능하므로).
@@ -195,7 +221,14 @@ export default async function CustomerHomePage({
 
           {!hasAnyPass && <NoPassNotice t={t} />}
 
-          {passes.length > 0 && <PassSummary passes={passes} t={t} />}
+          {(memberRows.length > 0 || passes.length > 0) && (
+            <PassSummary
+              memberships={memberRows}
+              passes={passes}
+              lang={lang}
+              t={t}
+            />
+          )}
 
           <MeCalendar
             slug={slug}
@@ -353,18 +386,28 @@ function TodayHero({
   );
 }
 
-// 보유 현황 — 횟수권별 한 줄. 캘린더 바로 위에서 "예약 가능"을 보고
-// 달력 날짜를 고르도록. 데이 시트 예약/취소 시 함께 갱신된다.
+// 보유 현황 — 회원권 + 횟수권. 회원권은 "{n}일 남음"(7일 이내 amber),
+// 횟수권은 "예약 가능 N회". 매일 들어오는 화면이라 만료 알림 채널 역할까지.
 function PassSummary({
+  memberships,
   passes,
+  lang,
   t,
 }: {
+  memberships: {
+    id: string;
+    name: string;
+    endDate: Date;
+    daysLeft: number;
+    refunded: boolean;
+  }[];
   passes: {
     name: string;
     completed: number;
     booked: number;
     available: number;
   }[];
+  lang: string;
   t: T;
 }) {
   return (
@@ -373,6 +416,40 @@ function PassSummary({
         {t("passSummaryTitle")}
       </h3>
       <ul className="mt-2 space-y-1.5">
+        {memberships.map((m) => {
+          const soon = m.daysLeft <= 7;
+          return (
+            <li
+              key={m.id}
+              className="flex items-center justify-between gap-3"
+            >
+              <span className="min-w-0 truncate text-sm font-medium text-white">
+                {m.name}
+              </span>
+              <div className="flex shrink-0 items-baseline gap-2">
+                {m.refunded ? (
+                  <span className="text-[11px] text-amber-200">
+                    {t("holdingsRefundPending")}
+                  </span>
+                ) : (
+                  <>
+                    <span
+                      className={
+                        "text-sm font-semibold tabular-nums " +
+                        (soon ? "text-amber-200" : "text-emerald-300")
+                      }
+                    >
+                      {t("membershipDaysLeft", { n: m.daysLeft })}
+                    </span>
+                    <span className="text-[11px] tabular-nums text-zinc-500">
+                      {formatExpiry(m.endDate, lang)}
+                    </span>
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
         {passes.map((p) => (
           <li
             key={p.name}
@@ -404,6 +481,16 @@ function PassSummary({
       </ul>
     </section>
   );
+}
+
+// 회원권 만료일 — "MM/DD" 짧은 형식. /me/holdings 의 긴 형식과 달리 한 줄
+// 칩 공간 절약. holdings 페이지에서 정식 만료일 확인 가능.
+function formatExpiry(d: Date, lang: string): string {
+  return new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+  }).format(d);
 }
 
 function NoPassNotice({ t }: { t: T }) {

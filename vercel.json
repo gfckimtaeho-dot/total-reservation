@@ -2,10 +2,6 @@
   "regions": ["sin1"],
   "crons": [
     {
-      "path": "/api/cron/expiry-reminders",
-      "schedule": "59 15 * * *"
-    },
-    {
       "path": "/api/cron/expiry-deactivate",
       "schedule": "10 16 * * *"
     }
