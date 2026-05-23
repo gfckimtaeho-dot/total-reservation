@@ -134,9 +134,12 @@ export async function rescheduleReservation(input: {
 
 // 수업 완료 — status=COMPLETED + 완료시각 기록. 고객 일방취소+환불포기도
 // 이걸로 마감(별도 취소 버튼 없음). 정산 산식은 Sale/payout 작업과 함께(후속).
+// note(운동 부위 메모) 는 옵션 — 빈/미지정이면 null. 길이 80 자 cap (placeholder
+// 가 짧은 라벨 유도). 사후 수정은 updateReservationNote 별도 액션에서.
 export async function completeReservation(input: {
   slug: string;
   reservationId: string;
+  note?: string;
 }): Promise<Result> {
   const owned = await loadOwned(input.slug, input.reservationId);
   if (!owned.ok) return { ok: false, error: owned.error };
@@ -148,10 +151,17 @@ export async function completeReservation(input: {
     return { ok: false, error: "당일 수업만 완료 처리할 수 있습니다" };
   }
 
+  const note = input.note?.trim() || null;
+  const cappedNote = note && note.length > 80 ? note.slice(0, 80) : note;
+
   await prisma.$transaction(async (tx) => {
     await tx.reservation.update({
       where: { id: res.id },
-      data: { status: "COMPLETED", completedAt: new Date() },
+      data: {
+        status: "COMPLETED",
+        completedAt: new Date(),
+        completionNote: cappedNote,
+      },
     });
     // 연결된 권에서 deductCount 만큼 차감(원본 totalCount 는 불변, 잔여만 ↓).
     if (res.packageId) {
@@ -243,7 +253,12 @@ export async function uncompleteReservation(input: {
   await prisma.$transaction(async (tx) => {
     await tx.reservation.update({
       where: { id: res.id },
-      data: { status: "CONFIRMED", completedAt: null },
+      // 완료 취소 시 메모도 함께 비움 — 다시 완료할 때 새로 적도록.
+      data: {
+        status: "CONFIRMED",
+        completedAt: null,
+        completionNote: null,
+      },
     });
     // 완료 시 차감했던 만큼 환불 — 원본 totalCount 초과 금지.
     if (res.packageId) {

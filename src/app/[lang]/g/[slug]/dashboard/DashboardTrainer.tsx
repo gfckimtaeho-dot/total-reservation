@@ -56,7 +56,7 @@ export async function DashboardTrainer({
       <div className="pointer-events-none absolute -right-40 top-1/4 h-[28rem] w-[28rem] rounded-full bg-orange-500/25 blur-3xl" />
       <div className="pointer-events-none absolute -left-32 bottom-0 h-[26rem] w-[26rem] rounded-full bg-fuchsia-600/20 blur-3xl" />
 
-      <header className="relative flex items-center justify-between border-b border-white/5 px-5 py-4">
+      <header className="relative flex items-center justify-between border-b border-white/5 px-5 py-3">
         <div>
           {/* 1줄: 매장명·역할은 기존 그라데, 트레이너명은 흰색 — 색은 유지하고
               2줄→1줄이 된 만큼 크기만 키움. */}
@@ -77,24 +77,30 @@ export async function DashboardTrainer({
           />
           <Link
             href={`/${lang}/g/${slug}/showcase`}
-            className="rounded-full bg-gradient-to-r from-orange-500/20 to-pink-500/20 px-3 py-1.5 text-xs font-semibold text-orange-100 ring-1 ring-orange-400/40 transition hover:from-orange-500/30 hover:to-pink-500/30"
+            className="rounded-full bg-gradient-to-r from-orange-500/20 to-pink-500/20 px-4 py-2.5 text-sm font-semibold text-orange-100 ring-1 ring-orange-400/40 transition hover:from-orange-500/30 hover:to-pink-500/30"
           >
             {t("trainerShowcaseBtn")}
           </Link>
           <Link
             href={`/${lang}/g/${slug}/intake`}
-            className="rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-3 py-1.5 text-xs font-bold text-white shadow-[0_4px_18px_-6px_rgba(251,146,60,0.6)] transition hover:brightness-110"
+            className="rounded-full bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-2.5 text-sm font-bold text-white shadow-[0_4px_18px_-6px_rgba(251,146,60,0.6)] transition hover:brightness-110"
           >
             {t("trainerIntakeBtn")}
           </Link>
           <Link
+            href={`/${lang}/g/${slug}/my-clients`}
+            className="rounded-full bg-gradient-to-r from-emerald-500/25 to-teal-500/25 px-4 py-2.5 text-sm font-semibold text-emerald-100 ring-1 ring-emerald-400/40 transition hover:from-emerald-500/35 hover:to-teal-500/35"
+          >
+            {t("trainerMyClientsBtn")}
+          </Link>
+          <Link
             href={`/${lang}/g/${slug}/performance`}
-            className="rounded-full bg-gradient-to-r from-pink-500/20 to-purple-500/20 px-3 py-1.5 text-xs font-semibold text-pink-100 ring-1 ring-pink-400/40 transition hover:from-pink-500/30 hover:to-purple-500/30"
+            className="rounded-full bg-gradient-to-r from-pink-500/20 to-purple-500/20 px-4 py-2.5 text-sm font-semibold text-pink-100 ring-1 ring-pink-400/40 transition hover:from-pink-500/30 hover:to-purple-500/30"
           >
             {t("trainerPerfBtn")}
           </Link>
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-400 ring-1 ring-white/10 transition hover:text-white">
+            <button className="rounded-full bg-white/5 px-4 py-2.5 text-sm text-zinc-400 ring-1 ring-white/10 transition hover:text-white">
               {tn("logout")}
             </button>
           </form>

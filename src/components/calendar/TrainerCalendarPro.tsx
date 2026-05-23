@@ -20,6 +20,7 @@ import {
   searchCustomers,
   addReservation,
   listBookableServices,
+  listMyAssignedCustomers,
 } from "@/app/[lang]/g/[slug]/dashboard/service-actions";
 import { GroupClassModal } from "@/app/[lang]/g/[slug]/dashboard/GroupClassModal";
 import { GroupRegisterModal } from "@/app/[lang]/g/[slug]/dashboard/GroupRegisterModal";
@@ -29,7 +30,7 @@ type Remaining = { service: string; total: number; remaining: number };
 const WD_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const WD_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
-const COLS = 31; // 선택일부터 우측으로 보여줄 일수 (가로 스크롤)
+const COLS = 60; // 선택일부터 우측으로 보여줄 일수 (가로 스크롤, 2개월)
 // 슬롯 길이(분). 로더(trainerCalendarPro.ts)의 SLOT_MIN 과 동일 — 값 import는
 // 서버 전용 모듈(Prisma)을 클라 번들로 끌어와 금지.
 const SLOT_MIN = 60;
@@ -57,6 +58,10 @@ type Picked = {
 };
 
 type Cust = { id: string; name: string; phone: string | null };
+// 내 담당 고객 — service 정보 포함(어떤 권 가졌는지 트레이너에게 미리 보여줌).
+type MyCust = Cust & {
+  services: { name: string; isGroup: boolean; remaining: number }[];
+};
 type Modal =
   | null
   | { t: "addRes"; g: GridDay; slotMin: number }
@@ -93,6 +98,9 @@ export function TrainerCalendarPro({
   const [cq, setCq] = useState("");
   const [cresults, setCresults] = useState<Cust[]>([]);
   const [csearched, setCsearched] = useState(false);
+  // 빈 검색 시 자동 표시될 내 담당 고객(알파벳 순). 모달 진입 시 1회 fetch +
+  // 액션 성공 시 null 로 invalidate → 다음 진입에 잔여 회수 fresh.
+  const [myCustomers, setMyCustomers] = useState<MyCust[] | null>(null);
   // addRes 모달 2단계 — 고객 선택 후 그 고객의 1:1 서비스 선택.
   const [addCust, setAddCust] = useState<{ id: string; name: string } | null>(
     null,
@@ -111,6 +119,10 @@ export function TrainerCalendarPro({
   const [groupReg, setGroupReg] = useState<GroupOccurrence | null>(null);
   // 수동 새로고침 전용 transition (다른 액션 pending 과 분리).
   const [refreshing, startRefresh] = useTransition();
+  // PT 완료 운동 부위 메모(인라인 입력). null=미진입(기본 그리드 표시),
+  // ""=메모 모드 진입(input 표시). 사장 결정: 끝내자마자 1줄 적어 다음 PT
+  // 회고에 쓰이게 — 사후 수정은 my-clients 상세에서 별도 액션.
+  const [completeNote, setCompleteNote] = useState<string | null>(null);
 
   const todayKey = keyNum(
     data.today.year,
@@ -135,10 +147,6 @@ export function TrainerCalendarPro({
   const lastStart = Math.max(0, data.days.length - 1);
   const clampSel = (i: number) => Math.min(Math.max(0, i), lastStart);
   const visible = data.days.slice(selIdx, selIdx + COLS);
-  const selDay = data.days[selIdx];
-  const selLabel = selDay
-    ? `${selDay.month}/${selDay.day} (${WD[selDay.weekdayIdx]})`
-    : "";
 
   // 오늘 일정 헤더 날짜 — 숫자형(5/21)이 한눈에 보기 쉬움 + 요일·연도.
   const todayWeekday = new Intl.DateTimeFormat(
@@ -220,6 +228,7 @@ export function TrainerCalendarPro({
     setMoving(false);
     setMoveConfirm(null);
     setErr(null);
+    setCompleteNote(null);
   }
   function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setErr(null);
@@ -229,6 +238,9 @@ export function TrainerCalendarPro({
         setErr(r.error || t("actionFailed"));
         return;
       }
+      // 등록/취소/완료 등 액션 후 내 고객 권 잔여가 stale — 다음 모달 진입
+      // 시 refetch 되도록 캐시 invalidate.
+      setMyCustomers(null);
       reset();
       setModal(null);
       router.refresh();
@@ -289,6 +301,35 @@ export function TrainerCalendarPro({
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cq, slug, modal?.t]);
+
+  // addRes 모달 진입 시 내 담당 고객 한 번 fetch (캐시 hit 면 skip).
+  // 알파벳 순으로 정렬해 빈 검색 영역에 기본 노출 — 트레이너가 거의 매번
+  // 자기 고객이라 타이핑 단계를 생략.
+  useEffect(() => {
+    if (modal?.t !== "addRes") return;
+    if (myCustomers !== null) return;
+    let cancelled = false;
+    startTransition(async () => {
+      const r = await listMyAssignedCustomers({ slug, limit: 50 });
+      if (cancelled) return;
+      if (r.ok) {
+        // 빈 셀(1:1 슬롯)이라 단체 권만 가진 고객은 어차피 등록 못 함
+        // (listBookableServices 가 capacity=1 만 반환). 노출 자체가 노이즈라
+        // 1:1 권 하나라도 가진 고객만 통과.
+        const rows = (r.data as { rows: MyCust[] }).rows.filter((u) =>
+          u.services.some((s) => !s.isGroup),
+        );
+        rows.sort((a, b) => a.name.localeCompare(b.name));
+        setMyCustomers(rows);
+      } else {
+        setMyCustomers([]);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal?.t, slug]);
   // 고객 선택 → 그 고객의 1:1 서비스 목록 조회(다음 단계).
   function pickAddCustomer(c: Cust) {
     setErr(null);
@@ -388,13 +429,22 @@ export function TrainerCalendarPro({
     );
   }
 
-  // 완료 — 확인창 없이 즉시 처리. "완료"는 자주 누르는 버튼이라 매번 컨펌하면
-  // 피곤하다. 실수는 당일 완료취소(doUncompletePt)로 되돌린다 — 단체 수업과
-  // 동일 모델.
+  // 완료 진입 — 인라인 메모 input 표시(autoFocus). 메모 적고 Enter 또는
+  // "완료" 클릭 = doCompleteWithNote. 빈 채로도 완료 가능 — 운영 바쁠 땐 skip,
+  // 사후에 my-clients 상세에서 입력 가능.
   function doComplete() {
-    if (!picked) return;
+    if (!picked || !canComplete) return;
+    setCompleteNote("");
+  }
+  function doCompleteWithNote() {
+    if (!picked || !canComplete) return;
+    const note = (completeNote ?? "").trim();
     run(() =>
-      completeReservation({ slug, reservationId: picked.evId }),
+      completeReservation({
+        slug,
+        reservationId: picked.evId,
+        note: note || undefined,
+      }),
     );
   }
   // 완료 취소(당일 한정) — 실수로 완료한 PT 예약 되돌림 + 권 환불.
@@ -417,9 +467,11 @@ export function TrainerCalendarPro({
   const canComplete =
     picked && picked.rel === "today" && !picked.completed;
 
-  const COL_W = "w-24";
+  // 한 화면(태블릿 ~1024px) 에 7컬럼 = 1주일 fit. (1024-56)/7 ≈ 138px → w-36.
+  // 셀 행도 키워서 글자 가독성 확보.
+  const COL_W = "w-36";
   const AXIS_W = "w-14";
-  const ROW_H = "h-10";
+  const ROW_H = "h-14";
 
   return (
     <section className="rounded-2xl border border-orange-400/25 bg-black p-4 text-zinc-100">
@@ -441,32 +493,32 @@ export function TrainerCalendarPro({
         });
         todays.sort((a, b) => a.s - b.s);
         return (
-          <div className="rounded-lg bg-zinc-900/70 p-3 ring-1 ring-orange-400/30">
+          <div className="rounded-2xl bg-zinc-900/70 p-5 ring-1 ring-orange-400/30">
             <div className="flex items-center justify-between">
               <h3 className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="bg-gradient-to-r from-orange-300 via-pink-300 to-purple-300 bg-clip-text font-heading text-lg font-bold tracking-tight text-transparent">
+                <span className="bg-gradient-to-r from-orange-300 via-pink-300 to-purple-300 bg-clip-text font-heading text-2xl font-bold tracking-tight text-transparent">
                   {t("todayHeading")}
                 </span>
-                <span className="text-sm font-medium tracking-tight text-zinc-300">
+                <span className="text-base font-medium tracking-tight text-zinc-300">
                   {todayDateLabel}
                 </span>
               </h3>
-              <span className="text-[11px] tabular-nums text-zinc-500">
+              <span className="text-base tabular-nums text-zinc-500">
                 {todays.length}
               </span>
             </div>
             {td.state !== "open" ? (
-              <p className="mt-3.5 text-sm text-zinc-500">
+              <p className="mt-4 text-base text-zinc-500">
                 {td.state === "closed"
                   ? td.reason || t("closed")
                   : t("off")}
               </p>
             ) : todays.length === 0 ? (
-              <p className="mt-3.5 text-sm text-zinc-500">
+              <p className="mt-4 text-base text-zinc-500">
                 {t("todayEmpty")}
               </p>
             ) : (
-              <ul className="mt-3.5 space-y-1">
+              <ul className="mt-4 space-y-2">
                 {todays.map((item) =>
                   item.kind === "pt" ? (
                     <li key={item.ev.id}>
@@ -476,23 +528,23 @@ export function TrainerCalendarPro({
                         onClick={(e) =>
                           onBookedTap(td, item.s, item.ev, e.currentTarget)
                         }
-                        className={`flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition disabled:opacity-50 ${
+                        className={`flex w-full items-center gap-3 rounded-lg px-4 py-3.5 text-base transition disabled:opacity-50 ${
                           item.ev.completed
                             ? "bg-emerald-500/12 text-emerald-200 hover:bg-emerald-500/20"
                             : "bg-orange-400/15 text-orange-100 hover:bg-orange-400/25"
                         }`}
                       >
-                        <span className="font-mono text-xs tabular-nums text-orange-300">
+                        <span className="font-mono text-lg font-bold tabular-nums text-orange-300">
                           {hm(item.s)}
                         </span>
-                        <span className="font-medium">
+                        <span className="text-lg font-semibold">
                           {item.ev.customerName}
                         </span>
-                        <span className="text-xs text-zinc-400">
+                        <span className="text-sm text-zinc-400">
                           {item.ev.service}
                         </span>
                         {item.ev.completed && (
-                          <span className="ml-auto text-xs text-emerald-300">
+                          <span className="ml-auto text-sm text-emerald-300">
                             ✓ {t("completed")}
                           </span>
                         )}
@@ -504,15 +556,15 @@ export function TrainerCalendarPro({
                         type="button"
                         disabled={pending}
                         onClick={() => setGroupPick(item.occ)}
-                        className="flex w-full items-center gap-3 rounded-md bg-purple-500/15 px-2.5 py-1.5 text-sm text-purple-100 transition hover:bg-purple-500/25 disabled:opacity-50"
+                        className="flex w-full items-center gap-3 rounded-lg bg-purple-500/15 px-4 py-3.5 text-base text-purple-100 transition hover:bg-purple-500/25 disabled:opacity-50"
                       >
-                        <span className="font-mono text-xs tabular-nums text-purple-300">
+                        <span className="font-mono text-lg font-bold tabular-nums text-purple-300">
                           {hm(item.s)}
                         </span>
-                        <span className="font-medium">
+                        <span className="text-lg font-semibold">
                           {item.occ.className}
                         </span>
-                        <span className="ml-auto text-xs tabular-nums text-purple-200/80">
+                        <span className="ml-auto text-sm tabular-nums text-purple-200/80">
                           {item.occ.enrolled}/{item.occ.capacity}
                         </span>
                       </button>
@@ -525,46 +577,16 @@ export function TrainerCalendarPro({
         );
       })()}
 
-      {/* 헤더 — 선택일(좌) · 날짜 네비(중앙) · Refresh(우) */}
-      <div className="mt-4 grid grid-cols-3 items-center gap-2">
-        <div className="flex min-w-0 justify-start">
-          <h2 className="truncate font-heading text-sm tracking-tight text-white">
-            {selLabel} {t("scheduleSuffix")}
-          </h2>
-        </div>
-        <div className="flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => setSelIdx((i) => clampSel(i - 1))}
-            className="h-9 w-14 rounded-md border border-white/15 text-xl text-zinc-300 transition hover:bg-white/10"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelIdx(data.todayIdx)}
-            className="h-9 rounded-md border border-white/15 px-3 text-sm font-medium text-zinc-300 transition hover:bg-white/10"
-          >
-            {t("jumpToday")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelIdx((i) => clampSel(i + 1))}
-            className="h-9 w-14 rounded-md border border-white/15 text-xl text-zinc-300 transition hover:bg-white/10"
-          >
-            ›
-          </button>
-        </div>
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => startRefresh(() => router.refresh())}
-            disabled={refreshing}
-            className="h-9 rounded-md border border-sky-400/50 px-4 text-sm font-semibold text-sky-300 transition hover:bg-sky-400/15 disabled:opacity-50"
-          >
-            {refreshing ? t("refreshing") : t("refresh")}
-          </button>
-        </div>
+      {/* 헤더 — Refresh 만. 선택일/네비는 컬럼 헤더 탭으로 대체. */}
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => startRefresh(() => router.refresh())}
+          disabled={refreshing}
+          className="h-9 rounded-md border border-sky-400/50 px-4 text-sm font-semibold text-sky-300 transition hover:bg-sky-400/15 disabled:opacity-50"
+        >
+          {refreshing ? t("refreshing") : t("refresh")}
+        </button>
       </div>
 
       {/* 이동 모드 배너만 상단 유지(진행 안내) */}
@@ -593,7 +615,7 @@ export function TrainerCalendarPro({
         </div>
       )}
       {!picked && !moving && !classMode && (
-        <p className="mt-3 text-[11px] text-zinc-500">
+        <p className="mt-3 text-sm text-zinc-500">
           {t("tapBookingHint")}
         </p>
       )}
@@ -610,7 +632,7 @@ export function TrainerCalendarPro({
             {data.slotAxis.map((s) => (
               <div
                 key={s}
-                className={`${ROW_H} flex shrink-0 items-start justify-end pr-1.5 pt-1 font-mono text-[10px] tabular-nums text-zinc-500`}
+                className={`${ROW_H} flex shrink-0 items-start justify-end pr-1.5 pt-1 font-mono text-sm tabular-nums text-zinc-500`}
               >
                 {hm(s)}
               </div>
@@ -637,14 +659,14 @@ export function TrainerCalendarPro({
                 <button
                   type="button"
                   onClick={() => setSelIdx(clampSel(selIdx + vi))}
-                  className={`${ROW_H} flex w-full shrink-0 flex-col items-center justify-center border-b border-white/25 text-[11px] font-bold leading-tight ${headTone} ${
+                  className={`${ROW_H} flex w-full shrink-0 flex-col items-center justify-center border-b border-white/25 text-sm font-bold leading-tight ${headTone} ${
                     isSel ? "bg-orange-400/10" : "hover:bg-white/5"
                   }`}
                 >
                   <span>
                     {g.month}/{g.day}
                   </span>
-                  <span className="text-[9px] font-medium opacity-70">
+                  <span className="text-xs font-medium opacity-70">
                     {WD[g.weekdayIdx]}
                   </span>
                 </button>
@@ -676,7 +698,7 @@ export function TrainerCalendarPro({
                             setErr(null);
                             setGroupReg(occ);
                           }}
-                          className={`${ROW_H} flex w-full shrink-0 flex-col items-center justify-center overflow-hidden border-b border-white/15 px-1 text-[10px] font-semibold leading-none ring-1 ring-inset transition ${
+                          className={`${ROW_H} flex w-full shrink-0 flex-col items-center justify-center overflow-hidden border-b border-white/15 px-1 text-sm font-semibold leading-none ring-1 ring-inset transition ${
                             occFull
                               ? "bg-zinc-800 text-zinc-500 ring-white/10 hover:bg-zinc-700"
                               : "bg-purple-500/40 text-white ring-purple-300 hover:bg-purple-500/55"
@@ -685,7 +707,7 @@ export function TrainerCalendarPro({
                           <span className="tabular-nums">
                             {occ.enrolled}/{occ.capacity}
                           </span>
-                          <span className="mt-0.5 text-[8px] opacity-80">
+                          <span className="mt-0.5 text-xs opacity-80">
                             {occFull
                               ? t("groupClassFull")
                               : t("groupAddStudent")}
@@ -730,7 +752,7 @@ export function TrainerCalendarPro({
                             setModal({ t: "addRes", g, slotMin });
                           }
                         }}
-                        className={`${ROW_H} flex w-full shrink-0 items-center justify-center overflow-hidden border-b border-white/15 text-[10px] transition ${
+                        className={`${ROW_H} flex w-full shrink-0 items-center justify-center overflow-hidden border-b border-white/15 text-sm transition ${
                           target
                             ? "bg-emerald-400/20 text-emerald-200 hover:bg-emerald-400/35"
                             : canAdd
@@ -768,7 +790,7 @@ export function TrainerCalendarPro({
                           setErr(null);
                           setGroupPick(o);
                         }}
-                        className={`${ROW_H} flex w-full shrink-0 flex-col justify-center overflow-hidden border-b border-white/15 px-1 text-[10px] font-medium leading-none ring-1 ring-inset transition ${
+                        className={`${ROW_H} flex w-full shrink-0 flex-col justify-center overflow-hidden border-b border-white/15 px-1 text-sm font-medium leading-none ring-1 ring-inset transition ${
                           done
                             ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/40 hover:bg-emerald-500/25"
                             : "bg-purple-500/25 text-purple-100 ring-purple-400/40 hover:bg-purple-500/35"
@@ -779,7 +801,7 @@ export function TrainerCalendarPro({
                           {o.className}
                         </span>
                         <span
-                          className={`mt-0.5 block truncate text-[8px] tabular-nums ${
+                          className={`mt-0.5 block truncate text-xs tabular-nums ${
                             done ? "text-emerald-300/80" : "text-purple-200/80"
                           }`}
                         >
@@ -801,7 +823,7 @@ export function TrainerCalendarPro({
                       onClick={(e) =>
                         onBookedTap(g, slotMin, c.ev, e.currentTarget)
                       }
-                      className={`${ROW_H} flex w-full shrink-0 flex-col justify-center overflow-hidden border-b border-white/15 px-1 text-[10px] font-medium leading-none ring-1 ring-inset transition ${
+                      className={`${ROW_H} flex w-full shrink-0 flex-col justify-center overflow-hidden border-b border-white/15 px-1 text-sm font-medium leading-none ring-1 ring-inset transition ${
                         done
                           ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/40 hover:bg-emerald-500/25"
                           : "bg-gradient-to-br from-orange-500/30 via-pink-500/15 to-purple-500/20 text-white ring-pink-400/40 hover:from-orange-500/40 hover:to-purple-500/30"
@@ -812,7 +834,7 @@ export function TrainerCalendarPro({
                         {c.ev.customerName}
                       </span>
                       <span
-                        className={`mt-0.5 block truncate text-[8px] ${
+                        className={`mt-0.5 block truncate text-xs ${
                           done ? "text-emerald-300/80" : "text-white/70"
                         }`}
                       >
@@ -829,7 +851,7 @@ export function TrainerCalendarPro({
 
       {/* 단체수업 — 본인 담당 아닌 수업. 칩 선택 시 격자가 등록 모드로. */}
       <div className="mt-4 border-t border-white/10 pt-3">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-purple-300/90">
+        <div className="text-sm font-semibold uppercase tracking-[0.18em] text-purple-300/90">
           {t("groupPanelTitle")}
         </div>
         {groupClassList.length === 0 ? (
@@ -851,7 +873,7 @@ export function TrainerCalendarPro({
                 >
                   {gc.className}
                   {!gc.instructorVaries && (
-                    <span className="ml-1.5 text-[10px] opacity-70">
+                    <span className="ml-1.5 text-sm opacity-70">
                       {gc.instructorName ?? t("groupNoInstructor")}
                     </span>
                   )}
@@ -960,7 +982,7 @@ export function TrainerCalendarPro({
                   </div>
                 </div>
                 <div className="mt-3 rounded-lg border border-white/10 bg-zinc-950/60 p-2.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+                  <div className="text-sm font-semibold uppercase tracking-[0.15em] text-zinc-500">
                     {t("remainHeading")}
                   </div>
                   {rem === null ? (
@@ -994,7 +1016,7 @@ export function TrainerCalendarPro({
                     </ul>
                   )}
                 </div>
-                {!picked.completed && (
+                {!picked.completed && completeNote === null && (
                   <div className="mt-4 grid grid-cols-3 gap-2">
                     <button
                       type="button"
@@ -1026,7 +1048,7 @@ export function TrainerCalendarPro({
                     )}
                   </div>
                 )}
-                {!picked.completed && (
+                {!picked.completed && completeNote === null && (
                   <button
                     type="button"
                     disabled={pending || !canCancel}
@@ -1035,6 +1057,39 @@ export function TrainerCalendarPro({
                   >
                     {t("cancelBooking")}
                   </button>
+                )}
+                {!picked.completed && completeNote !== null && (
+                  <div className="mt-4 space-y-2">
+                    <input
+                      autoFocus
+                      value={completeNote}
+                      onChange={(e) => setCompleteNote(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") doCompleteWithNote();
+                        else if (e.key === "Escape") setCompleteNote(null);
+                      }}
+                      placeholder={t("notePlaceholder")}
+                      maxLength={80}
+                      className="w-full rounded-lg border border-emerald-400/40 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-400/60"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCompleteNote(null)}
+                        className="rounded-lg border border-white/15 py-2.5 text-sm text-zinc-300 transition hover:bg-white/5"
+                      >
+                        {t("cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={doCompleteWithNote}
+                        className="rounded-lg border border-emerald-400/50 bg-emerald-400/20 py-2.5 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/30 disabled:opacity-40"
+                      >
+                        {t("complete")}
+                      </button>
+                    </div>
+                  </div>
                 )}
                 {picked.completed && picked.rel === "today" && (
                   <button
@@ -1091,39 +1146,87 @@ export function TrainerCalendarPro({
                         {t("searchBtn")}
                       </button>
                     </div>
-                    <ul className="mt-3 max-h-60 space-y-1 overflow-y-auto">
-                      {cresults.map((c) => (
-                        <li key={c.id}>
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => pickAddCustomer(c)}
-                            className="flex w-full items-center justify-between rounded-md border border-white/15 px-3 py-2 text-sm transition hover:border-orange-400/50 hover:bg-orange-400/10 disabled:opacity-50"
-                          >
-                            <span className="font-medium">{c.name}</span>
-                            <span className="text-xs text-zinc-500">
-                              {c.phone ?? ""}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                      {pending && (
-                        <li className="text-xs text-zinc-500">
-                          {t("searchTyping")}
-                        </li>
-                      )}
-                      {!pending &&
-                        cresults.length === 0 &&
-                        (csearched ? (
+                    {!cq.trim() ? (
+                      // 빈 검색 — 내 담당 고객 알파벳 순 자동 표시 (트레이너가
+                      // 매번 자기 고객이라 타이핑 단계 생략).
+                      <ul className="mt-3 max-h-60 space-y-1 overflow-y-auto">
+                        {myCustomers === null ? (
                           <li className="text-xs text-zinc-500">
-                            {t("noResults")}
+                            {t("myCustomersLoading")}
+                          </li>
+                        ) : myCustomers.length === 0 ? (
+                          <li className="text-xs text-zinc-500">
+                            {t("noMyCustomers")}
                           </li>
                         ) : (
-                          <li className="text-xs text-zinc-500">
-                            {t("searchHint")}
+                          <>
+                            <li className="px-1 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-300/70">
+                              {t("myCustomersHeading")} · {myCustomers.length}
+                            </li>
+                            {myCustomers.map((c) => {
+                              const oneToOne = c.services.filter(
+                                (s) => !s.isGroup,
+                              );
+                              return (
+                                <li key={c.id}>
+                                  <button
+                                    type="button"
+                                    disabled={pending}
+                                    onClick={() => pickAddCustomer(c)}
+                                    className="flex w-full items-center justify-between gap-2 rounded-md border border-white/15 px-3 py-2 text-sm transition hover:border-orange-400/50 hover:bg-orange-400/10 disabled:opacity-50"
+                                  >
+                                    <span className="min-w-0 flex-1 truncate font-medium">
+                                      {c.name}
+                                    </span>
+                                    {oneToOne.length > 0 && (
+                                      <span className="shrink-0 text-xs text-orange-300/80">
+                                        {oneToOne
+                                          .map((s) => s.name)
+                                          .join(" · ")}
+                                      </span>
+                                    )}
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </>
+                        )}
+                      </ul>
+                    ) : (
+                      <ul className="mt-3 max-h-60 space-y-1 overflow-y-auto">
+                        {cresults.map((c) => (
+                          <li key={c.id}>
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => pickAddCustomer(c)}
+                              className="flex w-full items-center justify-between rounded-md border border-white/15 px-3 py-2 text-sm transition hover:border-orange-400/50 hover:bg-orange-400/10 disabled:opacity-50"
+                            >
+                              <span className="font-medium">{c.name}</span>
+                              <span className="text-xs text-zinc-500">
+                                {c.phone ?? ""}
+                              </span>
+                            </button>
                           </li>
                         ))}
-                    </ul>
+                        {pending && (
+                          <li className="text-xs text-zinc-500">
+                            {t("searchTyping")}
+                          </li>
+                        )}
+                        {!pending &&
+                          cresults.length === 0 &&
+                          (csearched ? (
+                            <li className="text-xs text-zinc-500">
+                              {t("noResults")}
+                            </li>
+                          ) : (
+                            <li className="text-xs text-zinc-500">
+                              {t("searchHint")}
+                            </li>
+                          ))}
+                      </ul>
+                    )}
                   </>
                 ) : (
                   <>
@@ -1143,7 +1246,7 @@ export function TrainerCalendarPro({
                         {t("addResBack")}
                       </button>
                     </div>
-                    <div className="mt-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-orange-300/90">
+                    <div className="mt-3 text-sm font-semibold uppercase tracking-[0.15em] text-orange-300/90">
                       {t("addResPickService")}
                     </div>
                     {err && (

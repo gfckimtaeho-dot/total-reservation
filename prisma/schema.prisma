@@ -912,6 +912,10 @@ model Reservation {
   depositConfirmed Boolean           @default(false)
   // "수업 완료" 클릭 시각. status=COMPLETED 와 함께 기록. 정산 산식은 후속.
   completedAt      DateTime?         @db.Timestamptz(3)
+  // PT 완료 시 트레이너가 남기는 운동 부위 메모(예: "어깨", "하체", "등").
+  // 다음 PT 회고용. 빈 값(null) 허용 — 운영 중 빠르게 완료 처리하고
+  // 사후에 my-clients 상세에서 입력·수정 가능.
+  completionNote   String?
   // 이 예약이 차감하는 PT권/횟수권 인스턴스. 완료 시 Package.remainingCount −= deduct.
   // 권 삭제돼도 예약 원장은 보존(SetNull). 원본(totalCount)은 Package에서 불변.
   packageId        String?

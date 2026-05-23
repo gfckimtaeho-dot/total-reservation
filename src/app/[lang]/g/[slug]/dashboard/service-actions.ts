@@ -81,7 +81,7 @@ export async function listRecentCustomers(input: {
   const auth = await requireGymStaff(input.slug);
   const gymId = auth.business!.id;
   const q = (input.q ?? "").trim();
-  const limit = Math.min(50, Math.max(1, input.limit ?? 10));
+  const limit = Math.min(500, Math.max(1, input.limit ?? 10));
   const offset = Math.max(0, input.offset ?? 0);
   const where = {
     gymId,
@@ -133,7 +133,7 @@ export async function listMyAssignedCustomers(input: {
 }): Promise<R> {
   const auth = await requireGymStaff(input.slug);
   const gymId = auth.business!.id;
-  const limit = Math.min(50, Math.max(1, input.limit ?? 10));
+  const limit = Math.min(500, Math.max(1, input.limit ?? 10));
   const offset = Math.max(0, input.offset ?? 0);
 
   const staff = await prisma.staff.findFirst({

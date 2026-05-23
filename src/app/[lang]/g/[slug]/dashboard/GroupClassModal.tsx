@@ -44,6 +44,16 @@ export function GroupClassModal({
 }) {
   const t = useTranslations("trainerCal");
   const WD = lang === "en" ? WD_EN : WD_KO;
+
+  // derived values — useState 초깃값(autoComplete) 에 쓰이므로 위에서 계산.
+  const whenLabel = `${occ.month}/${occ.day} ${hm(occ.startMin)}`;
+  const full = occ.enrolled >= occ.capacity;
+  const pendingStudents = occ.students.filter((s) => !s.completed);
+  // 당일 + 미완료 학생 있으면 모달 열자마자 출석 완료 모드로 진입.
+  // 사장 요청: 기존 1단계("Complete class" 버튼 클릭) 가 불필요했음 — 모두
+  // 체크 상태로 바로 보여주고 안 온 학생만 언체크 후 확정.
+  const autoComplete = isToday && pendingStudents.length > 0;
+
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [moving, setMoving] = useState<GroupStudent | null>(null);
@@ -52,12 +62,12 @@ export function GroupClassModal({
   );
   const [showReg, setShowReg] = useState(false);
   // 출석 완료 모드 — 체크된 수강생만 완료 처리.
-  const [completing, setCompleting] = useState(false);
-  const [checked, setChecked] = useState<Set<string>>(new Set());
-
-  const whenLabel = `${occ.month}/${occ.day} ${hm(occ.startMin)}`;
-  const full = occ.enrolled >= occ.capacity;
-  const pendingStudents = occ.students.filter((s) => !s.completed);
+  const [completing, setCompleting] = useState(autoComplete);
+  const [checked, setChecked] = useState<Set<string>>(() =>
+    autoComplete
+      ? new Set(pendingStudents.map((s) => s.reservationId))
+      : new Set(),
+  );
 
   function doCancel(s: GroupStudent) {
     setErr(null);
@@ -246,7 +256,7 @@ export function GroupClassModal({
                 onClick={() => setCompleting(false)}
                 className="rounded-lg border border-white/15 py-2.5 text-sm text-zinc-300 transition hover:bg-white/5"
               >
-                {t("cancel")}
+                {t("groupAttendanceBack")}
               </button>
               <button
                 type="button"
