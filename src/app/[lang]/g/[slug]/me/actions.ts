@@ -769,6 +769,12 @@ export async function loadMeDaySheet(
   const hasPasses = pkgs.length > 0;
   const options: MeDayOption[] = [];
 
+  // 권 없는 사용자는 옵션 계산 자체가 의미 없음 — 트립 2 의 4 쿼리(트레이너
+  // 가용성·schedule·openCount·groupEnroll) 모두 skip. UI 는 "권 없음" 안내.
+  if (!hasPasses) {
+    return { events: toEvents(await eventsPromise), hasPasses, options };
+  }
+
   // 1:1 — 서비스별로 묶는다(pkgs 가 createdAt asc 라 FIFO 순서 유지).
   type Pkg1to1 = (typeof pkgs)[number];
   const svc1to1 = new Map<string, Pkg1to1[]>();
@@ -789,53 +795,62 @@ export async function loadMeDaySheet(
     ),
   ];
 
-  // 트립 2 — 마지막 왕복. 한 배치에 모두 병렬:
-  //  - 트레이너 그날 가용성
-  //  - 단체수업 schedule (그날 어떤 회차가 열리나)
-  //  - 1:1 권별 미완료 예약 수 (소진 판정)
-  //  - 그날 단체수업 등록 현황 (정원·본인등록 판정) — serviceId 로 거르므로
-  //    schedule 매칭을 안 기다려도 돼 같은 배치에 넣을 수 있다.
+  // 트립 2 — 마지막 왕복. 각 쿼리는 해당 카테고리 권이 있을 때만 실행.
+  //  - 트레이너 가용성: 1:1 권 있을 때
+  //  - 단체수업 schedule + groupEnroll: 단체 권 있을 때
+  //  - openCounts: 1:1 권 있을 때
+  // 단체만/1:1만 가진 사용자는 절반의 쿼리를 절약 — Neon 왕복 1개당 100~300ms.
+  const hasGroup = groupServiceIds.length > 0;
+  const hasOneToOne = staffIds.length > 0;
   const [avails, schedules, openCounts, groupEnrollRows] =
     await Promise.all([
-      Promise.all(
-        staffIds.map((id) =>
-          loadTrainerDayAvailability(gymId, id, dayUtcMid),
-        ),
-      ),
-      prisma.scheduledClass.findMany({
-        where: {
-          gymId,
-          active: true,
-          serviceId: { in: groupServiceIds },
-          validFrom: { lte: dayUtcMid },
-          OR: [{ validUntil: null }, { validUntil: { gte: dayUtcMid } }],
-        },
-        select: {
-          id: true,
-          kind: true,
-          weekdays: true,
-          specificDate: true,
-          startMinute: true,
-          service: { select: { name: true, capacity: true } },
-        },
-      }),
-      prisma.reservation.groupBy({
-        by: ["packageId"],
-        where: {
-          packageId: { in: oneToOnePkgIds },
-          status: { in: [...OPEN_STATUSES] },
-        },
-        _count: { _all: true },
-      }),
-      prisma.reservation.findMany({
-        where: {
-          gymId,
-          startAt: { gte: dayUtcMid, lt: dayEnd },
-          status: { notIn: ["CANCELLED", "REJECTED"] },
-          scheduledClass: { serviceId: { in: groupServiceIds } },
-        },
-        select: { scheduledClassId: true, customerUserId: true },
-      }),
+      hasOneToOne
+        ? Promise.all(
+            staffIds.map((id) =>
+              loadTrainerDayAvailability(gymId, id, dayUtcMid),
+            ),
+          )
+        : Promise.resolve([]),
+      hasGroup
+        ? prisma.scheduledClass.findMany({
+            where: {
+              gymId,
+              active: true,
+              serviceId: { in: groupServiceIds },
+              validFrom: { lte: dayUtcMid },
+              OR: [{ validUntil: null }, { validUntil: { gte: dayUtcMid } }],
+            },
+            select: {
+              id: true,
+              kind: true,
+              weekdays: true,
+              specificDate: true,
+              startMinute: true,
+              service: { select: { name: true, capacity: true } },
+            },
+          })
+        : Promise.resolve([]),
+      hasOneToOne
+        ? prisma.reservation.groupBy({
+            by: ["packageId"],
+            where: {
+              packageId: { in: oneToOnePkgIds },
+              status: { in: [...OPEN_STATUSES] },
+            },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+      hasGroup
+        ? prisma.reservation.findMany({
+            where: {
+              gymId,
+              startAt: { gte: dayUtcMid, lt: dayEnd },
+              status: { notIn: ["CANCELLED", "REJECTED"] },
+              scheduledClass: { serviceId: { in: groupServiceIds } },
+            },
+            select: { scheduledClassId: true, customerUserId: true },
+          })
+        : Promise.resolve([]),
     ]);
   const availByStaff = new Map(staffIds.map((id, i) => [id, avails[i]]));
   const openByPkg = new Map(

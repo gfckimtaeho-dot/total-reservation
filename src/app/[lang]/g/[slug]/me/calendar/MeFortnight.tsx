@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -45,21 +45,42 @@ export function MeFortnight({
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // 다른 날 클릭 — daySheet 재조회. 오늘은 SSR 결과 유지.
+  // 같은 날 두 번째 클릭부터 즉시 표시 — Neon 왕복(750ms~)을 캐시로 잘라낸다.
+  // 액션 성공(act)이나 prefetch 결과는 캐시 갱신.
+  const cacheRef = useRef<Map<string, MeDaySheetData>>(
+    new Map([[fortnight.todayKey, initialSheet]]),
+  );
+
+  function fetchAndCache(dayKey: string): Promise<MeDaySheetData> {
+    return loadMeDaySheet(slug, dayKey).then((fresh) => {
+      cacheRef.current.set(dayKey, fresh);
+      return fresh;
+    });
+  }
+
+  // 다른 날 클릭 — 캐시 있으면 즉시, 없으면 fetch.
   function selectDay(dayKey: string) {
     setError(null);
     setConfirmKey(null);
     setSelectedKey(dayKey);
-    if (dayKey === fortnight.todayKey) {
-      setSheet(initialSheet);
+    const cached = cacheRef.current.get(dayKey);
+    if (cached) {
+      setSheet(cached);
       setSheetLoaded(true);
       return;
     }
     setSheetLoaded(false);
-    void loadMeDaySheet(slug, dayKey).then((fresh) => {
+    void fetchAndCache(dayKey).then((fresh) => {
       setSheet(fresh);
       setSheetLoaded(true);
     });
+  }
+
+  // pointerdown(탭 시작) 시 prefetch — 사용자 손가락이 떨어지기 전에 요청을
+  // 보내 체감 100~200ms 단축. 캐시 hit 면 skip.
+  function prefetchDay(dayKey: string) {
+    if (cacheRef.current.has(dayKey)) return;
+    void fetchAndCache(dayKey);
   }
 
   function act(fn: () => Promise<{ ok: boolean }>) {
@@ -71,7 +92,9 @@ export function MeFortnight({
         return;
       }
       setConfirmKey(null);
-      const fresh = await loadMeDaySheet(slug, selectedKey);
+      // 액션 후 그 날 캐시는 무효 — 재조회 후 캐시 갱신.
+      cacheRef.current.delete(selectedKey);
+      const fresh = await fetchAndCache(selectedKey);
       setSheet(fresh);
       router.refresh();
     });
@@ -101,55 +124,12 @@ export function MeFortnight({
           weekdays={WD}
           selectedKey={selectedKey}
           onSelect={selectDay}
+          onPrefetch={prefetchDay}
         />
       </section>
 
-      <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
-        <h3 className="text-lg font-bold text-orange-600">{t("fnMyResv")}</h3>
-        {myUpcoming.length === 0 ? (
-          <div className="mt-3 rounded-2xl bg-zinc-50 p-4 text-center text-sm text-zinc-500">
-            {t("fnMyResvEmpty")}
-          </div>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {myUpcoming.map((ev) => {
-              const cellLabel = shortDayLabel(ev.dayKey, lang, WD);
-              const done = ev.status === "COMPLETED";
-              return (
-                <li
-                  key={ev.id}
-                  className={
-                    "grid grid-cols-[auto_auto_1fr_auto] items-baseline gap-x-3 rounded-2xl p-3 " +
-                    (done
-                      ? "bg-emerald-100 text-emerald-900"
-                      : ev.kind === "group"
-                        ? "bg-amber-100 text-amber-900"
-                        : "bg-gradient-to-r from-orange-200 to-rose-200 text-orange-900")
-                  }
-                >
-                  <span className="text-sm font-semibold tabular-nums">
-                    {cellLabel}
-                  </span>
-                  <span className="text-lg font-bold tabular-nums">
-                    {hm(ev.startMin)}
-                  </span>
-                  <span className="truncate text-base font-bold">
-                    {done && "✓ "}
-                    {ev.label}
-                  </span>
-                  {ev.staffName && (
-                    <span className="text-xs">
-                      <span className="font-semibold">{ev.staffName}</span>{" "}
-                      <span className="text-zinc-600">Tr</span>
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
+      {/* 선택일 옵션 — 가로 strip 바로 아래 배치 (2주간 내 예약 위). 일자
+          탭하면 즉시 보이도록. */}
       <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
         <div className="flex items-baseline justify-between">
           <h3 className="text-lg font-bold text-orange-600">
@@ -282,6 +262,52 @@ export function MeFortnight({
         )}
         {error && <p className="mt-3 text-xs text-rose-700">{error}</p>}
       </section>
+
+      <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+        <h3 className="text-lg font-bold text-orange-600">{t("fnMyResv")}</h3>
+        {myUpcoming.length === 0 ? (
+          <div className="mt-3 rounded-2xl bg-zinc-50 p-4 text-center text-sm text-zinc-500">
+            {t("fnMyResvEmpty")}
+          </div>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {myUpcoming.map((ev) => {
+              const cellLabel = shortDayLabel(ev.dayKey, lang, WD);
+              const done = ev.status === "COMPLETED";
+              return (
+                <li
+                  key={ev.id}
+                  className={
+                    "grid grid-cols-[auto_auto_1fr_auto] items-baseline gap-x-3 rounded-2xl p-3 " +
+                    (done
+                      ? "bg-emerald-100 text-emerald-900"
+                      : ev.kind === "group"
+                        ? "bg-amber-100 text-amber-900"
+                        : "bg-gradient-to-r from-orange-200 to-rose-200 text-orange-900")
+                  }
+                >
+                  <span className="text-sm font-semibold tabular-nums">
+                    {cellLabel}
+                  </span>
+                  <span className="text-lg font-bold tabular-nums">
+                    {hm(ev.startMin)}
+                  </span>
+                  <span className="truncate text-base font-bold">
+                    {done && "✓ "}
+                    {ev.label}
+                  </span>
+                  {ev.staffName && (
+                    <span className="text-xs">
+                      <span className="font-semibold">{ev.staffName}</span>{" "}
+                      <span className="text-zinc-600">Tr</span>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -292,11 +318,13 @@ function FortnightStrip({
   weekdays,
   selectedKey,
   onSelect,
+  onPrefetch,
 }: {
   cells: MeFortnight["cells"];
   weekdays: string[];
   selectedKey: string;
   onSelect: (k: string) => void;
+  onPrefetch: (k: string) => void;
 }) {
   return (
     <div className="-mx-1 overflow-x-auto pb-1 snap-x snap-mandatory">
@@ -323,6 +351,7 @@ function FortnightStrip({
               key={c.dayKey}
               type="button"
               onClick={() => onSelect(c.dayKey)}
+              onPointerDown={() => onPrefetch(c.dayKey)}
               className={
                 "snap-start mx-1 flex w-[calc(20%-0.5rem)] shrink-0 flex-col items-center rounded-2xl border p-2 transition " +
                 containerCls
