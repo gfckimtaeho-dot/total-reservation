@@ -70,8 +70,8 @@ export function PackageTrainerCard({
 
   return (
     <div className="mt-3">
-      <div className="flex items-center gap-3 rounded-lg border border-orange-100 bg-orange-50/60 p-3">
-        <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-rose-500">
+      <div className="flex items-center gap-3 rounded-lg border border-orange-100 bg-orange-50/60 p-4">
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-rose-500">
           {assignedStaff.photoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -81,10 +81,12 @@ export function PackageTrainerCard({
             />
           )}
         </div>
-        <div className="flex-1 text-sm font-medium text-zinc-900">
-          {assignedStaff.name}
+        <div className="flex-1">
+          <span className="text-lg font-bold tracking-tight text-zinc-900">
+            {assignedStaff.name}
+          </span>
           {assignedStaff.specialty && (
-            <span className="ml-2 text-[10px] font-normal text-zinc-500">
+            <span className="ml-2 text-xs font-normal text-zinc-500">
               {assignedStaff.specialty}
             </span>
           )}
