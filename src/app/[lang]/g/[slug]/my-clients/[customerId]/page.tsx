@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Phone, User2 } from "lucide-react";
+import { User2 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
@@ -110,28 +110,24 @@ export default async function MyClientDetailPage({
       <div className="pointer-events-none absolute -right-40 top-1/4 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
 
       <header className="relative flex items-center gap-3 border-b border-white/5 px-5 py-3">
-        <Link
-          href={`/${lang}/g/${slug}/my-clients`}
-          aria-label={t("myClientsBack")}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-zinc-300 transition hover:bg-white/5"
-        >
-          <ChevronLeft size={20} />
-        </Link>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/30">
           <User2 size={18} />
         </div>
         <h1 className="font-heading min-w-0 flex-1 truncate text-xl font-semibold tracking-tight text-white">
           {customer.name}
         </h1>
-        {customer.phone && (
-          <a
-            href={`tel:${customer.phone}`}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-300 ring-1 ring-white/10 hover:bg-white/10"
-          >
-            <Phone size={12} />
-            {customer.phone}
-          </a>
-        )}
+        <Link
+          href={`/${lang}/g/${slug}/intake?customer=${customer.id}`}
+          className="shrink-0 rounded-md border border-emerald-400/40 bg-emerald-400/15 px-4 py-2.5 text-sm font-medium text-emerald-300 transition hover:bg-emerald-400/25"
+        >
+          {t("myClientsIssueService")}
+        </Link>
+        <Link
+          href={`/${lang}/g/${slug}/dashboard`}
+          className="shrink-0 rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/5"
+        >
+          {t("myClientsBack")}
+        </Link>
       </header>
 
       <main className="relative flex-1 space-y-4 p-4">

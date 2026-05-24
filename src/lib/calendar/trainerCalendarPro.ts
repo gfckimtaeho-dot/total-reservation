@@ -29,6 +29,9 @@ export type CellEvent = {
   service: string;
   status: string;
   completed: boolean;
+  // PT 완료 시 입력한 운동부위 메모(80자 cap, optional). 셀에 짧게 미리보기
+  // 표시용. 사후 편집은 /my-clients 상세에서.
+  completionNote: string | null;
 };
 
 // 단체수업 회차 1건에 등록된 수강생.
@@ -176,6 +179,7 @@ export async function loadTrainerCalendar(
             status: true,
             customerUserId: true,
             scheduledClassId: true,
+            completionNote: true,
             customer: { select: { id: true, name: true } },
             service: { select: { name: true } },
           },
@@ -257,6 +261,7 @@ export async function loadTrainerCalendar(
       service: r.service?.name ?? "",
       status: r.status,
       completed: r.status === "COMPLETED",
+      completionNote: r.completionNote ?? null,
     };
     const arr = evByYmd.get(key);
     if (arr) arr.push(e);

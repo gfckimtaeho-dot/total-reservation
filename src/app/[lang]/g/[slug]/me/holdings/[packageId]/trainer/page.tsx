@@ -15,12 +15,20 @@ type T = (key: string, vars?: Record<string, string | number>) => string;
 
 // 페이지 A — 트레이너 변경. 활성 트레이너 목록에서 새 담당을 고른다.
 // 미래 예약 분류/확정은 클라이언트(TrainerChangeFlow) + 서버 액션이 처리.
+// `next` 쿼리로 다음 이동지 받음(예: 첫 트레이너 지정 직후 예약 화면으로
+// 자연 연결). 보안: 같은 매장의 /me/ 하위 경로만 허용.
 export default async function TrainerChangePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string; slug: string; packageId: string }>;
+  searchParams: Promise<{ next?: string }>;
 }) {
   const { lang, slug, packageId } = await params;
+  const sp = await searchParams;
+  const allowedNextPrefix = `/${lang}/g/${slug}/me/`;
+  const nextHref =
+    sp.next && sp.next.startsWith(allowedNextPrefix) ? sp.next : null;
   const user = await requireGymCustomer(slug);
   const business = user.business!;
   const t = (await getTranslations("me")) as unknown as T;
@@ -119,6 +127,7 @@ export default async function TrainerChangePage({
               slug={slug}
               lang={lang}
               packageId={pkg.id}
+              nextHref={nextHref}
               trainers={trainers.map((s) => ({
                 id: s.id,
                 name: s.user.name,

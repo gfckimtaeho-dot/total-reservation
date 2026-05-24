@@ -72,10 +72,10 @@ export function MyClientsList({
                     <User2 size={18} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-base font-semibold text-white">
+                    <div className="truncate text-lg font-semibold text-white">
                       {c.name}
                     </div>
-                    <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
                       {oneToOne.length > 0 ? (
                         oneToOne.map((s) => (
                           <span
@@ -98,7 +98,7 @@ export function MyClientsList({
                     </div>
                   </div>
                   {c.phone && (
-                    <div className="hidden shrink-0 text-xs text-zinc-500 sm:block">
+                    <div className="hidden shrink-0 text-base font-medium tabular-nums text-zinc-300 sm:block">
                       {c.phone}
                     </div>
                   )}

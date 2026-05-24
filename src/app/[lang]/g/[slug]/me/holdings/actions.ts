@@ -141,6 +141,7 @@ async function loadChangeContext(
       id: true,
       gymId: true,
       userId: true,
+      serviceId: true,
       assignedStaffId: true,
       refundedAt: true,
       service: { select: { capacity: true } },
@@ -232,8 +233,16 @@ export async function applyTrainerChange(
 
   let movedCount = 0;
   await prisma.$transaction(async (tx) => {
-    await tx.package.update({
-      where: { id: packageId },
+    // Phase 1 정책 — 담당은 "고객+서비스" 단위. 한 권만 옮기지 않고 같은
+    // 고객+서비스의 모든 권을 한꺼번에 교체해 권마다 담당이 달라지는 정합성
+    // 깨짐을 막는다. 환불 동결(refundedAt) 권은 제외.
+    await tx.package.updateMany({
+      where: {
+        gymId: ctx.gymId,
+        userId: ctx.user.id,
+        serviceId: ctx.pkg.serviceId,
+        refundedAt: null,
+      },
       data: { assignedStaffId: newStaffId },
     });
     for (const r of reservations) {

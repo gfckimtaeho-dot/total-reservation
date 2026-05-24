@@ -283,9 +283,9 @@ export function IntakeFlow({
   }
 
   const field =
-    "w-full rounded-md border border-white/15 bg-zinc-950 px-3 py-2 text-sm";
+    "w-full rounded-md border border-white/15 bg-zinc-950 px-3.5 py-3 text-lg";
   const tabBtn = (on: boolean) =>
-    `rounded-md px-3 py-1.5 text-sm font-medium transition ${
+    `rounded-md px-4 py-2.5 text-lg font-medium transition ${
       on
         ? "bg-amber-400 text-zinc-950"
         : "border border-white/15 text-zinc-300 hover:bg-white/5"
@@ -297,11 +297,13 @@ export function IntakeFlow({
       <button
         type="button"
         onClick={() => setCust({ id: c.id, name: c.name })}
-        className="flex w-full flex-col gap-1 rounded-md border border-white/15 px-3 py-2 text-left text-sm hover:border-amber-400/50 hover:bg-amber-400/10"
+        className="flex w-full flex-col gap-1.5 rounded-md border border-white/15 px-4 py-3.5 text-left hover:border-amber-400/50 hover:bg-amber-400/10"
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium text-white">{c.name}</span>
-          <span className="text-xs text-zinc-500">{c.phone ?? ""}</span>
+          <span className="text-lg font-semibold text-white">{c.name}</span>
+          <span className="text-base tabular-nums text-zinc-400">
+            {c.phone ?? ""}
+          </span>
         </div>
         {c.services && c.services.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -317,7 +319,7 @@ export function IntakeFlow({
                 <span
                   key={i}
                   className={
-                    "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums " +
+                    "rounded-full px-2 py-0.5 text-xs tabular-nums " +
                     (s.isGroup
                       ? "bg-purple-500/15 text-purple-200 ring-1 ring-purple-400/30"
                       : "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30")
@@ -342,12 +344,12 @@ export function IntakeFlow({
       <div className="mx-auto max-w-xl pb-28 lg:max-w-5xl lg:pb-0">
         {!embedded && (
           <div className="flex items-center justify-between">
-            <h1 className="font-heading text-lg text-white">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-white">
               {t("intakeTitle")}
             </h1>
             <Link
               href={`/${lang}/g/${slug}/dashboard`}
-              className="rounded-md border border-white/15 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5"
+              className="rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/5"
             >
               ← {t("goDashboard")}
             </Link>
@@ -383,20 +385,25 @@ export function IntakeFlow({
         ) : (
           <div className="mt-4 lg:grid lg:grid-cols-[1fr_340px] lg:items-start lg:gap-4">
             <div className="space-y-4">
-            {/* 선택된 고객 banner — cust 선택 후 stepCatalog 위에 small 표시 */}
+            {/* 선택된 고객 banner — 우측 장바구니 카드와 lg 화면에서
+                같은 외곽선 높이가 되도록 lg:min-h-[120px] 강제 + 콘텐츠
+                중앙 정렬. 자연 높이 차이 (선택고객 1줄 vs 장바구니 비어있을
+                때 h2+empty 2줄)를 강제로 흡수. */}
             {!embedded && cust && (
-              <div className="flex items-center justify-between rounded-2xl border border-amber-400/25 bg-zinc-900 px-4 py-3">
-                <span className="text-sm">
-                  <span className="text-zinc-500">
-                    {t("pickedCustomer")}:{" "}
+              <div className="flex items-center justify-between rounded-2xl border border-amber-400/25 bg-zinc-900 p-3 lg:min-h-[80px]">
+                <span>
+                  <span className="text-base font-semibold uppercase tracking-[0.14em] text-amber-300/90">
+                    {t("pickedCustomer")}
                   </span>
-                  <span className="font-semibold text-white">{cust.name}</span>
+                  <span className="ml-3 text-3xl font-bold text-white">
+                    {cust.name}
+                  </span>
                 </span>
                 {!preset && (
                   <button
                     type="button"
                     onClick={() => setCust(null)}
-                    className="rounded-md border border-white/15 px-2.5 py-1 text-xs text-zinc-400"
+                    className="rounded-md border border-white/15 px-3.5 py-2 text-sm font-medium text-zinc-300 hover:bg-white/5"
                   >
                     {t("changeCustomer")}
                   </button>
@@ -407,17 +414,17 @@ export function IntakeFlow({
             {/* 1. 내 담당 고객 — 본인이 담당 트레이너로 발급된 권의 고객들. 트레이너 전용. */}
             {!embedded && !cust && (
               <section className="rounded-2xl border border-amber-400/25 bg-zinc-900 p-4">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">
+                <h2 className="text-base font-semibold uppercase tracking-[0.14em] text-amber-300/90">
                   {t("stepMyCustomers")}
                 </h2>
-                <ul className="mt-3 space-y-1">
+                <ul className="mt-3 space-y-2">
                   {myLoading && myResults.length === 0 && (
-                    <li className="px-1 py-2 text-xs text-zinc-500">
+                    <li className="px-1 py-3 text-base text-zinc-500">
                       {t("searchTyping")}
                     </li>
                   )}
                   {!myLoading && myResults.length === 0 && (
-                    <li className="px-1 py-2 text-xs text-zinc-500">
+                    <li className="px-1 py-3 text-base text-zinc-500">
                       {t("myCustomersNone")}
                     </li>
                   )}
@@ -430,7 +437,7 @@ export function IntakeFlow({
                     type="button"
                     disabled={myLoading}
                     onClick={loadMoreMy}
-                    className="mt-2 w-full rounded-md border border-white/15 py-2 text-xs text-zinc-300 hover:border-amber-400/50 hover:bg-amber-400/5 disabled:opacity-40"
+                    className="mt-3 w-full rounded-md border border-white/15 py-3 text-base font-medium text-zinc-300 hover:border-amber-400/50 hover:bg-amber-400/5 disabled:opacity-40"
                   >
                     {myLoading ? t("searchTyping") : t("loadMore")}
                   </button>
@@ -441,7 +448,7 @@ export function IntakeFlow({
             {/* 2. 전체 고객 조회 — embedded(회원 상세) 일 때는 컨텍스트 고정이라 숨김 */}
             {!embedded && !cust && (
             <section className="rounded-2xl border border-amber-400/25 bg-zinc-900 p-4">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">
+              <h2 className="text-base font-semibold uppercase tracking-[0.14em] text-amber-300/90">
                 {t("stepCustomer")}
               </h2>
               {(
@@ -479,25 +486,25 @@ export function IntakeFlow({
                           type="button"
                           disabled={pending}
                           onClick={doSearch}
-                          className="shrink-0 rounded-md border border-white/15 px-3 text-xs text-zinc-300"
+                          className="shrink-0 rounded-md border border-white/15 px-4 py-3 text-base font-medium text-zinc-300 hover:bg-white/5"
                         >
                           {t("searchBtn")}
                         </button>
                       </div>
-                      {/* 라벨: 검색 비어있을 때 = "최근 등록 순", 검색 중이면 숨김 */}
+                      {/* 라벨: 검색 비어있을 때 = "최근 등록 10명", 검색 중이면 숨김 */}
                       {q.trim().length === 0 && (
-                        <div className="mt-2 text-[11px] text-zinc-500">
+                        <div className="mt-3 text-base font-medium text-zinc-400">
                           {t("recentLabel")}
                         </div>
                       )}
-                      <ul className="mt-2 space-y-1">
+                      <ul className="mt-2 space-y-2">
                         {pending && results.length === 0 && (
-                          <li className="px-1 py-2 text-xs text-zinc-500">
+                          <li className="px-1 py-3 text-base text-zinc-500">
                             {t("searchTyping")}
                           </li>
                         )}
                         {!pending && results.length === 0 && searched && (
-                          <li className="px-1 py-2 text-xs text-zinc-500">
+                          <li className="px-1 py-3 text-base text-zinc-500">
                             {t("noResults")}
                           </li>
                         )}
@@ -505,12 +512,13 @@ export function IntakeFlow({
                           <li key={c.id}>{renderCustRow(c)}</li>
                         ))}
                       </ul>
-                      {hasMore && (
+                      {/* 빈 q 면 "최근 10명" 의도라 더 보기 숨김. 검색어 있을 때만 노출. */}
+                      {hasMore && q.trim().length > 0 && (
                         <button
                           type="button"
                           disabled={pending}
                           onClick={loadMore}
-                          className="mt-2 w-full rounded-md border border-white/15 py-2 text-xs text-zinc-300 hover:border-amber-400/50 hover:bg-amber-400/5 disabled:opacity-40"
+                          className="mt-3 w-full rounded-md border border-white/15 py-3 text-base font-medium text-zinc-300 hover:border-amber-400/50 hover:bg-amber-400/5 disabled:opacity-40"
                         >
                           {pending ? t("searchTyping") : t("loadMore")}
                         </button>
@@ -554,15 +562,20 @@ export function IntakeFlow({
                         }
                         className={`${field} col-span-2`}
                       />
-                      <input
-                        type="date"
-                        lang={lang}
-                        value={f.dob}
-                        onChange={(e) =>
-                          setF({ ...f, dob: e.target.value })
-                        }
-                        className={field}
-                      />
+                      <label className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-zinc-400">
+                          {t("fDob")}
+                        </span>
+                        <input
+                          type="date"
+                          lang={lang}
+                          value={f.dob}
+                          onChange={(e) =>
+                            setF({ ...f, dob: e.target.value })
+                          }
+                          className={field}
+                        />
+                      </label>
                       <input
                         placeholder={t("fEmergency")}
                         value={f.emergencyContactPhone}
@@ -587,7 +600,7 @@ export function IntakeFlow({
                         type="button"
                         disabled={pending || !f.name || !f.phone}
                         onClick={doCreate}
-                        className="col-span-2 rounded-md border border-emerald-400/40 bg-emerald-400/15 py-2.5 text-sm font-semibold text-emerald-300 disabled:opacity-40"
+                        className="col-span-2 rounded-md border border-emerald-400/40 bg-emerald-400/15 py-3 text-lg font-semibold text-emerald-300 transition hover:bg-emerald-400/25 disabled:opacity-40"
                       >
                         {t("createBtn")}
                       </button>
@@ -601,7 +614,7 @@ export function IntakeFlow({
             {/* 3. 카탈로그 발급 */}
             {cust && (
               <section className="mt-4 rounded-2xl border border-amber-400/25 bg-zinc-900 p-4">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/90">
+                <h2 className="text-base font-semibold uppercase tracking-[0.14em] text-amber-300/90">
                   {t("stepCatalog")}
                 </h2>
                 <div className="mt-3 flex gap-2">
@@ -631,25 +644,25 @@ export function IntakeFlow({
                 <ul className="mt-3 space-y-2">
                   {cat === "membership" &&
                     (memberships.length === 0 ? (
-                      <li className="text-sm text-zinc-500">
+                      <li className="text-base text-zinc-500">
                         {t("noPlansHere")}
                       </li>
                     ) : (
                       memberships.map((m) => (
                         <li
                           key={m.id}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-white/15 p-3"
+                          className="flex items-center justify-between gap-3 rounded-lg border border-white/15 p-4"
                         >
                           <span>
-                            <span className="font-medium text-white">
+                            <span className="text-lg font-semibold text-white">
                               {m.name}
                             </span>
-                            <span className="ml-2 text-xs text-zinc-500">
+                            <span className="ml-2 text-sm text-zinc-400">
                               {m.durationDays}d
                             </span>
                           </span>
                           <span className="flex items-center gap-3">
-                            <span className="tabular-nums text-amber-300">
+                            <span className="text-lg font-semibold tabular-nums text-amber-300">
                               {peso(m.pricePhp)}
                             </span>
                             <button
@@ -663,7 +676,7 @@ export function IntakeFlow({
                                   pricePhp: m.pricePhp,
                                 })
                               }
-                              className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 disabled:opacity-40"
+                              className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-base font-semibold text-emerald-300 transition hover:bg-emerald-400/25 disabled:opacity-40"
                             >
                               {t("addToCart")}
                             </button>
@@ -674,25 +687,25 @@ export function IntakeFlow({
 
                   {cat === "package" &&
                     (packages.length === 0 ? (
-                      <li className="text-sm text-zinc-500">
+                      <li className="text-base text-zinc-500">
                         {t("noPlansHere")}
                       </li>
                     ) : (
                       packages.map((p) => (
                         <li
                           key={p.id}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-white/15 p-3"
+                          className="flex items-center justify-between gap-3 rounded-lg border border-white/15 p-4"
                         >
                           <span>
-                            <span className="font-medium text-white">
+                            <span className="text-lg font-semibold text-white">
                               {p.name}
                             </span>
-                            <span className="ml-2 text-xs text-zinc-500">
+                            <span className="ml-2 text-sm text-zinc-400">
                               {p.serviceName} · {p.sessionCount}회
                             </span>
                           </span>
                           <span className="flex items-center gap-3">
-                            <span className="tabular-nums text-amber-300">
+                            <span className="text-lg font-semibold tabular-nums text-amber-300">
                               {peso(p.pricePhp)}
                             </span>
                             <button
@@ -706,7 +719,7 @@ export function IntakeFlow({
                                   pricePhp: p.pricePhp,
                                 })
                               }
-                              className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 disabled:opacity-40"
+                              className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-base font-semibold text-emerald-300 transition hover:bg-emerald-400/25 disabled:opacity-40"
                             >
                               {t("addToCart")}
                             </button>
@@ -717,21 +730,21 @@ export function IntakeFlow({
 
                   {cat === "combo" &&
                     (combos.length === 0 ? (
-                      <li className="text-sm text-zinc-500">
+                      <li className="text-base text-zinc-500">
                         {t("noPlansHere")}
                       </li>
                     ) : (
                       combos.map((c) => (
                         <li
                           key={c.id}
-                          className="rounded-lg border border-white/15 p-3"
+                          className="rounded-lg border border-white/15 p-4"
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <span className="font-medium text-white">
+                            <span className="text-lg font-semibold text-white">
                               {c.name}
                             </span>
                             <span className="flex items-center gap-3">
-                              <span className="tabular-nums text-amber-300">
+                              <span className="text-lg font-semibold tabular-nums text-amber-300">
                                 {peso(c.pricePhp)}
                               </span>
                               <button
@@ -745,13 +758,13 @@ export function IntakeFlow({
                                     pricePhp: c.pricePhp,
                                   })
                                 }
-                                className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 disabled:opacity-40"
+                                className="rounded-md border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-base font-semibold text-emerald-300 transition hover:bg-emerald-400/25 disabled:opacity-40"
                               >
                                 {t("addToCart")}
                               </button>
                             </span>
                           </div>
-                          <p className="mt-1 text-xs text-zinc-500">
+                          <p className="mt-1.5 text-sm text-zinc-400">
                             {t("comboIncludes")}: {c.parts.join(" + ")}
                           </p>
                         </li>
@@ -764,9 +777,9 @@ export function IntakeFlow({
 
             {cust && (
               <aside className="mt-4 lg:sticky lg:top-4 lg:mt-0">
-                <section className="rounded-2xl border border-emerald-400/30 bg-zinc-900 p-4">
+                <section className="rounded-2xl border border-emerald-400/30 bg-zinc-900 p-3 lg:min-h-[80px]">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/90">
+                    <h2 className="text-base font-semibold uppercase tracking-[0.14em] text-emerald-300/90">
                       {t("cartTitle")}
                       {cart.length > 0 ? ` · ${cart.length}` : ""}
                     </h2>
@@ -774,14 +787,14 @@ export function IntakeFlow({
                       <button
                         type="button"
                         onClick={() => setCart([])}
-                        className="text-xs text-zinc-500 hover:text-rose-300"
+                        className="text-sm text-zinc-400 hover:text-rose-300"
                       >
                         {t("cartClear")}
                       </button>
                     )}
                   </div>
                   {cart.length === 0 ? (
-                    <p className="mt-3 text-sm text-zinc-500">
+                    <p className="mt-1.5 text-sm text-zinc-500">
                       {t("cartEmpty")}
                     </p>
                   ) : (
@@ -790,13 +803,13 @@ export function IntakeFlow({
                         {cart.map((l) => (
                           <li
                             key={l.uid}
-                            className="flex items-center justify-between gap-2 rounded-lg border border-white/10 p-2.5"
+                            className="flex items-center justify-between gap-2 rounded-lg border border-white/10 p-3"
                           >
                             <span className="min-w-0">
-                              <span className="block truncate text-sm font-medium text-white">
+                              <span className="block truncate text-base font-semibold text-white">
                                 {l.name}
                               </span>
-                              <span className="text-[11px] text-zinc-500">
+                              <span className="text-xs text-zinc-400">
                                 {t(
                                   l.kind === "MEMBERSHIP"
                                     ? "tabMembership"
@@ -811,15 +824,15 @@ export function IntakeFlow({
                                 const d = lineDiscount(l);
                                 return d > 0 ? (
                                   <span className="text-right">
-                                    <span className="block text-[11px] tabular-nums text-zinc-500 line-through">
+                                    <span className="block text-xs tabular-nums text-zinc-500 line-through">
                                       {peso(l.pricePhp)}
                                     </span>
-                                    <span className="block text-sm font-semibold tabular-nums text-emerald-300">
+                                    <span className="block text-base font-semibold tabular-nums text-emerald-300">
                                       {peso(l.pricePhp - d)}
                                     </span>
                                   </span>
                                 ) : (
-                                  <span className="tabular-nums text-sm text-amber-300">
+                                  <span className="tabular-nums text-base font-semibold text-amber-300">
                                     {peso(l.pricePhp)}
                                   </span>
                                 );
@@ -828,7 +841,7 @@ export function IntakeFlow({
                                 type="button"
                                 aria-label={t("cartClear")}
                                 onClick={() => removeFromCart(l.uid)}
-                                className="rounded-md border border-white/15 px-2 py-1 text-xs text-zinc-400 hover:border-rose-400/50 hover:text-rose-300"
+                                className="rounded-md border border-white/15 px-2.5 py-1.5 text-sm text-zinc-400 hover:border-rose-400/50 hover:text-rose-300"
                               >
                                 ✕
                               </button>
@@ -838,7 +851,7 @@ export function IntakeFlow({
                       </ul>
                       <div className="mt-3 border-t border-white/10 pt-3">
                         {cartSaved > 0 && (
-                          <div className="mb-1 flex items-center justify-between text-xs text-emerald-300">
+                          <div className="mb-1.5 flex items-center justify-between text-sm text-emerald-300">
                             <span>{t("cartSavedLabel")}</span>
                             <span className="tabular-nums">
                               − {peso(cartSaved)}
@@ -846,10 +859,10 @@ export function IntakeFlow({
                           </div>
                         )}
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-zinc-400">
+                          <span className="text-base text-zinc-400">
                             {t("cartTotal")}
                           </span>
-                          <span className="tabular-nums text-base font-semibold text-amber-300">
+                          <span className="tabular-nums text-xl font-bold text-amber-300">
                             {peso(cartTotal)}
                           </span>
                         </div>
@@ -858,7 +871,7 @@ export function IntakeFlow({
                         type="button"
                         disabled={pending}
                         onClick={doIssueCart}
-                        className="mt-3 hidden w-full rounded-lg border border-emerald-400/50 bg-emerald-400/20 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/30 disabled:opacity-40 lg:block"
+                        className="mt-3 hidden w-full rounded-lg border border-emerald-400/50 bg-emerald-400/20 py-3.5 text-lg font-semibold text-emerald-200 transition hover:bg-emerald-400/30 disabled:opacity-40 lg:block"
                       >
                         {t("cartIssueBtn", { count: cart.length })}
                       </button>
@@ -874,7 +887,7 @@ export function IntakeFlow({
                   type="button"
                   disabled={pending}
                   onClick={doIssueCart}
-                  className="flex w-full items-center justify-between rounded-lg border border-emerald-400/50 bg-emerald-400/20 px-4 py-3 text-sm font-semibold text-emerald-200 disabled:opacity-40"
+                  className="flex w-full items-center justify-between rounded-lg border border-emerald-400/50 bg-emerald-400/20 px-4 py-3.5 text-lg font-semibold text-emerald-200 disabled:opacity-40"
                 >
                   <span>{t("cartIssueBtn", { count: cart.length })}</span>
                   <span className="tabular-nums">{peso(cartTotal)}</span>

@@ -59,7 +59,17 @@ export default async function NewReservationPage({
         <Header lang={lang} slug={slug} t={t} />
         <main className="mx-auto w-full max-w-3xl space-y-4 px-6 py-6">
           <section className="rounded-3xl border border-amber-300 bg-amber-50 p-5 backdrop-blur">
-            <p className="text-sm text-amber-800">{t("newNoTrainer")}</p>
+            <p className="text-base font-medium text-amber-900">
+              {t("newNoTrainer")}
+            </p>
+            <Link
+              href={`/${lang}/g/${slug}/me/holdings/${pkg.id}/trainer?next=${encodeURIComponent(
+                `/${lang}/g/${slug}/me/reservations/new?pkg=${pkg.id}${sp.date ? `&date=${sp.date}` : ""}`,
+              )}`}
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgba(245,158,11,0.6)] hover:bg-amber-600"
+            >
+              {t("actionPickTrainer")}
+            </Link>
           </section>
         </main>
       </div>

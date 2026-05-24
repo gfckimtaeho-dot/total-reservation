@@ -634,8 +634,9 @@ export type MeDayOption =
       trainerName: string;
       available: boolean;
       // 비활성 사유 — off: 트레이너 휴무 요일, leave: 휴가, full: 예약 마감,
-      // exhausted: 그 서비스 권의 예약 가능 횟수를 모두 소진
-      reason: "off" | "leave" | "full" | "exhausted" | null;
+      // exhausted: 그 서비스 권의 예약 가능 횟수를 모두 소진,
+      // noTrainer: 권에 담당 트레이너 미지정(고객이 먼저 선택해야 함).
+      reason: "off" | "leave" | "full" | "exhausted" | "noTrainer" | null;
     }
   | {
       kind: "group";
@@ -783,17 +784,24 @@ export async function loadMeDaySheet(
   }
 
   // 1:1 — 서비스별로 묶는다(pkgs 가 createdAt asc 라 FIFO 순서 유지).
+  // assignedStaffId 가 null 인 권(사장 발급 직후 + 트레이너 첫 예약 전)도 옵션에
+  // 노출해 트레이너 선택 화면으로 유도한다. 노출 안 하면 고객이 권을 가지고도
+  // 영구히 self-book 진입조차 못 하는 회귀가 생김(Phase 1 매핑 흐름의 사각).
   type Pkg1to1 = (typeof pkgs)[number];
   const svc1to1 = new Map<string, Pkg1to1[]>();
   for (const p of pkgs) {
-    if (p.service.capacity !== 1 || !p.assignedStaffId) continue;
+    if (p.service.capacity !== 1) continue;
     const arr = svc1to1.get(p.service.id) ?? [];
     arr.push(p);
     svc1to1.set(p.service.id, arr);
   }
   const oneToOnePkgs = [...svc1to1.values()].flat();
   const staffIds = [
-    ...new Set(oneToOnePkgs.map((p) => p.assignedStaffId!)),
+    ...new Set(
+      oneToOnePkgs
+        .map((p) => p.assignedStaffId)
+        .filter((id): id is string => id !== null),
+    ),
   ];
   const oneToOnePkgIds = oneToOnePkgs.map((p) => p.id);
   const groupServiceIds = [
@@ -876,11 +884,22 @@ export async function loadMeDaySheet(
           deduct,
       ) ?? null;
     let available = false;
-    let reason: "off" | "leave" | "full" | "exhausted" | null = null;
+    let reason:
+      | "off"
+      | "leave"
+      | "full"
+      | "exhausted"
+      | "noTrainer"
+      | null = null;
     if (!bookable) {
       reason = "exhausted";
+    } else if (!bookable.assignedStaffId) {
+      // 사장 발급 후 트레이너 첫 예약 전 — 고객이 트레이너를 선택해야
+      // 비로소 매핑되어 예약 가능해진다. 옵션 클릭하면 트레이너 선택 화면
+      // 으로 자연스럽게 안내되도록 페이지 측에서 분기.
+      reason = "noTrainer";
     } else {
-      const av = availByStaff.get(bookable.assignedStaffId!);
+      const av = availByStaff.get(bookable.assignedStaffId);
       if (!av || av.state === "closed") {
         reason = "off";
       } else if (av.state === "off") {

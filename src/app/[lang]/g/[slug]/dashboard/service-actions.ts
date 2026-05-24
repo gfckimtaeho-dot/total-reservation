@@ -304,19 +304,39 @@ async function pickPromotion(
 // issueService(1건)·issueCart(N건) 가 공유한다. 가격/payout 산식이 여기
 // 한 곳에만 있어 매출 스냅샷이 절대 갈라지지 않음([[feedback-money-audit-log]]).
 // 잘못된 plan 이면 throw → 호출부 트랜잭션 전체 롤백.
+// 신규 Package 의 담당 트레이너 결정 — Phase 1 정책: 발급 자체로는 담당 X.
+// 같은 고객+같은 서비스에 이미 담당이 잡힌 기존 권이 있으면 그 트레이너를
+// 인계받아 일관성 유지. 없으면 null 로 시작해, 첫 예약 시점에 addReservation
+// 이 자동 매핑한다(서비스 단위 1명 담당이라는 사용자 정책의 구현 근거).
+async function inheritAssignedStaff(
+  tx: TxClient,
+  gymId: string,
+  customerId: string,
+  serviceId: string,
+): Promise<string | null> {
+  const existing = await tx.package.findFirst({
+    where: {
+      gymId,
+      userId: customerId,
+      serviceId,
+      assignedStaffId: { not: null },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { assignedStaffId: true },
+  });
+  return existing?.assignedStaffId ?? null;
+}
+
 async function createSaleLine(
   tx: TxClient,
   ctx: {
     gymId: string;
     customerId: string;
     soldById: string;
-    // 발급한 사람이 트레이너면 그 Staff.id — 발급되는 Package의 담당
-    // 트레이너로 자동 지정됨. 사장/매니저 단독 발급이면 null.
-    soldByStaffId: string | null;
   },
   item: IssueItem,
 ): Promise<void> {
-  const { gymId, customerId, soldById, soldByStaffId } = ctx;
+  const { gymId, customerId, soldById } = ctx;
 
   if (item.kind === "PACKAGE") {
     const plan = await tx.packagePlan.findFirst({
@@ -352,6 +372,12 @@ async function createSaleLine(
       },
       select: { id: true },
     });
+    const inheritedStaffId = await inheritAssignedStaff(
+      tx,
+      gymId,
+      customerId,
+      plan.serviceId,
+    );
     await tx.package.create({
       data: {
         gymId,
@@ -363,7 +389,7 @@ async function createSaleLine(
         payoutPhp: perPayout,
         planId: plan.id,
         saleId: s.id,
-        assignedStaffId: soldByStaffId,
+        assignedStaffId: inheritedStaffId,
       },
     });
     return;
@@ -424,6 +450,12 @@ async function createSaleLine(
       });
     }
     for (const pp of items) {
+      const inheritedStaffId = await inheritAssignedStaff(
+        tx,
+        gymId,
+        customerId,
+        pp.serviceId,
+      );
       await tx.package.create({
         data: {
           gymId,
@@ -435,7 +467,7 @@ async function createSaleLine(
           payoutPhp: pp.service.payoutPhp,
           planId: pp.id,
           saleId: s.id,
-          assignedStaffId: soldByStaffId,
+          assignedStaffId: inheritedStaffId,
         },
       });
     }
@@ -505,13 +537,11 @@ export async function issueService(input: {
   });
   if (!cust) return { ok: false, error: "고객을 찾을 수 없습니다" };
 
-  const soldByStaffId = await lookupStaffIdForUser(auth.id, gymId);
-
   try {
     await prisma.$transaction(async (tx) => {
       await createSaleLine(
         tx,
-        { gymId, customerId: cust.id, soldById: auth.id, soldByStaffId },
+        { gymId, customerId: cust.id, soldById: auth.id },
         { kind: input.kind, planId: input.planId },
       );
       // 사장이 매장에서 직접 발급 = 정식 회원. magic link 첫 로그인 대기(PENDING)
@@ -555,14 +585,12 @@ export async function issueCart(input: {
   });
   if (!cust) return { ok: false, error: "고객을 찾을 수 없습니다" };
 
-  const soldByStaffId = await lookupStaffIdForUser(auth.id, gymId);
-
   try {
     await prisma.$transaction(async (tx) => {
       for (const item of input.items) {
         await createSaleLine(
           tx,
-          { gymId, customerId: cust.id, soldById: auth.id, soldByStaffId },
+          { gymId, customerId: cust.id, soldById: auth.id },
           item,
         );
       }
@@ -584,20 +612,6 @@ export async function issueCart(input: {
   }
   rev(input.slug);
   return { ok: true, data: { count: input.items.length } };
-}
-
-// 발급한 User가 Staff 모델에도 행이 있으면 그 Staff.id 반환(트레이너).
-// 사장 단독 발급이면 null — Package.assignedStaffId 도 null 로 발급되며,
-// 이 경우 고객 화면은 "담당 미지정" 처리.
-async function lookupStaffIdForUser(
-  userId: string,
-  gymId: string,
-): Promise<string | null> {
-  const s = await prisma.staff.findFirst({
-    where: { userId, gymId },
-    select: { id: true },
-  });
-  return s?.id ?? null;
 }
 
 // 빈 슬롯 등록용 — 그 고객이 보유한 1:1 서비스(capacity 1) 중 잔여>0 인
@@ -661,7 +675,7 @@ export async function addReservation(input: {
 
   const service = await prisma.service.findFirst({
     where: { id: input.serviceId, gymId },
-    select: { durationMin: true, deductCount: true },
+    select: { durationMin: true, deductCount: true, capacity: true },
   });
   if (!service) return { ok: false, error: "서비스를 찾을 수 없습니다" };
 
@@ -728,6 +742,21 @@ export async function addReservation(input: {
         actorUserId: auth.id,
       },
     });
+    // Phase 1 자동 담당 매핑 — 서비스 단위로 처음 등록된 트레이너 = 담당.
+    // 1:1(capacity=1) 권에서만, 같은 고객+서비스의 모든 권이 미지정(null)일
+    // 때에 한해 일괄 set. 기존에 다른 트레이너가 담당이면 손대지 않는다
+    // (인계는 /me/holdings 의 명시적 트레이너 변경 흐름으로만).
+    if (service.capacity === 1) {
+      await tx.package.updateMany({
+        where: {
+          gymId,
+          userId: input.customerUserId,
+          serviceId: input.serviceId,
+          assignedStaffId: null,
+        },
+        data: { assignedStaffId: staff.id },
+      });
+    }
   });
   rev(input.slug);
   return { ok: true };

@@ -125,9 +125,11 @@ export default async function CustomerHomePage({
       </main>
 
       <footer className="relative border-t border-orange-100 bg-white/60 py-5 backdrop-blur">
-        <div className="flex items-center justify-center gap-4">
+        {/* 좌측 대표번호 / 우측 logout — 두 요소 같은 줄, leading 통일로
+            baseline 어긋남 방지. */}
+        <div className="flex items-center justify-center gap-5 text-base leading-none">
           {business.phone && (
-            <div className="text-sm text-zinc-600">
+            <div className="text-zinc-600">
               {t("frontDeskCall")}{" "}
               <a
                 href={`tel:${business.phone}`}
@@ -138,7 +140,7 @@ export default async function CustomerHomePage({
             </div>
           )}
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="text-xs text-zinc-500 hover:text-zinc-900">
+            <button className="text-base leading-none text-zinc-500 hover:text-zinc-900">
               {t("logout")}
             </button>
           </form>

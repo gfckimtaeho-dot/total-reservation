@@ -214,8 +214,11 @@ export function MeFortnight({
                     ? t("fnTrainerLeave", { trainer: opt.trainerName })
                     : opt.reason === "full"
                       ? t("fnTrainerFull", { trainer: opt.trainerName })
-                      : t("fnTrainerOff", { trainer: opt.trainerName })
+                      : opt.reason === "noTrainer"
+                        ? t("fnNoTrainer")
+                        : t("fnTrainerOff", { trainer: opt.trainerName })
                 : "";
+              const isNoTrainer = opt.reason === "noTrainer";
               return (
                 <li
                   key={`pkg-${opt.packageId}`}
@@ -223,7 +226,9 @@ export function MeFortnight({
                     "rounded-2xl border p-3 " +
                     (opt.available
                       ? "border-orange-200 bg-gradient-to-r from-orange-100 to-rose-100"
-                      : "border-zinc-200 bg-zinc-50")
+                      : isNoTrainer
+                        ? "border-amber-300 bg-amber-50"
+                        : "border-zinc-200 bg-zinc-50")
                   }
                 >
                   <div className="flex items-center gap-2">
@@ -231,16 +236,27 @@ export function MeFortnight({
                       <div
                         className={
                           "truncate text-base font-medium " +
-                          (opt.available ? "text-zinc-900" : "text-zinc-500")
+                          (opt.available
+                            ? "text-zinc-900"
+                            : isNoTrainer
+                              ? "text-amber-900"
+                              : "text-zinc-500")
                         }
                       >
-                        {t("fn1to1", {
-                          service: opt.serviceName,
-                          trainer: opt.trainerName,
-                        })}
+                        {isNoTrainer
+                          ? opt.serviceName
+                          : t("fn1to1", {
+                              service: opt.serviceName,
+                              trainer: opt.trainerName,
+                            })}
                       </div>
                       {reasonText && (
-                        <div className="mt-0.5 text-xs text-zinc-500">
+                        <div
+                          className={
+                            "mt-0.5 text-xs " +
+                            (isNoTrainer ? "text-amber-700" : "text-zinc-500")
+                          }
+                        >
                           {reasonText}
                         </div>
                       )}
@@ -253,6 +269,16 @@ export function MeFortnight({
                       >
                         {t("actionBook")}
                       </button>
+                    )}
+                    {isNoTrainer && (
+                      <a
+                        href={`/${lang}/g/${slug}/me/holdings/${opt.packageId}/trainer?next=${encodeURIComponent(
+                          `/${lang}/g/${slug}/me/reservations/new?pkg=${opt.packageId}&date=${selectedKey}`,
+                        )}`}
+                        className="shrink-0 rounded-full bg-amber-500 px-4 py-1.5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgba(245,158,11,0.6)] hover:bg-amber-600"
+                      >
+                        {t("actionPickTrainer")}
+                      </a>
                     )}
                   </div>
                 </li>

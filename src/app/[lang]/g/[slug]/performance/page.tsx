@@ -38,10 +38,10 @@ export default async function PerformancePage({
   if (!staff) {
     return (
       <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-black p-6 text-zinc-300">
-        <p className="text-sm">{t("trainerOnly")}</p>
+        <p className="text-base">{t("trainerOnly")}</p>
         <Link
           href={`/${lang}/g/${slug}/dashboard`}
-          className="rounded-md border border-white/15 px-4 py-2 text-xs text-zinc-300 hover:bg-white/5"
+          className="rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-white/5"
         >
           ← {t("back")}
         </Link>
@@ -84,10 +84,11 @@ export default async function PerformancePage({
     lang === "en" ? `${yy}-${String(mm).padStart(2, "0")}` : `${yy}년 ${mm}월`;
   const yearLabel = (yy: number) => (lang === "en" ? `${yy}` : `${yy}년`);
 
+  // 홈 버튼(dashboard 헤더 표준)과 통일된 사이즈. px-4 py-2.5 text-sm.
   const navBtn =
-    "flex h-8 items-center rounded-md border border-white/15 px-2.5 text-xs text-zinc-300 transition hover:bg-white/10";
+    "flex items-center rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/10";
   const jumpBtn =
-    "rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400 hover:text-zinc-950";
+    "rounded-md border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-sm font-semibold text-amber-300 transition hover:bg-amber-400 hover:text-zinc-950";
 
   const tabs: { key: View; label: string }[] = [
     { key: "daily", label: t("tabDaily") },
@@ -99,40 +100,42 @@ export default async function PerformancePage({
     <div className="min-h-[100dvh] bg-black p-4 text-zinc-100">
       <div className="mx-auto max-w-3xl">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-heading text-lg text-white">{t("title")}</h1>
-            <div className="mt-0.5 text-[11px] text-amber-300/70">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-white">
+              {t("title")}
+            </h1>
+            <div className="mt-1.5 text-3xl font-bold text-amber-300">
               {staff.user?.name}
             </div>
           </div>
           <Link
             href={`/${lang}/g/${slug}/dashboard`}
-            className="rounded-md border border-white/15 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5"
+            className="shrink-0 rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/5"
           >
             ← {t("back")}
           </Link>
         </div>
 
         {/* 이번 달 요약 — 고정 */}
-        <div className="mt-4">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-amber-300/80">
+        <div className="mt-5">
+          <div className="text-xl font-bold tracking-tight text-amber-300/90">
             {t("summaryThisMonth")} · {monthLabel(curY, curM)}
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-white/10 bg-zinc-900 p-3">
-              <div className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-white/10 bg-zinc-900 p-5">
+              <div className="text-base font-medium uppercase tracking-[0.12em] text-zinc-400">
                 {t("sessions")}
               </div>
-              <div className="mt-1 text-xl font-bold tabular-nums text-white">
+              <div className="mt-2 text-4xl font-bold tabular-nums text-white">
                 {thisMonth.sessionCount}
               </div>
             </div>
-            <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3">
-              <div className="text-[10px] uppercase tracking-[0.15em] text-emerald-300/80">
+            <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-5">
+              <div className="text-base font-medium uppercase tracking-[0.12em] text-emerald-300/90">
                 {t("gross")}
               </div>
-              <div className="mt-1 text-xl font-bold tabular-nums text-emerald-300">
+              <div className="mt-2 text-4xl font-bold tabular-nums text-emerald-300">
                 {peso(thisMonth.grossPhp)}
               </div>
             </div>
@@ -140,14 +143,14 @@ export default async function PerformancePage({
         </div>
 
         {/* 일별 / 월별 / 년도별 탭 */}
-        <div className="mt-5 flex gap-1.5">
+        <div className="mt-6 flex gap-2">
           {tabs.map((tab) => {
             const active = tab.key === view;
             return (
               <Link
                 key={tab.key}
                 href={`${base}?view=${tab.key}`}
-                className={`flex-1 rounded-md border py-2 text-center text-sm font-semibold transition ${
+                className={`flex-1 rounded-md border px-4 py-2.5 text-center text-base font-semibold transition ${
                   active
                     ? "border-amber-400/60 bg-amber-400/15 text-amber-300"
                     : "border-white/15 text-zinc-400 hover:bg-white/5"
@@ -162,7 +165,7 @@ export default async function PerformancePage({
         {/* 일별 — 선택 월의 완료 세션 목록 */}
         {view === "daily" && daily && (
           <>
-            <div className="mt-4 flex items-center justify-between gap-2">
+            <div className="mt-5 flex items-center justify-between gap-3">
               {(() => {
                 const p = shift(y, m, -1);
                 const n = shift(y, m, 1);
@@ -175,7 +178,7 @@ export default async function PerformancePage({
                       ‹ {t("prevMonth")}
                     </Link>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white">
+                      <span className="text-base font-semibold text-white">
                         {monthLabel(y, m)}
                       </span>
                       {!(y === curY && m === curM) && (
@@ -194,8 +197,8 @@ export default async function PerformancePage({
                 );
               })()}
             </div>
-            <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
-              <table className="w-full text-sm">
+            <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-lg">
                 <thead>
                   <tr className="border-b border-white/15 bg-zinc-900/60">
                     <Th>{t("colDate")}</Th>
@@ -209,7 +212,7 @@ export default async function PerformancePage({
                     <tr>
                       <td
                         colSpan={4}
-                        className="px-3 py-10 text-center text-sm text-zinc-500"
+                        className="px-4 py-14 text-center text-lg text-zinc-500"
                       >
                         {t("empty")}
                       </td>
@@ -221,31 +224,35 @@ export default async function PerformancePage({
                           key={r.id}
                           className="border-b border-white/5 hover:bg-white/5"
                         >
-                          <td className="px-3 py-2.5 text-center tabular-nums text-zinc-300">
+                          <td className="px-4 py-4 text-center tabular-nums text-zinc-300">
                             {r.dateYmd}
                           </td>
-                          <td className="px-3 py-2.5 text-left font-medium text-white">
+                          <td className="px-4 py-4 text-left font-medium text-white">
                             {r.customerName}
                           </td>
-                          <td className="px-3 py-2.5 text-left text-zinc-300">
+                          <td className="px-4 py-4 text-left text-zinc-300">
                             {r.serviceName}
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums text-amber-300">
+                          <td className="px-4 py-4 text-right tabular-nums text-amber-300">
                             {peso(r.payoutPhp)}
                           </td>
                         </tr>
                       ))}
-                      <tr className="border-t border-white/20 bg-zinc-900/60 font-semibold">
+                      {/* 합계 행 — 페이지 스크롤 어느 위치에서도 항상 보이게
+                          각 td 에 sticky bottom-0. tr 자체 sticky 는 브라우저
+                          지원이 들쭉날쭉이라 td 단위로 적용 + 각 td 에 배경색
+                          명시(투명이면 스크롤 시 본문이 비쳐 보임). */}
+                      <tr className="text-xl font-bold">
                         <td
                           colSpan={2}
-                          className="px-3 py-2.5 text-left text-zinc-300"
+                          className="sticky bottom-0 z-10 border-t-2 border-white/30 bg-zinc-900 px-4 py-5 text-left text-white"
                         >
                           {t("total")}
                         </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
+                        <td className="sticky bottom-0 z-10 border-t-2 border-white/30 bg-zinc-900 px-4 py-5 text-right tabular-nums text-white">
                           {daily.sessionCount}
                         </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-emerald-300">
+                        <td className="sticky bottom-0 z-10 border-t-2 border-white/30 bg-zinc-900 px-4 py-5 text-right tabular-nums text-emerald-300">
                           {peso(daily.grossPhp)}
                         </td>
                       </tr>
@@ -321,7 +328,7 @@ export default async function PerformancePage({
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
+    <th className="px-4 py-4 text-center text-sm font-semibold uppercase tracking-[0.15em] text-zinc-400">
       {children}
     </th>
   );
@@ -349,12 +356,12 @@ function PeriodNav({
   jumpBtn: string;
 }) {
   return (
-    <div className="mt-4 flex items-center justify-between gap-2">
+    <div className="mt-5 flex items-center justify-between gap-3">
       <Link href={prevHref} className={navBtn}>
         ‹ {prevLabel}
       </Link>
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold text-white">{label}</span>
+        <span className="text-base font-semibold text-white">{label}</span>
         {jumpHref && (
           <Link href={jumpHref} className={jumpBtn}>
             {jumpLabel}
@@ -388,8 +395,8 @@ function AggTable({
   peso: (n: number) => string;
 }) {
   return (
-    <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
-      <table className="w-full text-sm">
+    <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
+      <table className="w-full text-lg">
         <thead>
           <tr className="border-b border-white/15 bg-zinc-900/60">
             <Th>{firstColLabel}</Th>
@@ -406,21 +413,21 @@ function AggTable({
                 className="border-b border-white/5 hover:bg-white/5"
               >
                 <td
-                  className={`px-3 py-2.5 text-center font-medium tabular-nums ${
+                  className={`px-4 py-4 text-center font-medium tabular-nums ${
                     empty ? "text-zinc-600" : "text-white"
                   }`}
                 >
                   {r.label}
                 </td>
                 <td
-                  className={`px-3 py-2.5 text-right tabular-nums ${
+                  className={`px-4 py-4 text-right tabular-nums ${
                     empty ? "text-zinc-600" : "text-zinc-300"
                   }`}
                 >
                   {r.sessionCount}
                 </td>
                 <td
-                  className={`px-3 py-2.5 text-right tabular-nums ${
+                  className={`px-4 py-4 text-right tabular-nums ${
                     empty ? "text-zinc-600" : "text-amber-300"
                   }`}
                 >
@@ -429,14 +436,14 @@ function AggTable({
               </tr>
             );
           })}
-          <tr className="border-t border-white/20 bg-zinc-900/60 font-semibold">
-            <td className="px-3 py-2.5 text-left text-zinc-300">
+          <tr className="text-xl font-bold">
+            <td className="sticky bottom-0 z-10 border-t-2 border-white/30 bg-zinc-900 px-4 py-5 text-left text-white">
               {t("total")}
             </td>
-            <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
+            <td className="sticky bottom-0 z-10 border-t-2 border-white/30 bg-zinc-900 px-4 py-5 text-right tabular-nums text-white">
               {total.sessionCount}
             </td>
-            <td className="px-3 py-2.5 text-right tabular-nums text-emerald-300">
+            <td className="sticky bottom-0 z-10 border-t-2 border-white/30 bg-zinc-900 px-4 py-5 text-right tabular-nums text-emerald-300">
               {peso(total.grossPhp)}
             </td>
           </tr>

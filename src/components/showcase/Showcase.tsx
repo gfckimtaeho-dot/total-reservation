@@ -138,12 +138,12 @@ export function Showcase({
       {/* 상단: 헬스장명(중앙) + 카테고리 진행(좌 — 우상단은 돌아가기 버튼) */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-center px-8 py-7 md:px-14">
         <span
-          className={`text-xs font-semibold uppercase tracking-[0.28em] ${tk.gym}`}
+          className={`text-xl font-bold uppercase tracking-[0.18em] ${tk.gym}`}
         >
           {data.gymName}
         </span>
         <span
-          className={`absolute left-8 text-xs font-medium tabular-nums tracking-[0.22em] md:left-14 ${tk.gym}`}
+          className={`absolute left-8 text-xl font-semibold tabular-nums tracking-[0.14em] md:left-14 ${tk.gym}`}
         >
           {String(idx + 1).padStart(2, "0")} / 0{CATS.length}
         </span>
@@ -158,18 +158,11 @@ export function Showcase({
         {CATS.map((cat) => (
           <section
             key={cat}
-            className="relative flex h-full w-screen shrink-0 snap-center snap-always flex-col justify-center overflow-y-auto px-8 py-24 md:px-20"
+            className="relative flex h-full w-screen shrink-0 snap-center snap-always flex-col justify-center overflow-y-auto px-8 pt-36 pb-24 md:px-20 md:pt-40"
           >
             <div className="mx-auto w-full max-w-3xl">
-              <div
-                className={`text-xs font-semibold uppercase tracking-[0.34em] ${
-                  concept === "dark" ? tk.eyebrow : tk.accent(cat)
-                }`}
-              >
-                {t(`cat.${cat}`)}
-              </div>
               <h2
-                className={`mt-4 font-heading text-5xl leading-[1.05] tracking-tight md:text-6xl ${tk.title}`}
+                className={`font-heading text-5xl leading-[1.05] tracking-tight md:text-6xl ${tk.title}`}
               >
                 {t(`title.${cat}`)}
               </h2>
@@ -289,13 +282,15 @@ function Row({
       className={`flex items-baseline justify-between gap-6 border-b py-5 ${tk.row}`}
     >
       <div className="min-w-0">
-        <div className={`text-lg font-medium md:text-xl ${tk.name}`}>
+        <div
+          className={`text-2xl font-medium md:text-3xl ${tk.name}`}
+        >
           {name}
         </div>
-        {sub && <div className={`mt-1 text-sm ${tk.sub}`}>{sub}</div>}
+        {sub && <div className={`mt-1.5 text-base ${tk.sub}`}>{sub}</div>}
       </div>
       <div
-        className={`shrink-0 text-right font-heading text-2xl tabular-nums tracking-tight md:text-3xl ${
+        className={`shrink-0 text-right font-heading text-3xl font-semibold tabular-nums tracking-tight md:text-4xl ${
           concept === "light" ? tk.accent(cat) : tk.price
         }`}
       >

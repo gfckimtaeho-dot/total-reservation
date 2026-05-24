@@ -27,11 +27,15 @@ export function TrainerChangeFlow({
   lang,
   packageId,
   trainers,
+  nextHref,
 }: {
   slug: string;
   lang: string;
   packageId: string;
   trainers: Trainer[];
+  // 첫 트레이너 지정 후 자연스러운 다음 이동지(예: 예약 화면). 없으면
+  // 기본 /me/holdings 로 (기존 트레이너 변경 흐름).
+  nextHref: string | null;
 }) {
   const t = useTranslations("me");
   const router = useRouter();
@@ -72,9 +76,15 @@ export function TrainerChangeFlow({
         return;
       }
       if (result.conflictCount > 0) {
+        // 충돌 건 재예약이 먼저. nextHref 는 그 다음으로 미룬다(rebook
+        // 페이지에서 별도 안내).
         router.push(
           `/${lang}/g/${slug}/me/holdings/${packageId}/rebook`,
         );
+      } else if (nextHref) {
+        // 첫 트레이너 지정 흐름 — 사용자가 원래 가려던 화면(예약 등)
+        // 으로 자연 연결. 매핑 완료 신호로 router.refresh 도 같이.
+        router.push(nextHref);
       } else {
         router.push(`/${lang}/g/${slug}/me/holdings`);
       }

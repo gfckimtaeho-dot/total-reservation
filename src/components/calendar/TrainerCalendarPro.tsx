@@ -22,6 +22,7 @@ import {
   listBookableServices,
   listMyAssignedCustomers,
 } from "@/app/[lang]/g/[slug]/dashboard/service-actions";
+import { updateReservationNote } from "@/app/[lang]/g/[slug]/my-clients/actions";
 import { GroupClassModal } from "@/app/[lang]/g/[slug]/dashboard/GroupClassModal";
 import { GroupRegisterModal } from "@/app/[lang]/g/[slug]/dashboard/GroupRegisterModal";
 
@@ -52,6 +53,8 @@ type Picked = {
   whenLabel: string;
   rel: "past" | "today" | "future";
   completed: boolean;
+  // 완료된 PT 만 의미 있음 — 팝오버 메모 편집 영역에서 view/edit.
+  completionNote: string | null;
   // 클릭한 셀 기준 팝오버 위치 (뷰포트 좌표)
   ax: number;
   ay: number;
@@ -121,8 +124,11 @@ export function TrainerCalendarPro({
   const [refreshing, startRefresh] = useTransition();
   // PT 완료 운동 부위 메모(인라인 입력). null=미진입(기본 그리드 표시),
   // ""=메모 모드 진입(input 표시). 사장 결정: 끝내자마자 1줄 적어 다음 PT
-  // 회고에 쓰이게 — 사후 수정은 my-clients 상세에서 별도 액션.
+  // 회고에 쓰이게 — 사후 수정은 my-clients 상세 또는 본 팝오버에서.
   const [completeNote, setCompleteNote] = useState<string | null>(null);
+  // 완료된 PT 셀 팝오버에서 메모 사후 편집(놓쳤거나 수정). null=view 모드,
+  // 문자열=edit 모드에서 입력 중 값. picked 가 바뀌면 자동으로 view 로 복귀.
+  const [noteEdit, setNoteEdit] = useState<string | null>(null);
 
   const todayKey = keyNum(
     data.today.year,
@@ -394,9 +400,12 @@ export function TrainerCalendarPro({
       whenLabel: `${hm(slotMin)} · ${g.month}/${g.day}`,
       rel: relOf(g),
       completed: ev.completed,
+      completionNote: ev.completionNote,
       ax: r.left + r.width / 2,
       ay: r.bottom,
     });
+    // 팝오버 다시 열면 메모 편집은 view 모드부터.
+    setNoteEdit(null);
     // 잔여 횟수는 페이지 로드 때 prefetch 됨 — 탭 즉시 동기 표시(왕복 X).
     setRem(
       ev.customerId
@@ -647,17 +656,32 @@ export function TrainerCalendarPro({
           </button>
         </div>
       )}
-      {!picked && !moving && !classMode && (
-        <p className="mt-3 text-sm text-zinc-500">
-          {t("tapBookingHint")}
-        </p>
-      )}
+      {/* 안내 문구 — picked/moving/classMode 일 땐 시각만 hidden, 자리는 유지.
+          조건부 제거 시 28px 줄이 사라져 그리드가 위로 튀던 layout shift 차단. */}
+      <p
+        className={`mt-3 text-sm text-zinc-500 ${
+          picked || moving || classMode ? "invisible" : ""
+        }`}
+      >
+        {t("tapBookingHint")}
+      </p>
       {err && <p className="mt-2 text-sm text-rose-400">{err}</p>}
 
-      {/* 그리드 — 가로 스크롤, 시간축+선택일 sticky */}
+      {/* 그리드 — 가로 스크롤, 시간축+선택일 sticky.
+          셀 button onMouseDown 의 default focus 동작이 브라우저 scrollIntoView
+          를 유발해 그리드가 위·아래로 살짝 튀던 문제 → mousedown 시 focus 만
+          막아서 그리드 위치를 고정. onClick 은 정상 동작. */}
       <div
         ref={scrollRef}
         className="mt-3 overflow-x-auto [scrollbar-width:thin]"
+        onMouseDown={(e) => {
+          if (
+            e.target instanceof HTMLElement &&
+            e.target.closest("button")
+          ) {
+            e.preventDefault();
+          }
+        }}
       >
         <div className="flex min-w-max">
           {/* 시간축 */}
@@ -875,6 +899,14 @@ export function TrainerCalendarPro({
                         }`}
                       >
                         {c.ev.service}
+                        {done && c.ev.completionNote && (
+                          <span className="ml-1 text-emerald-300">
+                            {" · "}
+                            {c.ev.completionNote.length > 8
+                              ? c.ev.completionNote.slice(0, 6) + ".."
+                              : c.ev.completionNote}
+                          </span>
+                        )}
                       </span>
                     </button>
                   );
@@ -1018,19 +1050,16 @@ export function TrainerCalendarPro({
                   </div>
                 </div>
                 <div className="mt-3 rounded-lg border border-white/10 bg-zinc-950/60 p-2.5">
-                  <div className="text-sm font-semibold uppercase tracking-[0.15em] text-zinc-500">
-                    {t("remainHeading")}
-                  </div>
                   {rem === null ? (
-                    <div className="mt-1 text-xs text-zinc-500">
+                    <div className="text-xs text-zinc-500">
                       {t("remainLoading")}
                     </div>
                   ) : rem.length === 0 ? (
-                    <div className="mt-1 text-xs text-zinc-500">
+                    <div className="text-xs text-zinc-500">
                       {t("remainNone")}
                     </div>
                   ) : (
-                    <ul className="mt-1 space-y-0.5">
+                    <ul className="space-y-0.5">
                       {rem.map((x) => (
                         <li
                           key={x.service}
@@ -1052,6 +1081,105 @@ export function TrainerCalendarPro({
                     </ul>
                   )}
                 </div>
+                {/* 완료된 PT 셀에서만 메모 사후 편집 — 놓쳤거나 수정. */}
+                {picked.completed && (
+                  <div className="mt-2 rounded-lg border border-white/10 bg-zinc-950/60 p-2.5">
+                    {noteEdit === null ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNoteEdit(picked.completionNote ?? "")
+                        }
+                        className="block w-full text-left text-sm text-zinc-300 transition hover:text-emerald-300"
+                      >
+                        {picked.completionNote ? (
+                          <span>📝 {picked.completionNote}</span>
+                        ) : (
+                          <span className="text-zinc-500">
+                            + {t("noteAddPrompt")}
+                          </span>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={noteEdit}
+                          onChange={(e) => setNoteEdit(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const val = noteEdit;
+                              const pickedSnap = picked;
+                              startTransition(async () => {
+                                const r = await updateReservationNote({
+                                  slug,
+                                  reservationId: pickedSnap.evId,
+                                  note: val,
+                                });
+                                if (r.ok) {
+                                  const trimmed =
+                                    val.trim().slice(0, 80) || null;
+                                  setPicked({
+                                    ...pickedSnap,
+                                    completionNote: trimmed,
+                                  });
+                                  setNoteEdit(null);
+                                  router.refresh();
+                                } else {
+                                  setErr(r.error);
+                                }
+                              });
+                            } else if (e.key === "Escape") {
+                              setNoteEdit(null);
+                            }
+                          }}
+                          autoFocus
+                          maxLength={80}
+                          placeholder={t("notePlaceholder")}
+                          className="flex-1 rounded bg-zinc-900 px-2 py-1.5 text-sm text-white ring-1 ring-white/15 placeholder:text-zinc-600 focus:outline-none focus:ring-emerald-400/50"
+                        />
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => {
+                            const val = noteEdit;
+                            const pickedSnap = picked;
+                            startTransition(async () => {
+                              const r = await updateReservationNote({
+                                slug,
+                                reservationId: pickedSnap.evId,
+                                note: val,
+                              });
+                              if (r.ok) {
+                                const trimmed =
+                                  val.trim().slice(0, 80) || null;
+                                setPicked({
+                                  ...pickedSnap,
+                                  completionNote: trimmed,
+                                });
+                                setNoteEdit(null);
+                                router.refresh();
+                              } else {
+                                setErr(r.error);
+                              }
+                            });
+                          }}
+                          className="rounded bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-50"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNoteEdit(null)}
+                          className="rounded border border-white/15 px-2.5 py-1.5 text-xs text-zinc-400 transition hover:text-white"
+                        >
+                          ✗
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {!picked.completed && completeNote === null && (
                   <div className="mt-4 grid grid-cols-3 gap-2">
                     <button

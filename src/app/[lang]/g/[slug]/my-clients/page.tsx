@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { listMyAssignedCustomers } from "@/app/[lang]/g/[slug]/dashboard/service-actions";
@@ -21,8 +20,7 @@ export default async function MyClientsPage({
   params: Promise<{ lang: string; slug: string }>;
 }) {
   const { lang, slug } = await params;
-  const auth = await requireGymStaff(slug);
-  const business = auth.business!;
+  await requireGymStaff(slug);
   const t = await getTranslations("dashboard");
 
   const r = await listMyAssignedCustomers({ slug, limit: 200 });
@@ -37,24 +35,18 @@ export default async function MyClientsPage({
       <div className="pointer-events-none absolute -right-40 top-1/4 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
 
       <header className="relative flex items-center gap-3 border-b border-white/5 px-5 py-3">
-        <Link
-          href={`/${lang}/g/${slug}/dashboard`}
-          aria-label={t("myClientsBack")}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-zinc-300 transition hover:bg-white/5"
-        >
-          <ChevronLeft size={20} />
-        </Link>
-        <h1 className="font-heading flex items-baseline gap-2 truncate text-xl tracking-tight">
-          <span className="bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent">
-            {t("myClientsTitle")}
-          </span>
-          <span className="truncate text-sm font-medium text-zinc-400">
-            {business.name}
-          </span>
+        <h1 className="font-heading truncate text-2xl font-bold tracking-tight text-white">
+          {t("myClientsTitle")}
         </h1>
         <span className="ml-auto rounded-full bg-white/5 px-2.5 py-1 text-xs tabular-nums text-zinc-400 ring-1 ring-white/10">
           {rows.length}
         </span>
+        <Link
+          href={`/${lang}/g/${slug}/dashboard`}
+          className="shrink-0 rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/5"
+        >
+          {t("myClientsBack")}
+        </Link>
       </header>
 
       <main className="relative flex-1 p-4">
