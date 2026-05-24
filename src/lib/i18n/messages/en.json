@@ -881,6 +881,8 @@
     "qrExpires": "Valid until {date}",
     "qrNoAccessTitle": "Cannot issue access QR",
     "qrNoAccessBody": "No valid membership and no reservation today. Please ask the front desk.",
+    "qrBlockedTitle": "Access restricted",
+    "qrBlockedBody": "Your account is currently restricted. Please contact the store.",
     "todayLabel": "Today",
     "closureTitle": "We are closed today",
     "closureReason": "Reason: {reason}",

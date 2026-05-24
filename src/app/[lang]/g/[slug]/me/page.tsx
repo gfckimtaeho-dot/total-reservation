@@ -191,6 +191,15 @@ function QrCard({ qr, t }: { qr: AccessQrResult; t: T }) {
             {t("qrExpires", { date: qr.expiresYmd })}
           </div>
         </div>
+      ) : qr.reason === "blocked" ? (
+        <div className="py-2 text-center">
+          <div className="font-heading text-sm tracking-tight text-rose-700">
+            {t("qrBlockedTitle")}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+            {t("qrBlockedBody")}
+          </p>
+        </div>
       ) : (
         <div className="py-2 text-center">
           <div className="font-heading text-sm tracking-tight text-amber-700">

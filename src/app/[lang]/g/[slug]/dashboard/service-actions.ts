@@ -508,13 +508,25 @@ export async function issueService(input: {
   const soldByStaffId = await lookupStaffIdForUser(auth.id, gymId);
 
   try {
-    await prisma.$transaction((tx) =>
-      createSaleLine(
+    await prisma.$transaction(async (tx) => {
+      await createSaleLine(
         tx,
         { gymId, customerId: cust.id, soldById: auth.id, soldByStaffId },
         { kind: input.kind, planId: input.planId },
-      ),
-    );
+      );
+      // 사장이 매장에서 직접 발급 = 정식 회원. magic link 첫 로그인 대기(PENDING)
+      // 단계를 건너뛰어 사장 워크플로우에서 "활성화 클릭" 잉여 제거.
+      await tx.user.updateMany({
+        where: { id: cust.id, status: "PENDING" },
+        data: { status: "ACTIVE" },
+      });
+      // 휴면/차단(active=false) 회원에게 다시 발급 = 운영 재개 의사 표시.
+      // 빌런 차단 의도를 유지하려면 애초에 발급 자체를 하지 말 것.
+      await tx.user.updateMany({
+        where: { id: cust.id, active: false },
+        data: { active: true },
+      });
+    });
   } catch (e) {
     return { ok: false, error: (e as Error).message || "발급 실패" };
   }
@@ -554,6 +566,18 @@ export async function issueCart(input: {
           item,
         );
       }
+      // 사장이 매장에서 직접 발급 = 정식 회원. magic link 첫 로그인 대기(PENDING)
+      // 단계를 건너뛰어 사장 워크플로우에서 "활성화 클릭" 잉여 제거.
+      await tx.user.updateMany({
+        where: { id: cust.id, status: "PENDING" },
+        data: { status: "ACTIVE" },
+      });
+      // 휴면/차단(active=false) 회원에게 다시 발급 = 운영 재개 의사 표시.
+      // 빌런 차단 의도를 유지하려면 애초에 발급 자체를 하지 말 것.
+      await tx.user.updateMany({
+        where: { id: cust.id, active: false },
+        data: { active: true },
+      });
     });
   } catch (e) {
     return { ok: false, error: (e as Error).message || "발급 실패" };

@@ -881,6 +881,8 @@
     "qrExpires": "{date} 까지 유효",
     "qrNoAccessTitle": "출입 QR을 발급할 수 없습니다",
     "qrNoAccessBody": "유효한 회원권이 없고 오늘 예약도 없습니다. 프런트에 문의해 주세요.",
+    "qrBlockedTitle": "이용 제한 상태입니다",
+    "qrBlockedBody": "회원님 계정이 이용 제한 상태입니다. 매장으로 문의해 주세요.",
     "todayLabel": "오늘",
     "closureTitle": "오늘은 휴무입니다",
     "closureReason": "사유: {reason}",

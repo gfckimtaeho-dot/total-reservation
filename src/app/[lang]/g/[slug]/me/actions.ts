@@ -23,17 +23,21 @@ import { loadTrainerDayAvailability } from "@/lib/calendar/trainerCalendarPro";
 
 export type AccessQrResult =
   | { ok: true; qr: string; expiresYmd: string }
-  | { ok: false; reason: "noAccess" };
+  | { ok: false; reason: "noAccess" | "blocked" };
 
 // 출입 자격은 "그 1명"에 대해 탭하는 순간 실시간 계산한다(cron 스냅샷 신뢰 X):
-//   - 오늘 기준 유효한 회원권(endDate >= 오늘) 보유  → 발급
-//   - 또는 오늘 예약(PT/단체수업)이 있음            → 그날 임시 발급
-//   - 둘 다 아니면 거절(프런트 문의)
+//   - User.active=false (사장 차단/휴면 토글)          → blocked
+//   - 오늘 기준 유효한 회원권(endDate >= 오늘) 보유    → 발급
+//   - 또는 오늘 예약(PT/단체수업)이 있음              → 그날 임시 발급
+//   - 둘 다 아니면 noAccess (프런트 문의)
 // 발급 토큰은 Manila 오늘 끝까지만 유효(QrToken). 같은 날 재탭은 재사용.
 export async function requestAccessQr(
   slug: string,
 ): Promise<AccessQrResult> {
   const user = await requireGymCustomer(slug);
+  // 비활성(빌런/휴면) 회원 차단 — 회원권/예약 유무 무관하게 즉시 거절.
+  // 로그인/세션은 유지(자신의 권/예약 조회는 가능). QR만 막아 출입 봉쇄.
+  if (!user.active) return { ok: false, reason: "blocked" };
   const gymId = user.business!.id;
   const userId = user.id;
 
