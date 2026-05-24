@@ -5,6 +5,7 @@ import { logout } from "@/lib/auth/actions";
 import { loadTrainerCalendar } from "@/lib/calendar/trainerCalendarPro";
 import { TrainerCalendarPro } from "@/components/calendar/TrainerCalendarPro";
 import { TrainerQrButton } from "./TrainerQrButton";
+import { ChatBadgeLink } from "../chat/ChatBadgeLink";
 
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
@@ -99,6 +100,10 @@ export async function DashboardTrainer({
           >
             {t("trainerPerfBtn")}
           </Link>
+          <ChatBadgeLink
+            href={`/${lang}/g/${slug}/chat`}
+            tone="dark"
+          />
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="rounded-full bg-white/5 px-4 py-2.5 text-sm text-zinc-400 ring-1 ring-white/10 transition hover:text-white">
               {tn("logout")}

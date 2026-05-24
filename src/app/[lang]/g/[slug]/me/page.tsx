@@ -6,6 +6,7 @@ import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { gymTodayUtcMidnight } from "@/lib/calendar/gymTime";
 import { requestAccessQr, type AccessQrResult } from "./actions";
+import { CustomerChatCard } from "./CustomerChatCard";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -96,7 +97,7 @@ export default async function CustomerHomePage({
       <div className="pointer-events-none absolute -bottom-20 right-0 h-[24rem] w-[28rem] rounded-full bg-rose-200/50 blur-3xl" />
 
       <header className="relative border-b border-orange-100">
-        <div className="mx-auto max-w-md px-5 py-4">
+        <div className="mx-auto flex max-w-md items-center justify-between gap-3 px-5 py-4">
           <div className="min-w-0">
             <div className="text-sm font-medium text-orange-600">
               {business.name}
@@ -105,6 +106,7 @@ export default async function CustomerHomePage({
               {user.name}
             </div>
           </div>
+          <CustomerChatCard href={`/${lang}/g/${slug}/me/chat`} />
         </div>
       </header>
 

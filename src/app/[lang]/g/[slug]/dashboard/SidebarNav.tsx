@@ -16,6 +16,7 @@ type ActiveKey =
   | "services"
   | "revenue"
   | "refunds"
+  | "chat"
   | "settings";
 
 type Item = {
@@ -33,6 +34,7 @@ function items(lang: string, slug: string): Item[] {
     { key: "products", href: `/${lang}/g/${slug}/products` },
     { key: "revenue", href: `/${lang}/g/${slug}/revenue` },
     { key: "refunds", href: `/${lang}/g/${slug}/refunds` },
+    { key: "chat", href: `/${lang}/g/${slug}/chat` },
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
   ];
 }
@@ -87,6 +89,7 @@ function parsePathname(
   else if (section === "services") key = "services";
   else if (section === "revenue") key = "revenue";
   else if (section === "refunds") key = "refunds";
+  else if (section === "chat") key = "chat";
   else if (section === "settings") key = "settings";
   return { lang, slug, activeKey: key };
 }
@@ -100,6 +103,7 @@ function keyFromHref(href: string): ActiveKey | null {
   if (href.endsWith("/services")) return "services";
   if (href.endsWith("/revenue")) return "revenue";
   if (href.endsWith("/refunds")) return "refunds";
+  if (href.endsWith("/chat")) return "chat";
   if (href.endsWith("/settings")) return "settings";
   return null;
 }
@@ -121,6 +125,8 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
   // refetch 해서 /refunds 에서 처리 완료 후 dashboard 등 다른 메뉴로
   // 이동하면 즉시 갱신.
   const [pendingRefund, setPendingRefund] = useState<number>(0);
+  // 채팅 unread — 5초 폴링. visibilityState hidden 시 30초로 늘림.
+  const [chatUnread, setChatUnread] = useState<number>(0);
 
   // pathname이 바뀌면 (= navigation 완료) pendingKey 클리어. transition이
   // 빠르게 끝나도 router.push가 즉시 pathname을 업데이트하므로 안전.
@@ -138,6 +144,31 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
       cancelled = true;
     };
   }, [slug, pathname]);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    async function tick() {
+      try {
+        const res = await fetch("/api/chat/unread", { cache: "no-store" });
+        if (res.ok) {
+          const j = (await res.json()) as { total: number };
+          if (!cancelled) setChatUnread(j.total);
+        }
+      } catch {
+        // 네트워크 일시 끊김은 무시 — 다음 tick 에서 재시도.
+      }
+      if (cancelled) return;
+      const delay = document.visibilityState === "visible" ? 5000 : 30000;
+      timer = setTimeout(tick, delay);
+    }
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [slug]);
 
   // 모바일은 hover prefetch가 안 됨 — sidebar mount 시 모든 라우트를
   // 명시적으로 prefetch해 두면 첫 클릭이 캐시 히트로 전환됨.
@@ -193,6 +224,7 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
             n.key === "services" ||
             n.key === "revenue" ||
             n.key === "refunds" ||
+            n.key === "chat" ||
             n.key === "settings") &&
           effectiveKey === n.key;
         if (!n.href) {
@@ -213,6 +245,7 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
         const href = n.href;
         const isPendingThis = pending && pendingKey === n.key;
         const showRefundBadge = n.key === "refunds" && pendingRefund > 0;
+        const showChatBadge = n.key === "chat" && chatUnread > 0;
         return (
           <button
             key={n.key}
@@ -228,6 +261,11 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
               {showRefundBadge && (
                 <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white tabular-nums">
                   {pendingRefund > 99 ? "99+" : pendingRefund}
+                </span>
+              )}
+              {showChatBadge && (
+                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white tabular-nums">
+                  {chatUnread > 99 ? "99+" : chatUnread}
                 </span>
               )}
               {isPendingThis && <Spinner className={tk.spinner} />}

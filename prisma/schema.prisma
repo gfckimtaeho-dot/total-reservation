@@ -210,6 +210,11 @@ enum ScheduleKind {
   ONE_OFF
 }
 
+enum ChatThreadKind {
+  TRAINER // 고객 ↔ 1:1 PT 담당 트레이너
+  STORE   // 고객 ↔ 매장(OWNER+MANAGER 풀). staffUserId NULL.
+}
+
 // ─── PSGC Location (글로벌 마스터) ────────────────────────
 
 model City {
@@ -291,6 +296,7 @@ model Business {
   priceChangeLogs     PriceChangeLog[]
   refundRequests      RefundRequest[]
   sales               Sale[]
+  chatThreads         ChatThread[]
   createdById         String?
   updatedById         String?
 
@@ -336,6 +342,10 @@ model User {
   sessions            Session[]
   accounts            Account[]
   sales               Sale[]
+  chatThreadsAsCustomer ChatThread[]  @relation("ChatThreadCustomer")
+  chatThreadsAsStaff    ChatThread[]  @relation("ChatThreadStaff")
+  chatMessagesSent      ChatMessage[] @relation("ChatMessageSender")
+  chatReads             ChatRead[]    @relation("ChatReadAccount")
   createdById         String?
   updatedById         String?
 
@@ -1128,4 +1138,76 @@ model Payment {
   updatedById String?
 
   @@index([gymId, paidAt])
+}
+
+// ─── Chat (고객 ↔ 트레이너 / 고객 ↔ 매장) ─────────────────
+// 스펙: docs/chat.md. 단체수업 채팅 X, 텍스트 only, 인앱 뱃지+폴링.
+
+model ChatThread {
+  id            String         @id @default(cuid())
+  gymId         String
+  business      Business       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  kind          ChatThreadKind
+  customerId    String
+  customer      User           @relation("ChatThreadCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+  // TRAINER kind일 때만 셋. 양도 시 staffUserId 갱신 + ChatMessage(system=true) 자동 삽입.
+  staffUserId   String?
+  staffUser     User?          @relation("ChatThreadStaff", fields: [staffUserId], references: [id], onDelete: SetNull)
+  lastMessageAt DateTime?      @db.Timestamptz(3)
+  // 환불/탈퇴 등 soft close. 발신 잠금, 메시지는 보존.
+  closedAt      DateTime?      @db.Timestamptz(3)
+  messages      ChatMessage[]
+  reads         ChatRead[]
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  createdById   String?
+  updatedById   String?
+
+  // TRAINER: (gym, customer, staff) 쌍은 1개 스레드. STORE는 staffUserId NULL이라
+  // Postgres NULL distinct로 unique 우회 → 별도 partial unique index를 raw SQL로 추가.
+  // (scripts/ensure-chat-indexes.ts 참고)
+  @@unique([gymId, kind, customerId, staffUserId])
+  @@index([gymId, lastMessageAt])
+  @@index([staffUserId, lastMessageAt])
+  @@index([customerId, lastMessageAt])
+}
+
+model ChatMessage {
+  id          String      @id @default(cuid())
+  threadId    String
+  thread      ChatThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  // STORE kind에선 OWNER/MANAGER 누구든. TRAINER kind에선 고객 or 담당 트레이너.
+  senderId    String
+  sender      User        @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  body        String      @db.VarChar(1000)
+  // 트레이너 양도·환불 완료 등 자동 삽입 메시지. UI에서 별도 톤으로 표시.
+  system      Boolean     @default(false)
+  // 본인 메시지 5분 내 soft delete. placeholder "삭제된 메시지"로 표시.
+  deletedAt   DateTime?   @db.Timestamptz(3)
+  sentAt      DateTime    @default(now()) @db.Timestamptz(3)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@index([threadId, sentAt])
+  @@index([threadId, id])
+}
+
+model ChatRead {
+  id                String      @id @default(cuid())
+  threadId          String
+  thread            ChatThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  // 계정 단위. 디바이스 미러링(태블릿+폰 같은 계정은 동기화). STORE 풀에선 각자 별도 row.
+  accountId         String
+  account           User        @relation("ChatReadAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  lastReadMessageId String?
+  lastReadAt        DateTime    @default(now()) @db.Timestamptz(3)
+  createdAt         DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime    @updatedAt @db.Timestamptz(3)
+  createdById       String?
+  updatedById       String?
+
+  @@unique([threadId, accountId])
+  @@index([accountId])
 }
