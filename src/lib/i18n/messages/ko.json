@@ -296,7 +296,13 @@
     "confirmNo": "아니요",
     "markDone": "환불 요청",
     "prev": "이전",
-    "next": "다음"
+    "next": "다음",
+    "reasonLabel": {
+      "CUSTOMER_REQUEST": "회원 신청",
+      "CLASS_DISCONTINUED": "단체수업 폐지",
+      "SERVICE_DISCONTINUED": "종목 폐지",
+      "STAFF_UNAVAILABLE": "강사 부재"
+    }
   },
   "products": {
     "pageTitle": "상품 관리",
@@ -887,6 +893,11 @@
     "todayLabel": "오늘",
     "closureTitle": "오늘은 휴무입니다",
     "closureReason": "사유: {reason}",
+    "refundNoticeTitle": "환불 안내",
+    "refundNoticeBody": "해당 수업이 운영 중단되어 잔여 횟수에 대해 100% 환불해 드립니다.",
+    "refundNoticeRemaining": "잔여 {n}회",
+    "refundNoticeTotalLabel": "합계",
+    "refundNoticeVisit": "가까운 시일 내 카운터 방문 부탁드립니다.",
     "todayTitle": "오늘의 일정",
     "todayEmpty": "오늘은 잡힌 예약이 없습니다.",
     "todayLinePersonal": "{time} {service} {trainer} 트레이너",
@@ -1200,6 +1211,25 @@
         "dateFormat": "날짜 형식이 올바르지 않습니다",
         "untilBeforeFrom": "종료일은 시작일보다 빠를 수 없습니다",
         "staffRequired": "담당 트레이너를 지정해 주세요"
+      },
+      "deleteDialog": {
+        "eyebrow": "스케줄 삭제 확인",
+        "close": "닫기",
+        "loading": "영향 검사 중...",
+        "errorPreview": "영향 검사에 실패했습니다. 권한을 확인해 주세요.",
+        "errorApply": "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        "noImpact": "예약 회원과 잔여 수업권 보유 회원이 없습니다. 그대로 삭제하시겠습니까?",
+        "warningTitle": "환불 대상 회원이 있습니다",
+        "warningBody": "잔여 수업권 보유 {members}명 · 향후 예약 {reservations}건이 영향을 받습니다.",
+        "otherSchedulesHint": "같은 종목에 다른 시간대 {n}개가 운영 중입니다. 회원이 다른 시간으로 흡수 가능하면 환불 없이 삭제할 수 있습니다.",
+        "membersHeader": "환불 대상 명단",
+        "totalRefund": "합계 {amount}",
+        "remainingLabel": "잔여 {n}회",
+        "cancel": "취소",
+        "deleteConfirm": "삭제 진행",
+        "deleteWithoutRefund": "환불 없이 삭제",
+        "deleteWithRefund": "환불 후 삭제",
+        "applying": "처리 중..."
       }
     },
     "errors": {

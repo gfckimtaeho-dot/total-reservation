@@ -39,7 +39,13 @@ export default async function IntakePage({
         sessionCount: true,
         service: { select: { name: true } },
       },
-      orderBy: { createdAt: "asc" },
+      // 1:1(capacity=1) 먼저 → 같은 서비스끼리 → 낮은 회수부터.
+      // showcase 와 동일 규칙(5/25 결정).
+      orderBy: [
+        { service: { capacity: "asc" } },
+        { service: { name: "asc" } },
+        { sessionCount: "asc" },
+      ],
     }),
     prisma.comboPlan.findMany({
       where: { gymId, active: true },

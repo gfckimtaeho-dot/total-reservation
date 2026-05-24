@@ -21,6 +21,11 @@ export type RefundRow = {
   bankName: string | null;
   bankAccount: string | null;
   accountHolder: string | null;
+  reason:
+    | "CUSTOMER_REQUEST"
+    | "CLASS_DISCONTINUED"
+    | "SERVICE_DISCONTINUED"
+    | "STAFF_UNAVAILABLE";
   status: "PENDING" | "COMPLETED";
   requestedAt: string;
   completedAt: string | null;
@@ -361,9 +366,16 @@ export function RefundsTable({
                         </div>
                       )}
                     </td>
-                    {/* 상품명 */}
+                    {/* 상품명 + (매장 귀책 사유면) 칩 */}
                     <td className={`px-3 py-3 ${tk.td}`}>
-                      {r.serviceName}
+                      <div>{r.serviceName}</div>
+                      {r.reason !== "CUSTOMER_REQUEST" && (
+                        <div className="mt-1">
+                          <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-500/30">
+                            {t(`reasonLabel.${r.reason}`)}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     {/* 횟수 — 총/완료/환불 */}
                     <td

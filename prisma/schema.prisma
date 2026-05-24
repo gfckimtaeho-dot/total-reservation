@@ -129,10 +129,22 @@ enum RefundStatus {
   COMPLETED
 }
 
-// 환불금 수령 방식 — 계좌이체 / 헬스장 직접 수령.
+// 환불금 수령 방식 — 계좌이체 / 헬스장 직접 수령(카운터 현금/카드).
 enum RefundPayoutMethod {
   BANK_TRANSFER
   IN_PERSON
+}
+
+// 환불 사유 — 회원 자발 신청(기존)·매장 귀책 자동 환불 식별용.
+//   CUSTOMER_REQUEST    : 회원 변심/신청(기본값)
+//   CLASS_DISCONTINUED  : 단체수업 1건 폐지
+//   SERVICE_DISCONTINUED: 서비스 종목 자체 폐지
+//   STAFF_UNAVAILABLE   : 강사 부재로 수업 운영 불가
+enum RefundReason {
+  CUSTOMER_REQUEST
+  CLASS_DISCONTINUED
+  SERVICE_DISCONTINUED
+  STAFF_UNAVAILABLE
 }
 
 // Promotion 적용 범위. 콤보는 자체 할인이라 promotion 적용 제외(의도적 누락).
@@ -802,6 +814,10 @@ model RefundRequest {
   bankName      String? // BANK_TRANSFER 일 때
   bankAccount   String?
   accountHolder String?
+
+  // 환불 사유. 기본 CUSTOMER_REQUEST(회원 변심), 매장 귀책 자동 환불은
+  // CLASS_/SERVICE_/STAFF_ 로 식별 — /refunds 리스트에 사유 표시 + 알림 분기.
+  reason        RefundReason @default(CUSTOMER_REQUEST)
 
   status        RefundStatus @default(PENDING)
   requestedAt   DateTime     @default(now()) @db.Timestamptz(3)

@@ -1,19 +1,13 @@
 "use client";
 
-import {
-  useActionState,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { NativePickerInput } from "@/components/NativePickerInput";
 import {
   createSchedule,
-  deleteSchedule,
   type CreateScheduleState,
 } from "./schedule-actions";
+import { ScheduleDeleteDialog } from "./ScheduleDeleteDialog";
 
 type Tone = "normal" | "black" | "white";
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
@@ -637,9 +631,7 @@ function ScheduleRow({
   tk: ToneSet;
 }) {
   const t = useTranslations("services.schedule");
-  const te = useTranslations("services.schedule.errors");
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
 
   const start = schedule.startMinute;
   const end = (start + durationMin) % (24 * 60);
@@ -670,20 +662,7 @@ function ScheduleRow({
     badgeLabel = t("badgeOneOff");
   }
 
-  function onDelete() {
-    if (!confirm(`${dayLabel} ${timeRange} — ${t("delete")}?`)) return;
-    setError(null);
-    startTransition(async () => {
-      const res = await deleteSchedule(slug, schedule.id);
-      if (res.error) {
-        const msg =
-          res.error === "hasReservations"
-            ? te("hasReservations")
-            : te("permission");
-        setError(msg);
-      }
-    });
-  }
+  const scheduleLabel = `${dayLabel} · ${timeRange} · ${staffName}`;
 
   return (
     <li className={`rounded-lg border px-4 py-3 ${tk.rowCard}`}>
@@ -699,17 +678,13 @@ function ScheduleRow({
           </span>
           <span className={`text-xs ${tk.rowMeta}`}>{staffName}</span>
         </div>
-        <div className="flex items-center gap-2">
-          {error && <span className={`text-[10px] ${tk.error}`}>{error}</span>}
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={pending}
-            className={`rounded px-2 py-1 text-xs font-medium transition disabled:opacity-50 ${tk.deleteBtn}`}
-          >
-            {pending ? t("deleting") : t("delete")}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowDialog(true)}
+          className={`rounded px-2 py-1 text-xs font-medium transition ${tk.deleteBtn}`}
+        >
+          {t("delete")}
+        </button>
       </div>
       {rangeLabel && (
         <div className={`mt-1 text-xs tabular-nums ${tk.rowMeta}`}>
@@ -718,6 +693,15 @@ function ScheduleRow({
       )}
       {schedule.note && (
         <div className={`mt-1 text-xs ${tk.rowMeta}`}>· {schedule.note}</div>
+      )}
+      {showDialog && (
+        <ScheduleDeleteDialog
+          slug={slug}
+          scheduleId={schedule.id}
+          scheduleLabel={scheduleLabel}
+          onClose={() => setShowDialog(false)}
+          onDeleted={() => setShowDialog(false)}
+        />
       )}
     </li>
   );

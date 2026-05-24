@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
+import { getPendingRefundCount } from "../refunds/actions";
 
 export type SidebarTone = "normal" | "black" | "white";
 
@@ -116,12 +117,27 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [pendingKey, setPendingKey] = useState<ActiveKey | null>(null);
+  // 미지급 환불 카운트 — refunds 메뉴 우측 뱃지. pathname 바뀔 때마다
+  // refetch 해서 /refunds 에서 처리 완료 후 dashboard 등 다른 메뉴로
+  // 이동하면 즉시 갱신.
+  const [pendingRefund, setPendingRefund] = useState<number>(0);
 
   // pathname이 바뀌면 (= navigation 완료) pendingKey 클리어. transition이
   // 빠르게 끝나도 router.push가 즉시 pathname을 업데이트하므로 안전.
   useEffect(() => {
     setPendingKey(null);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+    void getPendingRefundCount(slug).then((n) => {
+      if (!cancelled) setPendingRefund(n);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, pathname]);
 
   // 모바일은 hover prefetch가 안 됨 — sidebar mount 시 모든 라우트를
   // 명시적으로 prefetch해 두면 첫 클릭이 캐시 히트로 전환됨.
@@ -196,6 +212,7 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
         }
         const href = n.href;
         const isPendingThis = pending && pendingKey === n.key;
+        const showRefundBadge = n.key === "refunds" && pendingRefund > 0;
         return (
           <button
             key={n.key}
@@ -207,7 +224,14 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
             } ${dimWhilePending(isActive)}`}
           >
             <span>{t(n.key)}</span>
-            {isPendingThis && <Spinner className={tk.spinner} />}
+            <span className="flex items-center gap-1.5">
+              {showRefundBadge && (
+                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white tabular-nums">
+                  {pendingRefund > 99 ? "99+" : pendingRefund}
+                </span>
+              )}
+              {isPendingThis && <Spinner className={tk.spinner} />}
+            </span>
           </button>
         );
       })}

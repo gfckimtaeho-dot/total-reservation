@@ -1,8 +1,6 @@
 import type { Viewport } from "next";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { ChevronLeft } from "lucide-react";
 
 export const viewport: Viewport = {
   themeColor: "#ffffff",
@@ -10,6 +8,7 @@ export const viewport: Viewport = {
 import { requireGymCustomer } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { TrainerChangeFlow } from "./TrainerChangeFlow";
+import { BackButton } from "./BackButton";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -93,13 +92,10 @@ export default async function TrainerChangePage({
           <div className="text-2xl font-bold tracking-tight text-zinc-900">
             {t("trainerChangeTitle")}
           </div>
-          <Link
-            href={`/${lang}/g/${slug}/me/holdings`}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-orange-200 bg-white text-orange-700 hover:bg-orange-50"
-            aria-label={t("trainerChangeBack")}
-          >
-            <ChevronLeft size={18} />
-          </Link>
+          <BackButton
+            fallbackHref={`/${lang}/g/${slug}/me/holdings`}
+            ariaLabel={t("trainerChangeBack")}
+          />
         </div>
       </header>
 

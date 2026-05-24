@@ -30,26 +30,46 @@ export default async function CustomerHomePage({
   const todayMid = gymTodayUtcMidnight(business.timeZone);
   const todayEndMid = new Date(todayMid.getTime() + 24 * 60 * 60 * 1000);
 
-  const [closureToday, todayReservations, accessQr] = await Promise.all([
-    prisma.businessClosure.findFirst({
-      where: { gymId: business.id, date: todayMid },
-      select: { kind: true, reason: true },
-    }),
-    prisma.reservation.findMany({
-      where: {
-        gymId: business.id,
-        customerUserId: user.id,
-        startAt: { gte: todayMid, lt: todayEndMid },
-        status: { notIn: ["CANCELLED", "REJECTED"] },
-      },
-      include: {
-        service: { select: { name: true, capacity: true } },
-        staff: { select: { user: { select: { name: true } } } },
-      },
-      orderBy: { startAt: "asc" },
-    }),
-    requestAccessQr(slug),
-  ]);
+  const [closureToday, todayReservations, accessQr, pendingRefunds] =
+    await Promise.all([
+      prisma.businessClosure.findFirst({
+        where: { gymId: business.id, date: todayMid },
+        select: { kind: true, reason: true },
+      }),
+      prisma.reservation.findMany({
+        where: {
+          gymId: business.id,
+          customerUserId: user.id,
+          startAt: { gte: todayMid, lt: todayEndMid },
+          status: { notIn: ["CANCELLED", "REJECTED"] },
+        },
+        include: {
+          service: { select: { name: true, capacity: true } },
+          staff: { select: { user: { select: { name: true } } } },
+        },
+        orderBy: { startAt: "asc" },
+      }),
+      requestAccessQr(slug),
+      // 본인 미지급 환불 — 매장 귀책(매장이 자동 생성) 만 공지 카드로 노출.
+      // 회원 자발 환불은 회원이 이미 알기에 굳이 띄우지 않음.
+      prisma.refundRequest.findMany({
+        where: {
+          gymId: business.id,
+          userId: user.id,
+          status: "PENDING",
+          reason: { not: "CUSTOMER_REQUEST" },
+        },
+        select: {
+          id: true,
+          serviceName: true,
+          refundPhp: true,
+          refundUnits: true,
+          kind: true,
+          reason: true,
+        },
+        orderBy: { requestedAt: "desc" },
+      }),
+    ]);
 
   // v18 wireframe 형식 — "5월 20일 (화)" / "May 20 (Tue)". 짧고 두 칸 안에 들어감.
   const todayNoon = new Date(
@@ -94,6 +114,14 @@ export default async function CustomerHomePage({
             <ClosureBanner
               reason={closureToday.reason}
               kindShortened={closureToday.kind === "SHORTENED"}
+              t={t}
+            />
+          )}
+
+          {pendingRefunds.length > 0 && (
+            <RefundNoticeCard
+              refunds={pendingRefunds}
+              phone={business.phone}
               t={t}
             />
           )}
@@ -172,6 +200,90 @@ function ClosureBanner({
       )}
     </div>
   );
+}
+
+type RefundNoticeItem = {
+  id: string;
+  serviceName: string;
+  refundPhp: number;
+  refundUnits: number;
+  kind: "PACKAGE" | "MEMBERSHIP";
+  reason:
+    | "CUSTOMER_REQUEST"
+    | "CLASS_DISCONTINUED"
+    | "SERVICE_DISCONTINUED"
+    | "STAFF_UNAVAILABLE";
+};
+
+// 매장 귀책 환불 알림 — 알림 인박스 시스템 미구축 동안 임시 카드 형태.
+// 본문에 잔여·환불액 명시(영수증 역할) + 카운터 방문 안내. 사장이 /refunds
+// 에서 "지급 완료(카운터)" 처리하면 status=COMPLETED 로 자동 사라짐.
+function RefundNoticeCard({
+  refunds,
+  phone,
+  t,
+}: {
+  refunds: RefundNoticeItem[];
+  phone: string | null;
+  t: T;
+}) {
+  const total = refunds.reduce((sum, r) => sum + r.refundPhp, 0);
+  return (
+    <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+      <div className="font-heading text-sm tracking-tight text-amber-800">
+        {t("refundNoticeTitle")}
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+        {t("refundNoticeBody")}
+      </p>
+      <ul className="mt-3 space-y-1.5">
+        {refunds.map((r) => (
+          <li
+            key={r.id}
+            className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 rounded-lg bg-white/60 px-3 py-2 text-xs"
+          >
+            <span className="truncate font-medium text-zinc-900">
+              {r.serviceName}
+            </span>
+            <span className="tabular-nums text-zinc-600">
+              {t("refundNoticeRemaining", { n: r.refundUnits })}
+            </span>
+            <span className="tabular-nums font-semibold text-orange-700">
+              {money(r.refundPhp)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {refunds.length > 1 && (
+        <div className="mt-2 flex items-baseline justify-end gap-2 text-xs">
+          <span className="text-amber-900/70">
+            {t("refundNoticeTotalLabel")}
+          </span>
+          <span className="tabular-nums font-bold text-orange-700">
+            {money(total)}
+          </span>
+        </div>
+      )}
+      <div className="mt-3 rounded-lg bg-white/60 px-3 py-2 text-xs text-amber-900">
+        {t("refundNoticeVisit")}
+        {phone && (
+          <>
+            {" "}
+            <a
+              href={`tel:${phone}`}
+              className="font-medium text-orange-700 underline-offset-2 hover:underline"
+            >
+              {phone}
+            </a>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function money(php: number): string {
+  return `₱${php.toLocaleString("en-PH")}`;
 }
 
 // v18 시안 사이즈 그대로 — 컨테이너 14.5rem · QR 7.25rem. 사용자명/qrHint 는

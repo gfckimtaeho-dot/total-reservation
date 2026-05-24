@@ -4,6 +4,16 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 
+// 사이드바 뱃지용 미지급 환불 카운트. 권한 없으면 0(에러 throw 안 함 —
+// 사이드바 마운트 시점에 unauthorized 페이지에서도 안전).
+export async function getPendingRefundCount(slug: string): Promise<number> {
+  const auth = await requireGymStaff(slug).catch(() => null);
+  if (!auth || !auth.business) return 0;
+  return prisma.refundRequest.count({
+    where: { gymId: auth.business.id, status: "PENDING" },
+  });
+}
+
 // 사장 환불 관리 — 미지급 환불을 송금/직접지급 후 "완료"로 마감.
 // 거절 플로우는 없음(신청=수락). 완료 처리자·시각을 기록한다.
 

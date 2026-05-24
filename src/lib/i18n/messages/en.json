@@ -296,7 +296,13 @@
     "confirmNo": "No",
     "markDone": "Refund request",
     "prev": "Prev",
-    "next": "Next"
+    "next": "Next",
+    "reasonLabel": {
+      "CUSTOMER_REQUEST": "Customer request",
+      "CLASS_DISCONTINUED": "Class discontinued",
+      "SERVICE_DISCONTINUED": "Service discontinued",
+      "STAFF_UNAVAILABLE": "Staff unavailable"
+    }
   },
   "products": {
     "pageTitle": "Products",
@@ -887,6 +893,11 @@
     "todayLabel": "Today",
     "closureTitle": "We are closed today",
     "closureReason": "Reason: {reason}",
+    "refundNoticeTitle": "Refund notice",
+    "refundNoticeBody": "This service has been discontinued — 100% refund for your remaining sessions.",
+    "refundNoticeRemaining": "{n} left",
+    "refundNoticeTotalLabel": "Total",
+    "refundNoticeVisit": "Please stop by the counter at your convenience.",
     "todayTitle": "Today's session",
     "todayEmpty": "No reservation today.",
     "todayLinePersonal": "{time} {service} with {trainer}",
@@ -1200,6 +1211,25 @@
         "dateFormat": "Invalid date format",
         "untilBeforeFrom": "End date cannot be earlier than start date",
         "staffRequired": "Please assign a trainer"
+      },
+      "deleteDialog": {
+        "eyebrow": "Confirm schedule deletion",
+        "close": "Close",
+        "loading": "Checking impact...",
+        "errorPreview": "Failed to check impact. Verify permissions.",
+        "errorApply": "An error occurred. Please try again.",
+        "noImpact": "No members or reservations affected. Delete this schedule?",
+        "warningTitle": "Members will be refunded",
+        "warningBody": "{members} members with remaining sessions · {reservations} upcoming reservations affected.",
+        "otherSchedulesHint": "{n} other time slots are running for this service. If members can be absorbed there, delete without refund.",
+        "membersHeader": "Refund recipients",
+        "totalRefund": "Total {amount}",
+        "remainingLabel": "{n} left",
+        "cancel": "Cancel",
+        "deleteConfirm": "Delete",
+        "deleteWithoutRefund": "Delete without refund",
+        "deleteWithRefund": "Refund + delete",
+        "applying": "Processing..."
       }
     },
     "errors": {

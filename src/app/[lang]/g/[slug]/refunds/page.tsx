@@ -129,6 +129,7 @@ export default async function RefundsPage({
         bankName: true,
         bankAccount: true,
         accountHolder: true,
+        reason: true,
         status: true,
         requestedAt: true,
         completedAt: true,
