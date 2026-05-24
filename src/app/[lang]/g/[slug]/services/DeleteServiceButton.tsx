@@ -39,10 +39,14 @@ export function DeleteServiceButton({
     setError(null);
     startTransition(async () => {
       const res = await deleteService(slug, serviceId);
-      if (res.error) {
+      if ("error" in res) {
         const msg =
-          res.error === "hasReservations"
-            ? te("hasReservations")
+          res.error === "hasReferences"
+            ? te("hasReferences", {
+                plans: res.refs.plans,
+                packages: res.refs.packages,
+                reservations: res.refs.reservations,
+              })
             : te("permission");
         setError(msg);
       }

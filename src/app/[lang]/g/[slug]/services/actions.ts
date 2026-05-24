@@ -216,10 +216,18 @@ export async function updateService(
   return { ok: true, at: Date.now() };
 }
 
+export type DeleteServiceResult =
+  | { ok: true }
+  | { error: "permission" }
+  | {
+      error: "hasReferences";
+      refs: { plans: number; packages: number; reservations: number };
+    };
+
 export async function deleteService(
   slug: string,
   serviceId: string,
-): Promise<{ ok?: boolean; error?: string }> {
+): Promise<DeleteServiceResult> {
   const auth = await requireGymStaff(slug);
   if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
     return { error: "permission" };
@@ -231,16 +239,25 @@ export async function deleteService(
     return { error: "permission" };
   }
 
-  // 진행 중·예정된 예약이 남아있으면 삭제 차단 — 이력 데이터 보호.
-  const activeCount = await prisma.reservation.count({
-    where: {
-      serviceId,
-      status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
-      endAt: { gte: new Date() },
-    },
-  });
-  if (activeCount > 0) {
-    return { error: "hasReservations" };
+  // 종목 hard delete 는 참조 0건일 때만 허용 — DB의 onDelete: Restrict 와 동일한
+  // 가드를 앱 계층에서 사전에 돌려 P2003(외래키 위반) 500 을 친절한 에러로 변환.
+  // 활성 운영 종목은 사실상 폐지 불가 — 정식 폐지 흐름(Service.active soft delete)은
+  // 별도 결정 대기. [[decision_class_deletion_refund_flow]] 의 "Service 자체 폐지 보류"
+  // 항목 참고. ScheduledClass 는 onDelete: Cascade 라 검사 대상 아님.
+  const [planCount, packageCount, reservationCount] = await Promise.all([
+    prisma.packagePlan.count({ where: { serviceId } }),
+    prisma.package.count({ where: { serviceId } }),
+    prisma.reservation.count({ where: { serviceId } }),
+  ]);
+  if (planCount + packageCount + reservationCount > 0) {
+    return {
+      error: "hasReferences",
+      refs: {
+        plans: planCount,
+        packages: packageCount,
+        reservations: reservationCount,
+      },
+    };
   }
 
   await prisma.service.delete({ where: { id: serviceId } });

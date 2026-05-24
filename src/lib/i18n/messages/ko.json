@@ -1221,13 +1221,11 @@
         "noImpact": "예약 회원과 잔여 수업권 보유 회원이 없습니다. 그대로 삭제하시겠습니까?",
         "warningTitle": "환불 대상 회원이 있습니다",
         "warningBody": "잔여 수업권 보유 {members}명 · 향후 예약 {reservations}건이 영향을 받습니다.",
-        "otherSchedulesHint": "같은 종목에 다른 시간대 {n}개가 운영 중입니다. 회원이 다른 시간으로 흡수 가능하면 환불 없이 삭제할 수 있습니다.",
         "membersHeader": "환불 대상 명단",
         "totalRefund": "합계 {amount}",
         "remainingLabel": "잔여 {n}회",
         "cancel": "취소",
         "deleteConfirm": "삭제 진행",
-        "deleteWithoutRefund": "환불 없이 삭제",
         "deleteWithRefund": "환불 후 삭제",
         "applying": "처리 중..."
       }
@@ -1240,7 +1238,8 @@
       "payoutNegative": "지급액은 0 이상이어야 합니다",
       "payoutOverPrice": "지급액이 가격보다 클 수 없습니다",
       "permission": "권한이 없습니다",
-      "hasReservations": "진행 중인 예약이 있어 삭제할 수 없습니다"
+      "hasReservations": "진행 중인 예약이 있어 삭제할 수 없습니다",
+      "hasReferences": "이 종목엔 등록된 상품·권·예약 이력이 남아있어 삭제할 수 없습니다. (상품 {plans} · 발급 권 {packages} · 예약 {reservations})"
     }
   },
   "showcase": {

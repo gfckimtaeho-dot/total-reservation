@@ -53,14 +53,10 @@ export function ScheduleDeleteDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [applying, onClose]);
 
-  function apply(withRefund: boolean) {
+  function apply() {
     setError(null);
     startApply(async () => {
-      const r = await applyScheduleDeletion({
-        slug,
-        scheduleId,
-        withRefund,
-      });
+      const r = await applyScheduleDeletion({ slug, scheduleId });
       if (r.error) {
         setError(t("errorApply"));
         return;
@@ -72,8 +68,6 @@ export function ScheduleDeleteDialog({
   const hasImpact =
     impact?.ok &&
     (impact.affectedMembers.length > 0 || impact.futureReservationsCount > 0);
-  const hasOtherSchedules =
-    impact?.ok && impact.otherActiveSchedulesCount > 0;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
@@ -133,13 +127,6 @@ export function ScheduleDeleteDialog({
                     reservations: impact.futureReservationsCount,
                   })}
                 </p>
-                {hasOtherSchedules && (
-                  <p className="mt-2 text-xs text-amber-200/80">
-                    {t("otherSchedulesHint", {
-                      n: impact.otherActiveSchedulesCount,
-                    })}
-                  </p>
-                )}
               </div>
 
               {impact.affectedMembers.length > 0 && (
@@ -192,19 +179,9 @@ export function ScheduleDeleteDialog({
             >
               {t("cancel")}
             </button>
-            {hasImpact && hasOtherSchedules && (
-              <button
-                type="button"
-                onClick={() => apply(false)}
-                disabled={applying}
-                className="flex-1 rounded-full bg-amber-500/20 px-4 py-2.5 text-sm font-medium text-amber-200 ring-1 ring-amber-500/40 hover:bg-amber-500/30 disabled:opacity-50"
-              >
-                {applying ? t("applying") : t("deleteWithoutRefund")}
-              </button>
-            )}
             <button
               type="button"
-              onClick={() => apply(hasImpact)}
+              onClick={apply}
               disabled={applying}
               className="flex-1 rounded-full bg-gradient-to-r from-rose-500 to-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_15px_40px_-15px_rgba(244,63,94,0.55)] hover:brightness-110 disabled:opacity-60"
             >

@@ -1221,13 +1221,11 @@
         "noImpact": "No members or reservations affected. Delete this schedule?",
         "warningTitle": "Members will be refunded",
         "warningBody": "{members} members with remaining sessions · {reservations} upcoming reservations affected.",
-        "otherSchedulesHint": "{n} other time slots are running for this service. If members can be absorbed there, delete without refund.",
         "membersHeader": "Refund recipients",
         "totalRefund": "Total {amount}",
         "remainingLabel": "{n} left",
         "cancel": "Cancel",
         "deleteConfirm": "Delete",
-        "deleteWithoutRefund": "Delete without refund",
         "deleteWithRefund": "Refund + delete",
         "applying": "Processing..."
       }
@@ -1240,7 +1238,8 @@
       "payoutNegative": "Payout must be 0 or higher",
       "payoutOverPrice": "Payout cannot exceed the price",
       "permission": "Permission denied",
-      "hasReservations": "Cannot delete — this service has active reservations"
+      "hasReservations": "Cannot delete — this service has active reservations",
+      "hasReferences": "Cannot delete — service has {plans} plans, {packages} issued packages, {reservations} reservation records."
     }
   },
   "showcase": {

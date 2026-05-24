@@ -318,18 +318,14 @@ export async function previewScheduleDeletionImpact(
 
 // ─── 단체수업 삭제 적용 ─────────────────────────────────────
 //
-// withRefund=true: 영향 회원 전원에게 RefundRequest(PENDING) 자동 생성 +
-//   각 권 refundedAt 동결 + 미래 예약 자동 취소 + 스케줄 soft delete.
-// withRefund=false: 미래 예약만 자동 취소 + 스케줄 soft delete.
-//   (같은 service에 다른 시간대가 있어 회원이 흡수 가능한 케이스 — 사장 판단)
-//
-// hard delete 대신 active=false soft delete — 과거 Reservation 의 클래스
-// 참조 + 매출/실적 리포트 역사 보존. 캘린더 표시에서는 active=false 필터.
+// 영향 회원이 있으면 RefundRequest(PENDING) 자동 생성 + 각 권 refundedAt 동결.
+// 미래 예약은 항상 자동 취소. 스케줄은 hard delete 대신 active=false soft delete —
+// 과거 Reservation 의 클래스 참조 + 매출/실적 리포트 역사 보존. 캘린더 표시에서는
+// active=false 필터.
 
 export async function applyScheduleDeletion(input: {
   slug: string;
   scheduleId: string;
-  withRefund: boolean;
 }): Promise<{ ok?: boolean; error?: string; refundCount?: number }> {
   const auth = await requireGymStaff(input.slug);
   if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
@@ -368,8 +364,8 @@ export async function applyScheduleDeletion(input: {
       });
     }
 
-    // 2) 환불 진행 옵션이면 — 영향 회원 전원에게 RefundRequest 생성 + 권 동결.
-    if (input.withRefund) {
+    // 2) 영향 회원이 있으면 — 전원에게 RefundRequest 생성 + 권 동결.
+    if (impact.affectedMembers.length > 0) {
       for (const m of impact.affectedMembers) {
         await tx.refundRequest.create({
           data: {
@@ -409,7 +405,7 @@ export async function applyScheduleDeletion(input: {
   revalidatePath(`/en/g/${input.slug}/refunds`);
   return {
     ok: true,
-    refundCount: input.withRefund ? impact.affectedMembers.length : 0,
+    refundCount: impact.affectedMembers.length,
   };
 }
 
@@ -428,10 +424,6 @@ export async function deleteSchedule(
   ) {
     return { error: "hasImpact" };
   }
-  const r = await applyScheduleDeletion({
-    slug,
-    scheduleId,
-    withRefund: false,
-  });
+  const r = await applyScheduleDeletion({ slug, scheduleId });
   return r;
 }
