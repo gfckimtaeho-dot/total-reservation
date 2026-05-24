@@ -179,7 +179,7 @@ function QrCard({ qr, t }: { qr: AccessQrResult; t: T }) {
     <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 shadow-[0_30px_80px_-30px_rgba(249,115,22,0.4)] backdrop-blur">
       {qr.ok ? (
         <div className="mx-auto w-full max-w-[14.5rem]">
-          <div className="mx-auto w-[7.25rem] rounded-2xl bg-gradient-to-br from-orange-50 to-rose-50 p-2.5">
+          <div className="mx-auto w-[10rem] rounded-2xl bg-gradient-to-br from-orange-50 to-rose-50 p-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr.qr}
@@ -187,7 +187,7 @@ function QrCard({ qr, t }: { qr: AccessQrResult; t: T }) {
               className="block aspect-square w-full"
             />
           </div>
-          <div className="mt-2.5 text-center text-base font-semibold tabular-nums text-orange-600">
+          <div className="mt-5 text-center text-base font-semibold tabular-nums text-orange-600">
             {t("qrExpires", { date: qr.expiresYmd })}
           </div>
         </div>

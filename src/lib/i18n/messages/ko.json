@@ -294,7 +294,7 @@
     "statusDone": "완료됨",
     "confirmYes": "예",
     "confirmNo": "아니요",
-    "markDone": "환불 완료",
+    "markDone": "환불 요청",
     "prev": "이전",
     "next": "다음"
   },
@@ -1316,6 +1316,9 @@
     "groupAttendanceBack": "수강생 명단",
     "groupCompleteTodayOnly": "완료 처리는 당일 수업만 가능합니다",
     "uncomplete": "완료 취소",
+    "today": "오늘",
+    "backOneMonth": "◀ 한 달 전",
+    "backOneWeek": "◀ 일주일 전",
     "refresh": "새로고침",
     "refreshing": "조회 중...",
     "myCustomersHeading": "내 담당 고객",

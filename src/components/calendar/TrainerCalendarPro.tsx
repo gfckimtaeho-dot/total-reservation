@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo } from "react";
+import { useState, useTransition, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type {
@@ -147,6 +147,15 @@ export function TrainerCalendarPro({
   const lastStart = Math.max(0, data.days.length - 1);
   const clampSel = (i: number) => Math.min(Math.max(0, i), lastStart);
   const visible = data.days.slice(selIdx, selIdx + COLS);
+
+  // 점프(헤더 버튼·컬럼 헤더 클릭·classMode) 시 visible 윈도우가 selIdx로
+  // 옮겨가지만, 가로 스크롤 위치(scrollLeft)는 사용자가 직전에 끌어둔 값이
+  // 남아 있어 첫 컬럼이 화면 밖으로 어긋남. selIdx 변경마다 scrollLeft=0 으로
+  // 되돌려 새 visible 의 첫 컬럼(= 이동 후 기준일)을 항상 화면 좌측에 맞춤.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ left: 0 });
+  }, [selIdx]);
 
   // 오늘 일정 헤더 날짜 — 숫자형(5/21)이 한눈에 보기 쉬움 + 요일·연도.
   const todayWeekday = new Intl.DateTimeFormat(
@@ -577,8 +586,32 @@ export function TrainerCalendarPro({
         );
       })()}
 
-      {/* 헤더 — Refresh 만. 선택일/네비는 컬럼 헤더 탭으로 대체. */}
-      <div className="mt-4 flex justify-end">
+      {/* 헤더 — 이전 한 달 / 오늘 / 새로고침. visible 윈도우(selIdx ~ +COLS)
+          가 오늘부터라 좌측에 과거가 없어 가로 스크롤로 못 봄 → "이전 한 달"
+          버튼이 selIdx를 30일 앞으로 당겨 가로에 과거가 보이게 함. data.days
+          자체는 prev~next 3개월 연속이므로 데이터는 이미 충분. Today는 회귀점. */}
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setSelIdx(clampSel(selIdx - 30))}
+          className="h-9 rounded-md border border-zinc-500/50 px-4 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-500/15"
+        >
+          {t("backOneMonth")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSelIdx(clampSel(selIdx - 7))}
+          className="h-9 rounded-md border border-zinc-500/50 px-4 text-sm font-semibold text-zinc-300 transition hover:bg-zinc-500/15"
+        >
+          {t("backOneWeek")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSelIdx(clampSel(data.todayIdx))}
+          className="h-9 rounded-md border border-orange-400/50 px-4 text-sm font-semibold text-orange-300 transition hover:bg-orange-400/15"
+        >
+          {t("today")}
+        </button>
         <button
           type="button"
           onClick={() => startRefresh(() => router.refresh())}
@@ -622,7 +655,10 @@ export function TrainerCalendarPro({
       {err && <p className="mt-2 text-sm text-rose-400">{err}</p>}
 
       {/* 그리드 — 가로 스크롤, 시간축+선택일 sticky */}
-      <div className="mt-3 overflow-x-auto [scrollbar-width:thin]">
+      <div
+        ref={scrollRef}
+        className="mt-3 overflow-x-auto [scrollbar-width:thin]"
+      >
         <div className="flex min-w-max">
           {/* 시간축 */}
           <div

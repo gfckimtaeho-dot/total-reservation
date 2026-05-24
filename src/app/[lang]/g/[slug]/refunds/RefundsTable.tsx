@@ -446,7 +446,7 @@ export function RefundsTable({
                             setError(null);
                             setConfirmId(r.id);
                           }}
-                          className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${tk.btn} disabled:opacity-50`}
+                          className="rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-400 disabled:opacity-50"
                         >
                           {t("markDone")}
                         </button>

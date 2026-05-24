@@ -294,7 +294,7 @@
     "statusDone": "Done",
     "confirmYes": "Yes",
     "confirmNo": "No",
-    "markDone": "Mark done",
+    "markDone": "Refund request",
     "prev": "Prev",
     "next": "Next"
   },
@@ -1316,6 +1316,9 @@
     "groupAttendanceBack": "Student list",
     "groupCompleteTodayOnly": "Only today's class can be completed",
     "uncomplete": "Undo completion",
+    "today": "Today",
+    "backOneMonth": "◀ 1 month",
+    "backOneWeek": "◀ 1 week",
     "refresh": "Refresh",
     "refreshing": "Refreshing...",
     "myCustomersHeading": "My customers",

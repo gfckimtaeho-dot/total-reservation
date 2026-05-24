@@ -51,7 +51,13 @@ export async function requestAccessQr(
   const now = new Date();
   const [validMembership, reservationToday, existing] = await Promise.all([
     prisma.membership.findFirst({
-      where: { userId, gymId, endDate: { gte: today } },
+      // 환불 신청/완료된 회원권은 동결(refundedAt) — endDate가 살아있어도 QR 자격 X.
+      where: {
+        userId,
+        gymId,
+        endDate: { gte: today },
+        refundedAt: null,
+      },
       orderBy: { endDate: "desc" },
       select: { endDate: true },
     }),
