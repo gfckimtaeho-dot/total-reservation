@@ -1,11 +1,15 @@
 // 예약 가능 시간 슬롯 계산.
 // 매장 영업시간 (BusinessHours + BusinessClosure)
 //   ∩ 트레이너 출근일 (Staff.weeklyOffDays / StaffLeave)
+//   ∩ 트레이너 근무시간 (Staff.workStartMin / workEndMin)
 //   ∖ 매장 휴게시간
+//   ∖ 트레이너 개인 휴게 (Staff.breakStartMin / breakEndMin)
 //   ∖ 기존 예약 (Reservation, 그 트레이너의 같은 날)
 //
-// 트레이너는 별도 일일 영업시간을 갖지 않고 매장 시간을 그대로 따른다는
-// 가정 (사용자 결정 2026-05-11).
+// 2026-05-27 결정 — 단체수업 schedule 검사([[decision_class_deletion_refund_flow]]
+// 이 아닌 staff availability)와 정책 정렬. 트레이너별 정기 근무시간·개인 휴게가
+// 매장 시간과 다를 수 있다면 그것을 우선. 2026-05-11 결정("트레이너는 매장 시간
+// 그대로 따른다")은 명시 폐기.
 
 import { prisma } from "@/lib/db/client";
 import { computeStatus, weekdayOf, ymd } from "@/lib/hours/status";
@@ -90,7 +94,14 @@ export async function getAvailability(args: {
     }),
     prisma.staff.findUnique({
       where: { id: staffId },
-      select: { id: true, weeklyOffDays: true },
+      select: {
+        id: true,
+        weeklyOffDays: true,
+        workStartMin: true,
+        workEndMin: true,
+        breakStartMin: true,
+        breakEndMin: true,
+      },
     }),
     prisma.service.findUnique({
       where: { id: serviceId },
@@ -143,9 +154,25 @@ export async function getAvailability(args: {
   }
 
   const { openMin, closeMin, breakStartMin, breakEndMin } = storeStatus;
+
+  // 트레이너 근무시간 ∩ 매장 영업시간 — workStartMin/EndMin 이 null 이면 매장 시간 그대로.
+  const effectiveOpen = Math.max(openMin, staff.workStartMin ?? openMin);
+  const effectiveClose = Math.min(closeMin, staff.workEndMin ?? closeMin);
+  if (effectiveOpen >= effectiveClose) {
+    // 트레이너 근무시간이 매장 영업시간과 겹치지 않음 → 사실상 그 날 출근 불가.
+    return { state: "TRAINER_OFF", reason: "WEEKLY_OFF", leaveReason: null };
+  }
+
   const breaks: Slot[] = [];
   if (breakStartMin != null && breakEndMin != null) {
     breaks.push({ startMin: breakStartMin, endMin: breakEndMin });
+  }
+  // 트레이너 개인 휴게 (매장 휴게와 별개)
+  if (staff.breakStartMin != null && staff.breakEndMin != null) {
+    breaks.push({
+      startMin: staff.breakStartMin,
+      endMin: staff.breakEndMin,
+    });
   }
   // 기존 예약도 break처럼 처리
   for (const r of existing) {
@@ -154,11 +181,11 @@ export async function getAvailability(args: {
     breaks.push({ startMin: s, endMin: e });
   }
 
-  const windows = applyBreaks(openMin, closeMin, breaks);
+  const windows = applyBreaks(effectiveOpen, effectiveClose, breaks);
   const step = service.timeUnit === "M30" ? 30 : 60;
   const slots = slidingSlots(windows, service.durationMin, step);
 
-  return { state: "OPEN", slots, openMin, closeMin };
+  return { state: "OPEN", slots, openMin: effectiveOpen, closeMin: effectiveClose };
 }
 
 export const __test__ = { applyBreaks, slidingSlots, overlaps };
