@@ -1210,7 +1210,10 @@
         "hasReservations": "Cannot delete — this schedule has active reservations",
         "dateFormat": "Invalid date format",
         "untilBeforeFrom": "End date cannot be earlier than start date",
-        "staffRequired": "Please assign a trainer"
+        "staffRequired": "Please assign a trainer",
+        "staffWeeklyOff": "Conflicts with the selected trainer's weekly off day. Remove that weekday or pick another trainer.",
+        "outsideWorkingHours": "Outside the selected trainer's working hours. Adjust the time or pick another trainer.",
+        "staffBreakConflict": "Overlaps with the selected trainer's break time. Adjust the time."
       },
       "deleteDialog": {
         "eyebrow": "Confirm schedule deletion",

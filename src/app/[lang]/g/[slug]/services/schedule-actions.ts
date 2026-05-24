@@ -6,6 +6,10 @@ import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import type { Weekday } from "@/generated/prisma/enums";
 import { packageStoreLiabilityRefund } from "@/lib/refunds/store-liability";
+import {
+  checkStaffAvailability,
+  weekdayOfUtcDate,
+} from "@/lib/booking/staffAvailability";
 
 const weekdayZ = z.enum(["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]);
 const dateZ = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "dateFormat");
@@ -135,6 +139,10 @@ export async function createSchedule(
     return { errors: { staffId: ["permission"] } };
   }
 
+  // 트레이너 정기 가용성 검사 — 주간 휴무·근무시간·개인 휴게 3종.
+  // StaffLeave(특정 휴가)는 별도 처리(RECURRING 부분 충돌 흐름).
+  const endMin = startMin + service.durationMin;
+
   if (data.kind === "RECURRING") {
     const from = parseYmd(data.validFrom);
     if (!from) return { errors: { validFrom: ["dateFormat"] } };
@@ -144,6 +152,18 @@ export async function createSchedule(
       if (!until) return { errors: { validUntil: ["dateFormat"] } };
       if (until < from) {
         return { errors: { validUntil: ["untilBeforeFrom"] } };
+      }
+    }
+
+    for (const wd of data.weekdays as Weekday[]) {
+      const check = checkStaffAvailability({
+        weekday: wd,
+        startMin,
+        endMin,
+        staff,
+      });
+      if (!check.ok) {
+        return { errors: { staffId: [check.reason] } };
       }
     }
 
@@ -166,6 +186,16 @@ export async function createSchedule(
     // ONE_OFF
     const date = parseYmd(data.specificDate);
     if (!date) return { errors: { specificDate: ["dateFormat"] } };
+
+    const check = checkStaffAvailability({
+      weekday: weekdayOfUtcDate(date),
+      startMin,
+      endMin,
+      staff,
+    });
+    if (!check.ok) {
+      return { errors: { staffId: [check.reason] } };
+    }
 
     await prisma.scheduledClass.create({
       data: {

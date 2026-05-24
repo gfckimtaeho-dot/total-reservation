@@ -162,6 +162,9 @@ function errorMessage(
   if (first === "dateFormat") return te("dateFormat");
   if (first === "untilBeforeFrom") return te("untilBeforeFrom");
   if (first === "staffRequired") return te("staffRequired");
+  if (first === "staffWeeklyOff") return te("staffWeeklyOff");
+  if (first === "outsideWorkingHours") return te("outsideWorkingHours");
+  if (first === "staffBreakConflict") return te("staffBreakConflict");
   return first;
 }
 
@@ -519,9 +522,11 @@ function RecurringForm({
         />
       </div>
 
-      {(!staffId || errOf("staffId")) && (
+      {!staffId ? (
         <p className={`text-sm ${tk.error}`}>{te("staffRequired")}</p>
-      )}
+      ) : errOf("staffId") ? (
+        <p className={`text-sm ${tk.error}`}>{errOf("staffId")}</p>
+      ) : null}
       {state.errors?._global && (
         <p className={`text-sm ${tk.error}`}>{errOf("_global")}</p>
       )}
@@ -601,9 +606,11 @@ function OneOffForm({
         errOf={errOf}
       />
 
-      {(!staffId || errOf("staffId")) && (
+      {!staffId ? (
         <p className={`text-sm ${tk.error}`}>{te("staffRequired")}</p>
-      )}
+      ) : errOf("staffId") ? (
+        <p className={`text-sm ${tk.error}`}>{errOf("staffId")}</p>
+      ) : null}
       {state.errors?._global && (
         <p className={`text-sm ${tk.error}`}>{errOf("_global")}</p>
       )}

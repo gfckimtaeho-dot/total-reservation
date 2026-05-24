@@ -64,11 +64,16 @@ export function ServiceDeleteDialog({
     });
   }
 
-  const hasImpact =
+  // 경고 박스(warning) 표시 = 사장이 인지해야 할 영향이 하나라도 있음.
+  // 버튼 라벨의 "환불" 단어는 실제 RefundRequest 가 만들어질 때만 — 잔여권
+  // 보유 회원(affectedMembers) 이 있을 때만 환불이 발생한다. 미래 예약이나
+  // 스케줄은 자동 취소·soft delete 만 일어나고 환불과 무관.
+  const hasWarning =
     impact?.ok &&
     (impact.affectedMembers.length > 0 ||
       impact.futureReservationsCount > 0 ||
       impact.activeSchedulesCount > 0);
+  const hasRefund = impact?.ok && impact.affectedMembers.length > 0;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
@@ -112,13 +117,13 @@ export function ServiceDeleteDialog({
             </div>
           )}
 
-          {!loading && impact?.ok && !hasImpact && (
+          {!loading && impact?.ok && !hasWarning && (
             <div className="space-y-3 text-sm text-zinc-300">
               <p>{t("noImpact")}</p>
             </div>
           )}
 
-          {!loading && impact?.ok && hasImpact && (
+          {!loading && impact?.ok && hasWarning && (
             <div className="space-y-4">
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
                 <div className="font-semibold">{t("warningTitle")}</div>
@@ -189,7 +194,7 @@ export function ServiceDeleteDialog({
             >
               {applying
                 ? t("applying")
-                : hasImpact
+                : hasRefund
                   ? t("deleteWithRefund")
                   : t("deleteConfirm")}
             </button>

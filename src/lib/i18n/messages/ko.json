@@ -1210,7 +1210,10 @@
         "hasReservations": "이 스케줄에 진행 중인 예약이 있어 삭제할 수 없습니다",
         "dateFormat": "날짜 형식이 올바르지 않습니다",
         "untilBeforeFrom": "종료일은 시작일보다 빠를 수 없습니다",
-        "staffRequired": "담당 트레이너를 지정해 주세요"
+        "staffRequired": "담당 트레이너를 지정해 주세요",
+        "staffWeeklyOff": "선택한 트레이너의 정기 휴무 요일과 겹칩니다. 요일을 빼거나 다른 트레이너를 선택해 주세요",
+        "outsideWorkingHours": "선택한 트레이너의 근무 시간 밖입니다. 시간을 조정하거나 다른 트레이너를 선택해 주세요",
+        "staffBreakConflict": "선택한 트레이너의 휴게 시간과 겹칩니다. 시간을 조정해 주세요"
       },
       "deleteDialog": {
         "eyebrow": "스케줄 삭제 확인",

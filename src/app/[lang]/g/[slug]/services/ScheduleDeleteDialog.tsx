@@ -65,9 +65,12 @@ export function ScheduleDeleteDialog({
     });
   }
 
-  const hasImpact =
+  // 경고 박스 = 사장이 인지해야 할 영향(예약 취소 포함). 버튼 "환불" 라벨은
+  // 실제 RefundRequest 가 만들어질 때만 = 잔여권 보유 회원이 있을 때만.
+  const hasWarning =
     impact?.ok &&
     (impact.affectedMembers.length > 0 || impact.futureReservationsCount > 0);
+  const hasRefund = impact?.ok && impact.affectedMembers.length > 0;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
@@ -111,13 +114,13 @@ export function ScheduleDeleteDialog({
             </div>
           )}
 
-          {!loading && impact?.ok && !hasImpact && (
+          {!loading && impact?.ok && !hasWarning && (
             <div className="space-y-3 text-sm text-zinc-300">
               <p>{t("noImpact")}</p>
             </div>
           )}
 
-          {!loading && impact?.ok && hasImpact && (
+          {!loading && impact?.ok && hasWarning && (
             <div className="space-y-4">
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
                 <div className="font-semibold">{t("warningTitle")}</div>
@@ -187,7 +190,7 @@ export function ScheduleDeleteDialog({
             >
               {applying
                 ? t("applying")
-                : hasImpact
+                : hasRefund
                   ? t("deleteWithRefund")
                   : t("deleteConfirm")}
             </button>
