@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db/client";
 import { NoteEditor } from "./NoteEditor";
+import { HandoverDialog } from "../../handover/HandoverDialog";
 
 // 내 고객 상세 — 프로필 + 보유 권 + PT 히스토리(완료, 메모 편집) + 예정 PT.
 // 가드: 트레이너는 본인 담당 권 가진 고객만 접근. OWNER/MANAGER 는 매장 전체.
@@ -18,6 +19,7 @@ export default async function MyClientDetailPage({
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
   const t = await getTranslations("dashboard");
+  const tc = await getTranslations("common");
 
   const staff =
     auth.role === "OWNER" || auth.role === "MANAGER"
@@ -58,7 +60,13 @@ export default async function MyClientDetailPage({
           id: true,
           remainingCount: true,
           totalCount: true,
+          serviceId: true,
           service: { select: { name: true, capacity: true } },
+          assignedStaff: {
+            select: {
+              user: { select: { id: true, name: true } },
+            },
+          },
         },
       }),
       prisma.reservation.findMany({
@@ -91,6 +99,7 @@ export default async function MyClientDetailPage({
         },
         select: {
           id: true,
+          serviceId: true,
           startAt: true,
           service: { select: { name: true } },
         },
@@ -103,6 +112,46 @@ export default async function MyClientDetailPage({
 
   const oneToOnePkgs = packages.filter((p) => p.service.capacity === 1);
   const groupPkgs = packages.filter((p) => p.service.capacity > 1);
+
+  // 1:1 service 양도는 service 단위 일괄 → serviceId 로 group.
+  type OneToOneGroup = {
+    serviceId: string;
+    serviceName: string;
+    totalRemaining: number;
+    totalCount: number;
+    packageCount: number;
+    currentTrainerUserId: string | null;
+    currentTrainerName: string | null;
+  };
+  const oneToOneGroupsMap = new Map<string, OneToOneGroup>();
+  for (const p of oneToOnePkgs) {
+    const g = oneToOneGroupsMap.get(p.serviceId);
+    if (g) {
+      g.totalRemaining += p.remainingCount;
+      g.totalCount += p.totalCount;
+      g.packageCount += 1;
+    } else {
+      oneToOneGroupsMap.set(p.serviceId, {
+        serviceId: p.serviceId,
+        serviceName: p.service.name,
+        totalRemaining: p.remainingCount,
+        totalCount: p.totalCount,
+        packageCount: 1,
+        currentTrainerUserId: p.assignedStaff?.user.id ?? null,
+        currentTrainerName: p.assignedStaff?.user.name ?? null,
+      });
+    }
+  }
+  const oneToOneGroups = Array.from(oneToOneGroupsMap.values());
+
+  // service 별 미래 예약 카운트 — HandoverDialog 영향 요약용.
+  const upcomingCountByService = new Map<string, number>();
+  for (const r of upcomingReservations) {
+    upcomingCountByService.set(
+      r.serviceId,
+      (upcomingCountByService.get(r.serviceId) ?? 0) + 1,
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
@@ -124,9 +173,9 @@ export default async function MyClientDetailPage({
         </Link>
         <Link
           href={`/${lang}/g/${slug}/dashboard`}
-          className="shrink-0 rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/5"
+          className="shrink-0 rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
         >
-          {t("myClientsBack")}
+          {tc("home")}
         </Link>
       </header>
 
@@ -142,20 +191,39 @@ export default async function MyClientDetailPage({
             </p>
           ) : (
             <ul className="mt-3 space-y-1.5">
-              {oneToOnePkgs.map((p) => (
+              {oneToOneGroups.map((g) => (
                 <li
-                  key={p.id}
-                  className="flex items-center justify-between rounded-lg bg-zinc-950/50 px-3 py-2 text-sm"
+                  key={g.serviceId}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-zinc-950/50 px-3 py-2 text-sm"
                 >
-                  <span className="font-medium text-white">
-                    {p.service.name}
+                  <span className="min-w-0 truncate font-medium text-white">
+                    {g.serviceName}
                   </span>
-                  <span className="tabular-nums text-emerald-300">
-                    {p.remainingCount}
-                    <span className="ml-1 text-xs text-zinc-500">
-                      / {p.totalCount}
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="tabular-nums text-emerald-300">
+                      {g.totalRemaining}
+                      <span className="ml-1 text-xs text-zinc-500">
+                        / {g.totalCount}
+                      </span>
                     </span>
-                  </span>
+                    {g.currentTrainerUserId && (
+                      <HandoverDialog
+                        slug={slug}
+                        customerId={customer.id}
+                        customerName={customer.name}
+                        serviceId={g.serviceId}
+                        serviceName={g.serviceName}
+                        fromStaffUserId={g.currentTrainerUserId}
+                        fromStaffName={g.currentTrainerName ?? ""}
+                        activePackages={g.packageCount}
+                        upcomingReservations={
+                          upcomingCountByService.get(g.serviceId) ?? 0
+                        }
+                        tone="dark"
+                        successHref={`/${lang}/g/${slug}/my-clients`}
+                      />
+                    )}
+                  </div>
                 </li>
               ))}
               {groupPkgs.map((p) => (
@@ -184,17 +252,17 @@ export default async function MyClientDetailPage({
             {t("myClientsUpcoming")}
           </h2>
           {upcomingReservations.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-500">
+            <p className="mt-3 text-base text-zinc-500">
               {t("myClientsUpcomingEmpty")}
             </p>
           ) : (
-            <ul className="mt-3 space-y-1.5">
+            <ul className="mt-3 space-y-2">
               {upcomingReservations.map((r) => (
                 <li
                   key={r.id}
-                  className="flex items-center gap-3 rounded-lg bg-zinc-950/50 px-3 py-2 text-sm"
+                  className="flex items-center gap-3 rounded-lg bg-zinc-950/50 px-4 py-3 text-base"
                 >
-                  <span className="font-mono text-sm tabular-nums text-orange-300">
+                  <span className="font-mono tabular-nums text-orange-300">
                     {formatDateTime(r.startAt, lang)}
                   </span>
                   <span className="text-zinc-300">{r.service.name}</span>
@@ -219,7 +287,7 @@ export default async function MyClientDetailPage({
             )}
           </div>
           {completedReservations.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-500">
+            <p className="mt-3 text-base text-zinc-500">
               {t("myClientsHistoryEmpty")}
             </p>
           ) : (
@@ -227,9 +295,9 @@ export default async function MyClientDetailPage({
               {completedReservations.map((r) => (
                 <li
                   key={r.id}
-                  className="rounded-lg bg-zinc-950/50 p-3"
+                  className="rounded-lg bg-zinc-950/50 p-4"
                 >
-                  <div className="flex items-center gap-3 text-sm">
+                  <div className="flex items-center gap-3 text-base">
                     <span className="font-mono shrink-0 tabular-nums text-emerald-300">
                       {formatDateTime(r.startAt, lang)}
                     </span>
@@ -253,14 +321,22 @@ export default async function MyClientDetailPage({
 }
 
 // UTC-naive 저장 — UTC 파츠가 곧 벽시계. 매장 타임존과 무관하게 그대로 표시.
+// 요일도 함께 — "5/24 (Sat) 14:00" 형식. 사용자가 한눈에 무슨 요일인지 인식.
 function formatDateTime(d: Date, lang: string): string {
-  const fmt = new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
+  const date = new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
     timeZone: "UTC",
     month: "numeric",
     day: "numeric",
+  }).format(d);
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+  }).format(d);
+  const time = new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
+    timeZone: "UTC",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  });
-  return fmt.format(d);
+  }).format(d);
+  return `${date} (${weekday}) ${time}`;
 }

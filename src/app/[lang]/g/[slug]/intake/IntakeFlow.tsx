@@ -62,6 +62,7 @@ export function IntakeFlow({
   embedded?: boolean;
 }) {
   const t = useTranslations("trainerCal");
+  const tc = useTranslations("common");
   const [pending, start] = useTransition();
   const [cust, setCust] = useState<Cust | null>(preset);
   const [tab, setTab] = useState<"existing" | "new">("existing");
@@ -349,9 +350,9 @@ export function IntakeFlow({
             </h1>
             <Link
               href={`/${lang}/g/${slug}/dashboard`}
-              className="rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/5"
+              className="shrink-0 rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
             >
-              ← {t("goDashboard")}
+              {tc("home")}
             </Link>
           </div>
         )}
@@ -375,9 +376,9 @@ export function IntakeFlow({
               {!embedded && (
                 <Link
                   href={`/${lang}/g/${slug}/dashboard`}
-                  className="rounded-md border border-white/15 px-4 py-2 text-sm text-zinc-300"
+                  className="rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
                 >
-                  {t("goDashboard")}
+                  {tc("home")}
                 </Link>
               )}
             </div>

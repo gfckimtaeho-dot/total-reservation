@@ -85,11 +85,17 @@ export type IssuablePlan = {
   sessionCount: number | null; // PACKAGE 만
 };
 
-// 고객의 서비스별 잔여 횟수 — booked 셀 팝오버에 즉시 표시.
+// 고객의 서비스별 메트릭 — booked 셀 팝오버에 즉시 표시.
+// left=remaining(차감 안 된 잔여), upcoming=미래 본인담당 예약,
+// done=완료(이 윈도우), remain=max(0, left−upcoming).
 export type CustomerRemaining = {
   service: string;
+  serviceId: string;
   total: number;
   remaining: number;
+  upcoming: number;
+  done: number;
+  remain: number;
 };
 
 export type TrainerCalendarData = {
@@ -180,6 +186,7 @@ export async function loadTrainerCalendar(
             customerUserId: true,
             scheduledClassId: true,
             completionNote: true,
+            serviceId: true,
             customer: { select: { id: true, name: true } },
             service: { select: { name: true } },
           },
@@ -518,9 +525,28 @@ export async function loadTrainerCalendar(
         userId: true,
         totalCount: true,
         remainingCount: true,
+        serviceId: true,
         service: { select: { name: true } },
       },
     });
+    // 윈도우 안 본인 담당 예약을 (customer, service) 별로 분류 — upcoming/done 카운트.
+    // 같은 reservations 변수를 재활용 (이미 windowStart~End 안 + staffId 본인).
+    const now = new Date();
+    const upcomingKey = new Map<string, number>(); // `${userId}::${serviceId}` → count
+    const doneKey = new Map<string, number>();
+    for (const r of reservations) {
+      const k = `${r.customerUserId}::${r.serviceId}`;
+      if (r.status === "COMPLETED") {
+        doneKey.set(k, (doneKey.get(k) ?? 0) + 1);
+      } else if (
+        r.startAt > now &&
+        (r.status === "CONFIRMED" || r.status === "PENDING_PAYMENT")
+      ) {
+        upcomingKey.set(k, (upcomingKey.get(k) ?? 0) + 1);
+      }
+    }
+
+    // service 단위 합산 (같은 service 권 여러 장이면 left/total 합산).
     const byUser = new Map<string, Map<string, CustomerRemaining>>();
     for (const p of pkgs) {
       const svc = p.service?.name ?? "-";
@@ -529,13 +555,33 @@ export async function loadTrainerCalendar(
         m = new Map();
         byUser.set(p.userId, m);
       }
-      const cur = m.get(svc) ?? { service: svc, total: 0, remaining: 0 };
+      const cur = m.get(p.serviceId) ?? {
+        service: svc,
+        serviceId: p.serviceId,
+        total: 0,
+        remaining: 0,
+        upcoming: 0,
+        done: 0,
+        remain: 0,
+      };
       cur.total += p.totalCount;
       cur.remaining += p.remainingCount;
-      m.set(svc, cur);
+      m.set(p.serviceId, cur);
     }
     for (const [uid, m] of byUser) {
-      remainingByCustomer[uid] = [...m.values()];
+      const list: CustomerRemaining[] = [];
+      for (const s of m.values()) {
+        const k = `${uid}::${s.serviceId}`;
+        const upcoming = upcomingKey.get(k) ?? 0;
+        const done = doneKey.get(k) ?? 0;
+        list.push({
+          ...s,
+          upcoming,
+          done,
+          remain: Math.max(0, s.remaining - upcoming),
+        });
+      }
+      remainingByCustomer[uid] = list;
     }
   }
 

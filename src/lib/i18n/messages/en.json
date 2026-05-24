@@ -60,7 +60,8 @@
     "korean": "한국어",
     "english": "English",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "home": "Home →"
   },
   "settings": {
     "title": "Settings",
@@ -222,6 +223,20 @@
     "logout": "Log out",
     "soon": "Soon",
     "studio": "STUDIO"
+  },
+  "handover": {
+    "actionLabel": "Handover",
+    "title": "Handover {service}",
+    "currentTrainer": "Current",
+    "selectTrainer": "Select new trainer",
+    "noCandidates": "No other trainer available",
+    "impact": "Active packages: {pkg} · upcoming: {res} (conflicts auto-cancel)",
+    "execute": "Execute handover",
+    "executing": "Handing over...",
+    "cancel": "Cancel",
+    "successOk": "Reassigned to {toName}.",
+    "successWithCancel": "Reassigned to {toName}. {transferred} upcoming transferred, {cancelled} cancelled due to conflict.",
+    "note": "A system message will be posted to both chat threads. No refund."
   },
   "chat": {
     "title": "Chat",
@@ -1525,6 +1540,10 @@
     "kindPackageGroup": "Group Pack",
     "ageUnit": "{age} yrs",
     "issueHeading": "Issue services",
-    "issueHint": "Issue a membership / session pack / combo to this member."
+    "issueHint": "Issue a membership / session pack / combo to this member.",
+    "handoverHeading": "Trainer assignment",
+    "handoverHint": "Hand over 1:1 service assignment to another trainer. Group classes are excluded.",
+    "handoverEmpty": "No 1:1 service available for handover.",
+    "handoverCurrentLabel": "Trainer"
   }
 }

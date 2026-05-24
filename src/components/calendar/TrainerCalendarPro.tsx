@@ -26,7 +26,15 @@ import { updateReservationNote } from "@/app/[lang]/g/[slug]/my-clients/actions"
 import { GroupClassModal } from "@/app/[lang]/g/[slug]/dashboard/GroupClassModal";
 import { GroupRegisterModal } from "@/app/[lang]/g/[slug]/dashboard/GroupRegisterModal";
 
-type Remaining = { service: string; total: number; remaining: number };
+type Remaining = {
+  service: string;
+  serviceId: string;
+  total: number;
+  remaining: number;
+  upcoming: number;
+  done: number;
+  remain: number;
+};
 
 const WD_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const WD_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -43,6 +51,13 @@ function hm(min: number): string {
 }
 function keyNum(y: number, m: number, d: number) {
   return y * 10000 + m * 100 + d;
+}
+// 요일 짧은 라벨 (Mon/Tue/...). UTC 정오 기준으로 잡아 DST·타임존 이슈 회피.
+function weekdayShort(y: number, m: number, d: number): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+  }).format(new Date(Date.UTC(y, m - 1, d, 12)));
 }
 
 type Picked = {
@@ -397,7 +412,7 @@ export function TrainerCalendarPro({
       custId: ev.customerId,
       name: ev.customerName,
       service: ev.service,
-      whenLabel: `${hm(slotMin)} · ${g.month}/${g.day}`,
+      whenLabel: `${hm(slotMin)} · ${g.month}/${g.day} (${weekdayShort(g.year, g.month, g.day)})`,
       rel: relOf(g),
       completed: ev.completed,
       completionNote: ev.completionNote,
@@ -1031,51 +1046,69 @@ export function TrainerCalendarPro({
                 className="fixed z-50 rounded-xl border border-orange-400/40 bg-zinc-900 p-4 shadow-xl"
                 style={{ left, top, width: W }}
               >
-                <div className="text-sm">
+                <div className="text-base">
                   <span className="font-mono tabular-nums text-orange-300">
                     {picked.whenLabel}
                   </span>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-base font-semibold text-white">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <span className="text-lg font-bold text-white">
                       {picked.name}
                     </span>
-                    <span className="text-sm text-zinc-400">
+                    <span className="text-base text-zinc-400">
                       {picked.service}
                     </span>
                     {picked.completed && (
-                      <span className="ml-auto rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
+                      <span className="ml-auto rounded bg-emerald-500/15 px-2 py-0.5 text-sm text-emerald-300">
                         ✓ {t("completed")}
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="mt-3 rounded-lg border border-white/10 bg-zinc-950/60 p-2.5">
+                <div className="mt-3 rounded-lg border border-white/10 bg-zinc-950/60 p-3">
                   {rem === null ? (
-                    <div className="text-xs text-zinc-500">
+                    <div className="text-sm text-zinc-500">
                       {t("remainLoading")}
                     </div>
                   ) : rem.length === 0 ? (
-                    <div className="text-xs text-zinc-500">
+                    <div className="text-sm text-zinc-500">
                       {t("remainNone")}
                     </div>
                   ) : (
-                    <ul className="space-y-0.5">
+                    <ul className="space-y-2">
                       {rem.map((x) => (
-                        <li
-                          key={x.service}
-                          className="flex items-center justify-between text-xs"
-                        >
-                          <span className="text-zinc-300">{x.service}</span>
-                          <span className="tabular-nums">
-                            <span className="font-semibold text-orange-300">
-                              {t("remainLeft", { n: x.remaining })}
+                        <li key={x.serviceId} className="text-sm">
+                          <div className="font-semibold text-zinc-200">
+                            {x.service}
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 tabular-nums">
+                            <span>
+                              <span className="font-semibold text-white">
+                                {x.remaining}
+                              </span>
+                              <span className="text-zinc-500"> left</span>
                             </span>
-                            <span className="ml-2 text-zinc-500">
-                              {t("remainDone", {
-                                n: x.total - x.remaining,
-                              })}
+                            <span className="text-zinc-600">·</span>
+                            <span>
+                              <span className="font-semibold text-orange-300">
+                                {x.upcoming}
+                              </span>
+                              <span className="text-zinc-500"> 예약중</span>
                             </span>
-                          </span>
+                            <span className="text-zinc-600">·</span>
+                            <span>
+                              <span className="font-semibold text-emerald-300">
+                                {x.done}
+                              </span>
+                              <span className="text-zinc-500"> 완료</span>
+                            </span>
+                            <span className="text-zinc-600">·</span>
+                            <span>
+                              <span className="font-semibold text-amber-300">
+                                {x.remain}
+                              </span>
+                              <span className="text-zinc-500"> 잔여</span>
+                            </span>
+                          </div>
                         </li>
                       ))}
                     </ul>

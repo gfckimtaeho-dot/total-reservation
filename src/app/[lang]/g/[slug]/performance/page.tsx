@@ -27,6 +27,7 @@ export default async function PerformancePage({
   const auth = await requireGymStaff(slug);
   const gymId = auth.business!.id;
   const t = (await getTranslations("trainerPerf")) as unknown as T;
+  const tc = (await getTranslations("common")) as unknown as T;
 
   const staff = await prisma.staff.findFirst({
     where: { userId: auth.id, gymId },
@@ -41,9 +42,9 @@ export default async function PerformancePage({
         <p className="text-base">{t("trainerOnly")}</p>
         <Link
           href={`/${lang}/g/${slug}/dashboard`}
-          className="rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-white/5"
+          className="shrink-0 rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
         >
-          ← {t("back")}
+          {tc("home")}
         </Link>
       </div>
     );
@@ -111,9 +112,9 @@ export default async function PerformancePage({
           </div>
           <Link
             href={`/${lang}/g/${slug}/dashboard`}
-            className="shrink-0 rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/5"
+            className="shrink-0 rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
           >
-            ← {t("back")}
+            {tc("home")}
           </Link>
         </div>
 

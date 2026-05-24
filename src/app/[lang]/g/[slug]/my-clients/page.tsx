@@ -8,7 +8,16 @@ type Row = {
   id: string;
   name: string;
   phone: string | null;
-  services: { name: string; isGroup: boolean; remaining: number }[];
+  services: {
+    serviceId: string;
+    name: string;
+    isGroup: boolean;
+    left: number;
+    upcoming: number;
+    done: number;
+    remain: number;
+    remaining: number;
+  }[];
 };
 
 // 트레이너 본인 담당 고객 리스트 — listMyAssignedCustomers 재활용.
@@ -22,12 +31,19 @@ export default async function MyClientsPage({
   const { lang, slug } = await params;
   await requireGymStaff(slug);
   const t = await getTranslations("dashboard");
+  const tc = await getTranslations("common");
 
   const r = await listMyAssignedCustomers({ slug, limit: 200 });
   const rows: Row[] = r.ok
     ? ((r.data as { rows: Row[] }).rows ?? [])
     : [];
-  rows.sort((a, b) => a.name.localeCompare(b.name));
+  // 1:1 PT 권 가진 고객이 먼저, 그 안에서 이름 정렬. 그 다음 단체만 가진 고객.
+  rows.sort((a, b) => {
+    const aHas1on1 = a.services.some((s) => !s.isGroup);
+    const bHas1on1 = b.services.some((s) => !s.isGroup);
+    if (aHas1on1 !== bHas1on1) return aHas1on1 ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
@@ -43,9 +59,9 @@ export default async function MyClientsPage({
         </span>
         <Link
           href={`/${lang}/g/${slug}/dashboard`}
-          className="shrink-0 rounded-md border border-white/15 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-white/5"
+          className="shrink-0 rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white"
         >
-          {t("myClientsBack")}
+          {tc("home")}
         </Link>
       </header>
 

@@ -2,6 +2,12 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { listVisibleThreads, type ChatViewer } from "@/lib/chat/queries";
 
+// 트레이너 영역 공용 "홈으로 →" 버튼 스타일. 네모(rounded-md) + 우측 화살표.
+// 라벨은 common.home (ko: "홈으로 →" / en: "Home →"). 모든 트레이너 db 진입
+// 페이지에서 동일 className 사용.
+const TRAINER_HOME_BTN =
+  "shrink-0 rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white";
+
 // V8 Sunset Gradient — DashboardTrainer 와 같은 톤 (purple → sunset orange/pink
 // 라디얼 backdrop + 그라데 ring 카드). sidebar 없음, 모바일 우선.
 
@@ -21,6 +27,7 @@ export async function TrainerChatList({
   viewer,
 }: Props) {
   const t = await getTranslations("chat");
+  const tc = await getTranslations("common");
   const threads = await listVisibleThreads(viewer);
 
   const items = threads.map((th) => {
@@ -55,20 +62,20 @@ export async function TrainerChatList({
       <div className="pointer-events-none absolute -right-40 top-1/4 h-[28rem] w-[28rem] rounded-full bg-orange-500/25 blur-3xl" />
       <div className="pointer-events-none absolute -left-32 bottom-0 h-[26rem] w-[26rem] rounded-full bg-fuchsia-600/20 blur-3xl" />
 
-      <header className="relative flex items-center justify-between border-b border-white/5 px-5 py-3">
-        <Link
-          href={`/${lang}/g/${slug}/dashboard`}
-          className="text-xs text-zinc-400 hover:text-white"
-        >
-          ← 홈으로
-        </Link>
-        <h1 className="font-heading text-lg tracking-tight">
+      <header className="relative flex items-center justify-between gap-2 border-b border-white/5 px-4 py-3 backdrop-blur-sm">
+        <div className="shrink-0 text-xs text-zinc-500">{trainerName}</div>
+        <h1 className="min-w-0 flex-1 truncate text-center font-heading text-sm font-semibold">
           <span className="mr-2 bg-gradient-to-r from-orange-300 to-pink-300 bg-clip-text text-transparent">
             {businessName}
           </span>
           <span className="text-white">{t("title")}</span>
         </h1>
-        <div className="w-12 text-right text-xs text-zinc-500">{trainerName}</div>
+        <Link
+          href={`/${lang}/g/${slug}/dashboard`}
+          className={TRAINER_HOME_BTN}
+        >
+          {tc("home")}
+        </Link>
       </header>
 
       <main className="relative flex-1 px-4 py-5">

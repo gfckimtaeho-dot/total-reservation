@@ -2,6 +2,10 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ChatWindow } from "./ChatWindow";
 
+// 트레이너 db 공통 홈 버튼 스타일 — TrainerChatList 와 동일 정의.
+const TRAINER_HOME_BTN =
+  "shrink-0 rounded-md border border-white/15 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/5 hover:text-white";
+
 // V8 Sunset Gradient 톤 — DashboardTrainer 와 일관. 라디얼 backdrop + 풀스크린.
 
 type SerializedMsg = {
@@ -35,6 +39,7 @@ export async function TrainerChatThreadView({
   messages,
 }: Props) {
   const t = await getTranslations("chat");
+  const tc = await getTranslations("common");
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
@@ -59,9 +64,9 @@ export async function TrainerChatThreadView({
         </div>
         <Link
           href={`/${lang}/g/${slug}/dashboard`}
-          className="shrink-0 rounded-full bg-white/5 px-3 py-1.5 text-xs text-zinc-300 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
+          className={TRAINER_HOME_BTN}
         >
-          {t("home")}
+          {tc("home")}
         </Link>
       </header>
 

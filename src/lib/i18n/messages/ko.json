@@ -60,7 +60,8 @@
     "korean": "한국어",
     "english": "English",
     "save": "저장",
-    "cancel": "취소"
+    "cancel": "취소",
+    "home": "홈으로 →"
   },
   "settings": {
     "title": "설정",
@@ -222,6 +223,20 @@
     "logout": "로그아웃",
     "soon": "곧",
     "studio": "STUDIO"
+  },
+  "handover": {
+    "actionLabel": "양도",
+    "title": "{service} 담당 트레이너 양도",
+    "currentTrainer": "현재 담당",
+    "selectTrainer": "받을 트레이너 선택",
+    "noCandidates": "양도 가능한 다른 트레이너가 없습니다",
+    "impact": "활성 권 {pkg}개 · 미래 예약 {res}건 (충돌 시 자동 취소)",
+    "execute": "양도 실행",
+    "executing": "양도 중...",
+    "cancel": "취소",
+    "successOk": "{toName}으로 담당이 변경되었습니다.",
+    "successWithCancel": "{toName}으로 담당 변경 · 미래 예약 {transferred}건 이관, {cancelled}건 충돌 자동 취소.",
+    "note": "양도 후 양측 채팅에 시스템 메시지가 자동 기록됩니다. 환불은 없습니다."
   },
   "chat": {
     "title": "채팅",
@@ -1525,6 +1540,10 @@
     "kindPackageGroup": "단체 횟수권",
     "ageUnit": "{age}세",
     "issueHeading": "서비스 발급",
-    "issueHint": "이 회원에게 회원권 / 횟수권 / 콤보를 발급합니다."
+    "issueHint": "이 회원에게 회원권 / 횟수권 / 콤보를 발급합니다.",
+    "handoverHeading": "트레이너 담당",
+    "handoverHint": "1:1 서비스의 담당 트레이너를 다른 트레이너로 양도합니다. 단체 수업은 양도되지 않습니다.",
+    "handoverEmpty": "양도할 1:1 서비스가 없습니다.",
+    "handoverCurrentLabel": "담당"
   }
 }

@@ -9,7 +9,16 @@ type Row = {
   id: string;
   name: string;
   phone: string | null;
-  services: { name: string; isGroup: boolean; remaining: number }[];
+  services: {
+    serviceId: string;
+    name: string;
+    isGroup: boolean;
+    left: number;
+    upcoming: number;
+    done: number;
+    remain: number;
+    remaining: number;
+  }[];
 };
 
 // 내 고객 리스트 — client filter(검색). 200 명까진 in-memory filter 빠름.
@@ -75,15 +84,18 @@ export function MyClientsList({
                     <div className="truncate text-lg font-semibold text-white">
                       {c.name}
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
+                    <div className="mt-1.5 flex flex-col gap-1 text-sm">
                       {oneToOne.length > 0 ? (
                         oneToOne.map((s) => (
-                          <span
-                            key={`p-${s.name}`}
-                            className="text-emerald-300/90"
-                          >
-                            {s.name} · {s.remaining}
-                          </span>
+                          <ServiceMetricLine
+                            key={`p-${s.serviceId}`}
+                            label={s.name}
+                            left={s.left}
+                            upcoming={s.upcoming}
+                            done={s.done}
+                            remain={s.remain}
+                            tone="oneToOne"
+                          />
                         ))
                       ) : (
                         <span className="text-zinc-600">
@@ -91,9 +103,15 @@ export function MyClientsList({
                         </span>
                       )}
                       {group.map((s) => (
-                        <span key={`g-${s.name}`} className="text-purple-300/80">
-                          {s.name} · {s.remaining}
-                        </span>
+                        <ServiceMetricLine
+                          key={`g-${s.serviceId}`}
+                          label={s.name}
+                          left={s.left}
+                          upcoming={s.upcoming}
+                          done={s.done}
+                          remain={s.remain}
+                          tone="group"
+                        />
                       ))}
                     </div>
                   </div>
@@ -108,6 +126,44 @@ export function MyClientsList({
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+// service 한 줄 — "{이름}  5 left · 3 예약중 · 1 완료 · 1 잔여" 형식.
+// 트레이너가 한눈에 잔여 회수와 예약 가능 횟수를 파악하도록.
+function ServiceMetricLine({
+  label,
+  left,
+  upcoming,
+  done,
+  remain,
+  tone,
+}: {
+  label: string;
+  left: number;
+  upcoming: number;
+  done: number;
+  remain: number;
+  tone: "oneToOne" | "group";
+}) {
+  const labelClass = tone === "oneToOne" ? "text-emerald-300" : "text-purple-300";
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <span className={`font-semibold ${labelClass}`}>{label}</span>
+      <span className="tabular-nums text-zinc-300">
+        <span className="font-semibold text-white">{left}</span>
+        <span className="text-zinc-500"> left</span>
+        <span className="mx-1 text-zinc-600">·</span>
+        <span className="font-semibold text-orange-300">{upcoming}</span>
+        <span className="text-zinc-500"> 예약중</span>
+        <span className="mx-1 text-zinc-600">·</span>
+        <span className="font-semibold text-emerald-300">{done}</span>
+        <span className="text-zinc-500"> 완료</span>
+        <span className="mx-1 text-zinc-600">·</span>
+        <span className="font-semibold text-amber-300">{remain}</span>
+        <span className="text-zinc-500"> 잔여</span>
+      </span>
     </div>
   );
 }

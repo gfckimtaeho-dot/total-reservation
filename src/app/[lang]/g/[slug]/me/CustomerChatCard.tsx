@@ -48,15 +48,17 @@ export function CustomerChatCard({ href }: { href: string }) {
       href={href}
       aria-label={ariaLabel}
       className={
-        "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition active:scale-95 " +
+        // 아이콘(28px) + text-base 는 유지, padding 만 컴팩트하게 — 알약 폭/높이
+        // 만 줄여 헤더에서 차지하는 면적 축소.
+        "relative inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-base font-semibold transition active:scale-95 " +
         (has
-          ? "bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-[0_8px_22px_-8px_rgba(249,115,22,0.6)]"
-          : "bg-white text-orange-600 ring-1 ring-orange-200 hover:ring-orange-400")
+          ? "bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-[0_12px_32px_-10px_rgba(249,115,22,0.65)]"
+          : "bg-white text-orange-600 ring-2 ring-orange-200 hover:ring-orange-400")
       }
     >
       <svg
-        width="16"
-        height="16"
+        width="28"
+        height="28"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -69,9 +71,9 @@ export function CustomerChatCard({ href }: { href: string }) {
       </svg>
       <span className="tabular-nums">{label}</span>
       {has && (
-        <span className="absolute -right-1 -top-1 inline-flex h-3 w-3">
+        <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 w-5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-300 opacity-75" />
-          <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-400 ring-2 ring-white" />
+          <span className="relative inline-flex h-5 w-5 rounded-full bg-amber-400 ring-2 ring-white" />
         </span>
       )}
     </Link>

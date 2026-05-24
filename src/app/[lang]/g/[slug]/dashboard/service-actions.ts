@@ -160,6 +160,7 @@ export async function listMyAssignedCustomers(input: {
         where: { assignedStaffId: staff.id, remainingCount: { gt: 0 } },
         select: {
           remainingCount: true,
+          serviceId: true,
           service: { select: { name: true, capacity: true } },
         },
       },
@@ -170,16 +171,107 @@ export async function listMyAssignedCustomers(input: {
   });
   const hasMore = rows.length > limit;
   const sliced = hasMore ? rows.slice(0, limit) : rows;
+
+  // 카드 메트릭 확장 — 같은 service 내 left/upcoming/done/remain. 본인 담당
+  // 예약만(staffId=staff.id) 한 번에 fetch 후 customer+service 별 분류.
+  const customerIds = sliced.map((u) => u.id);
+  const reservations = customerIds.length
+    ? await prisma.reservation.findMany({
+        where: {
+          gymId,
+          customerUserId: { in: customerIds },
+          staffId: staff.id,
+          status: { in: ["CONFIRMED", "PENDING_PAYMENT", "COMPLETED"] },
+        },
+        select: {
+          customerUserId: true,
+          serviceId: true,
+          status: true,
+          startAt: true,
+        },
+      })
+    : [];
+  const now = new Date();
+  // key = `${customerUserId}::${serviceId}`
+  const upcomingMap = new Map<string, number>();
+  const doneMap = new Map<string, number>();
+  for (const r of reservations) {
+    const k = `${r.customerUserId}::${r.serviceId}`;
+    if (r.status === "COMPLETED") {
+      doneMap.set(k, (doneMap.get(k) ?? 0) + 1);
+    } else if (r.startAt > now) {
+      upcomingMap.set(k, (upcomingMap.get(k) ?? 0) + 1);
+    }
+  }
+
   const formatted = sliced.map((u) => ({
     id: u.id,
     name: u.name,
     phone: u.phone,
-    services: dedupServices(u.packages),
+    services: dedupServicesWithCounts(
+      u.id,
+      u.packages,
+      upcomingMap,
+      doneMap,
+    ),
   }));
   return { ok: true, data: { rows: formatted, hasMore } };
 }
 
-// 같은 service 권 여러 장이면 잔여 합산해 한 줄로. capacity > 1 = 단체 flag.
+// service 단위 메트릭 — left/upcoming/done/remain. /my-clients 카드 표시용.
+// 같은 service 권 여러 장이면 left(=remainingCount) 합산.
+function dedupServicesWithCounts(
+  customerUserId: string,
+  packages: {
+    remainingCount: number;
+    serviceId: string;
+    service: { name: string; capacity: number };
+  }[],
+  upcomingMap: Map<string, number>,
+  doneMap: Map<string, number>,
+): {
+  serviceId: string;
+  name: string;
+  isGroup: boolean;
+  left: number;
+  upcoming: number;
+  done: number;
+  remain: number;
+  // intake 등 기존 호출자 호환 — left 와 동치(잔여 횟수).
+  remaining: number;
+}[] {
+  const m = new Map<
+    string,
+    { serviceId: string; name: string; isGroup: boolean; left: number }
+  >();
+  for (const p of packages) {
+    const cur = m.get(p.serviceId) ?? {
+      serviceId: p.serviceId,
+      name: p.service.name,
+      isGroup: p.service.capacity > 1,
+      left: 0,
+    };
+    cur.left += p.remainingCount;
+    m.set(p.serviceId, cur);
+  }
+  return Array.from(m.values())
+    .map((s) => {
+      const k = `${customerUserId}::${s.serviceId}`;
+      const upcoming = upcomingMap.get(k) ?? 0;
+      const done = doneMap.get(k) ?? 0;
+      const remain = Math.max(0, s.left - upcoming);
+      return { ...s, upcoming, done, remain, remaining: s.left };
+    })
+    .sort((a, b) =>
+      a.isGroup === b.isGroup
+        ? a.name.localeCompare(b.name)
+        : a.isGroup
+          ? 1
+          : -1,
+    );
+}
+
+// (deprecated 후보) 같은 service 권 여러 장이면 잔여 합산해 한 줄로. capacity > 1 = 단체 flag.
 function dedupServices(
   packages: {
     remainingCount: number;
@@ -211,34 +303,85 @@ function dedupServices(
   );
 }
 
-// 팝오버용 — 그 고객의 서비스별 잔여 횟수(단체 수업 권 포함, 같은 서비스
-// 여러 권은 합산). 잔여 = remainingCount(완료 시 차감됨), 완료 = total−remaining.
+// 팝오버용 — 그 고객의 서비스별 메트릭. 같은 service 권 여러 장은 합산.
+// 트레이너가 셀 클릭 시 "잔여/예약중/완료/실제 잡을 수 있는 잔여" 한눈에.
+//
+// left      = remainingCount 합 (완료 시 차감됨)
+// upcoming  = 본인 담당 미래 예약 카운트
+// done      = 완료 예약 카운트 (= totalCount−remainingCount 와 일치하나 명시 카운트)
+// remain    = max(0, left − upcoming)
 export async function customerRemaining(input: {
   slug: string;
   customerUserId: string;
 }): Promise<R> {
   const auth = await requireGymStaff(input.slug);
   const gymId = auth.business!.id;
-  const pkgs = await prisma.package.findMany({
-    where: { gymId, userId: input.customerUserId },
-    select: {
-      totalCount: true,
-      remainingCount: true,
-      service: { select: { name: true } },
-    },
+
+  const staff = await prisma.staff.findFirst({
+    where: { gymId, userId: auth.id },
+    select: { id: true },
   });
+
+  const [pkgs, reservations] = await Promise.all([
+    prisma.package.findMany({
+      where: { gymId, userId: input.customerUserId },
+      select: {
+        totalCount: true,
+        remainingCount: true,
+        serviceId: true,
+        service: { select: { name: true } },
+      },
+    }),
+    prisma.reservation.findMany({
+      where: {
+        gymId,
+        customerUserId: input.customerUserId,
+        // 트레이너는 본인 담당 예약만 카운트. OWNER/MANAGER 는 staff 없을 수
+        // 있어 staffId 필터 생략(전체 카운트).
+        ...(staff ? { staffId: staff.id } : {}),
+        status: { in: ["CONFIRMED", "PENDING_PAYMENT", "COMPLETED"] },
+      },
+      select: { serviceId: true, status: true, startAt: true },
+    }),
+  ]);
+
+  const now = new Date();
+  const upcomingByService = new Map<string, number>();
+  const doneByService = new Map<string, number>();
+  for (const r of reservations) {
+    if (r.status === "COMPLETED") {
+      doneByService.set(r.serviceId, (doneByService.get(r.serviceId) ?? 0) + 1);
+    } else if (r.startAt > now) {
+      upcomingByService.set(
+        r.serviceId,
+        (upcomingByService.get(r.serviceId) ?? 0) + 1,
+      );
+    }
+  }
+
   const bySvc = new Map<
     string,
-    { service: string; total: number; remaining: number }
+    { service: string; serviceId: string; total: number; remaining: number }
   >();
   for (const p of pkgs) {
     const name = p.service?.name ?? "-";
-    const cur = bySvc.get(name) ?? { service: name, total: 0, remaining: 0 };
+    const cur = bySvc.get(p.serviceId) ?? {
+      service: name,
+      serviceId: p.serviceId,
+      total: 0,
+      remaining: 0,
+    };
     cur.total += p.totalCount;
     cur.remaining += p.remainingCount;
-    bySvc.set(name, cur);
+    bySvc.set(p.serviceId, cur);
   }
-  return { ok: true, data: [...bySvc.values()] };
+  const result = [...bySvc.values()].map((s) => {
+    const upcoming = upcomingByService.get(s.serviceId) ?? 0;
+    const done = doneByService.get(s.serviceId) ?? 0;
+    const remain = Math.max(0, s.remaining - upcoming);
+    return { ...s, upcoming, done, remain };
+  });
+  return { ok: true, data: result };
 }
 
 type IssueItem = {

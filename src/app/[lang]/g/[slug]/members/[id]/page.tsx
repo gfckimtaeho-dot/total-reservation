@@ -9,6 +9,7 @@ import { getTheme } from "@/lib/theme";
 import { SidebarNav } from "../../dashboard/SidebarNav";
 import { MemberAddDialog } from "../MemberAddDialog";
 import { OwnerIssuePanel } from "./OwnerIssuePanel";
+import { HandoverDialog } from "../../handover/HandoverDialog";
 
 const PAGE_BG = {
   normal: "bg-amber-50/50",
@@ -125,7 +126,13 @@ export default async function MemberDetailPage({
               id: true,
               totalCount: true,
               remainingCount: true,
+              serviceId: true,
               service: { select: { name: true, capacity: true } },
+              assignedStaff: {
+                select: {
+                  user: { select: { id: true, name: true } },
+                },
+              },
             },
           },
         },
@@ -233,6 +240,54 @@ export default async function MemberDetailPage({
     if (k === "PACKAGE_GROUP") return t("kindPackageGroup");
     return t("kindPackagePersonal");
   }
+
+  // 트레이너 양도 — 1:1 service 단위 group. capacity=1 만 양도 가능.
+  type HandoverGroup = {
+    serviceId: string;
+    serviceName: string;
+    activePackages: number;
+    currentTrainerUserId: string | null;
+    currentTrainerName: string | null;
+    upcomingReservations: number;
+  };
+  const handoverGroupsMap = new Map<string, HandoverGroup>();
+  for (const p of u.packages) {
+    if (p.service.capacity !== 1) continue;
+    if (p.remainingCount <= 0) continue;
+    const g = handoverGroupsMap.get(p.serviceId);
+    if (g) {
+      g.activePackages += 1;
+    } else {
+      handoverGroupsMap.set(p.serviceId, {
+        serviceId: p.serviceId,
+        serviceName: p.service.name,
+        activePackages: 1,
+        currentTrainerUserId: p.assignedStaff?.user.id ?? null,
+        currentTrainerName: p.assignedStaff?.user.name ?? null,
+        upcomingReservations: 0,
+      });
+    }
+  }
+  // service 별 미래 예약 카운트 — 영향 요약용. handoverGroups 있을 때만 쿼리.
+  if (handoverGroupsMap.size > 0) {
+    const upcoming = await prisma.reservation.groupBy({
+      by: ["serviceId"],
+      where: {
+        gymId: business.id,
+        customerUserId: u.id,
+        status: { in: ["CONFIRMED", "PENDING_PAYMENT"] },
+        startAt: { gte: new Date() },
+        serviceId: { in: Array.from(handoverGroupsMap.keys()) },
+      },
+      _count: true,
+    });
+    for (const row of upcoming) {
+      const g = handoverGroupsMap.get(row.serviceId);
+      if (g) g.upcomingReservations = row._count;
+    }
+  }
+  const handoverGroups = Array.from(handoverGroupsMap.values());
+  const handoverDialogTone = theme === "black" ? "dark" : "light";
 
   return (
     <div className={`flex min-h-screen ${PAGE_BG[theme]}`}>
@@ -471,6 +526,60 @@ export default async function MemberDetailPage({
                   ))}
                 </tbody>
               </table>
+            )}
+          </section>
+
+          {/* 트레이너 담당 — 1:1 서비스만 양도. 단체 수업 제외. */}
+          <section className={SECTION[theme]}>
+            <h2
+              className={`font-heading text-2xl tracking-tight ${TITLE[theme]}`}
+            >
+              {t("handoverHeading")}
+            </h2>
+            <p className={`mt-2 text-base ${SUBTLE[theme]}`}>
+              {t("handoverHint")}
+            </p>
+            {handoverGroups.length === 0 ? (
+              <p className={`mt-4 text-sm ${SUBTLE[theme]}`}>
+                {t("handoverEmpty")}
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-2">
+                {handoverGroups.map((g) => (
+                  <li
+                    key={g.serviceId}
+                    className={`flex items-center justify-between gap-3 rounded-lg px-4 py-3 ${
+                      theme === "black"
+                        ? "bg-zinc-900/60 ring-1 ring-white/5"
+                        : "bg-white ring-1 ring-ink/10"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className={`truncate text-sm font-semibold ${TITLE[theme]}`}>
+                        {g.serviceName}
+                      </div>
+                      <div className={`mt-0.5 text-xs ${SUBTLE[theme]}`}>
+                        {t("handoverCurrentLabel")}:{" "}
+                        {g.currentTrainerName ?? "-"}
+                      </div>
+                    </div>
+                    {g.currentTrainerUserId && (
+                      <HandoverDialog
+                        slug={slug}
+                        customerId={u.id}
+                        customerName={u.name}
+                        serviceId={g.serviceId}
+                        serviceName={g.serviceName}
+                        fromStaffUserId={g.currentTrainerUserId}
+                        fromStaffName={g.currentTrainerName ?? ""}
+                        activePackages={g.activePackages}
+                        upcomingReservations={g.upcomingReservations}
+                        tone={handoverDialogTone}
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
 

@@ -79,6 +79,9 @@ enum ReservationLogAction {
   CHANGED_BY_STAFF
   CANCELLED_BY_CUSTOMER
   CANCELLED_BY_STAFF
+  // 트레이너 양도 시 새 트레이너 가용성 충돌로 자동 취소된 예약.
+  // 환불 없음, Package.remainingCount 복귀(+1). docs/handover.md.
+  CANCELLED_BY_HANDOVER
   REJECTED
   COMPLETED
   NO_SHOW
