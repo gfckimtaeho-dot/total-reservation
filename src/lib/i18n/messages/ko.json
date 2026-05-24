@@ -1230,6 +1230,23 @@
         "applying": "처리 중..."
       }
     },
+    "serviceDelete": {
+      "eyebrow": "종목 폐지",
+      "close": "닫기",
+      "loading": "영향 검사 중...",
+      "errorPreview": "영향 검사에 실패했습니다. 권한을 확인해 주세요.",
+      "errorApply": "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      "noImpact": "이 종목엔 운영 스케줄·미래 예약·잔여 수업권이 없습니다. 그대로 폐지하시겠습니까?",
+      "warningTitle": "환불 대상 회원이 있습니다",
+      "warningBody": "운영 스케줄 {schedules}개 · 잔여 수업권 보유 {members}명 · 향후 예약 {reservations}건이 영향을 받습니다.",
+      "membersHeader": "환불 대상 명단",
+      "totalRefund": "합계 {amount}",
+      "remainingLabel": "잔여 {n}회",
+      "cancel": "취소",
+      "deleteConfirm": "폐지 진행",
+      "deleteWithRefund": "환불 후 폐지",
+      "applying": "처리 중..."
+    },
     "errors": {
       "name": "서비스명을 입력해 주세요",
       "duration": "소요 시간은 5~480분 사이여야 합니다",

@@ -1230,6 +1230,23 @@
         "applying": "Processing..."
       }
     },
+    "serviceDelete": {
+      "eyebrow": "Discontinue service",
+      "close": "Close",
+      "loading": "Checking impact...",
+      "errorPreview": "Failed to check impact. Verify permissions.",
+      "errorApply": "An error occurred. Please try again.",
+      "noImpact": "No active schedules, future reservations, or remaining packages. Discontinue this service?",
+      "warningTitle": "Members will be refunded",
+      "warningBody": "{schedules} active schedules · {members} members with remaining sessions · {reservations} upcoming reservations affected.",
+      "membersHeader": "Refund recipients",
+      "totalRefund": "Total {amount}",
+      "remainingLabel": "{n} left",
+      "cancel": "Cancel",
+      "deleteConfirm": "Discontinue",
+      "deleteWithRefund": "Refund + discontinue",
+      "applying": "Processing..."
+    },
     "errors": {
       "name": "Please enter a service name",
       "duration": "Duration must be between 5 and 480 minutes",

@@ -223,7 +223,7 @@ export async function createPackagePlan(
   const svc = await prisma.service.findUnique({
     where: { id: data.serviceId },
   });
-  if (!svc || svc.gymId !== gymId) {
+  if (!svc || svc.gymId !== gymId || !svc.active) {
     return { errors: { serviceId: ["service"] } };
   }
 
@@ -286,7 +286,7 @@ export async function updatePackagePlan(
   const svc = await prisma.service.findUnique({
     where: { id: data.serviceId },
   });
-  if (!svc || svc.gymId !== gymId) {
+  if (!svc || svc.gymId !== gymId || !svc.active) {
     return { errors: { serviceId: ["service"] } };
   }
 

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { deleteService } from "./actions";
+import { ServiceDeleteDialog } from "./ServiceDeleteDialog";
 
 type Tone = "normal" | "black" | "white";
 
@@ -10,12 +10,6 @@ const BUTTON_TONE = {
   normal: "text-rose-600 hover:bg-rose-50",
   black: "text-rose-400 hover:bg-rose-500/10",
   white: "text-rose-600 hover:bg-rose-50",
-} as const;
-
-const ERROR_TONE = {
-  normal: "text-rose-600",
-  black: "text-rose-400",
-  white: "text-rose-600",
 } as const;
 
 export function DeleteServiceButton({
@@ -30,26 +24,14 @@ export function DeleteServiceButton({
   tone: Tone;
 }) {
   const t = useTranslations("services.list");
-  const te = useTranslations("services.errors");
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
-  function onClick() {
-    if (!confirm(`${serviceName} — ${t("delete")}?`)) return;
-    setError(null);
-    startTransition(async () => {
-      const res = await deleteService(slug, serviceId);
-      if ("error" in res) {
-        const msg =
-          res.error === "hasReferences"
-            ? te("hasReferences", {
-                plans: res.refs.plans,
-                packages: res.refs.packages,
-                reservations: res.refs.reservations,
-              })
-            : te("permission");
-        setError(msg);
-      }
+  function onDeleted() {
+    setOpen(false);
+    startTransition(() => {
+      // 서버 액션이 revalidatePath 로 무효화한 뒤 페이지가 자동 갱신되도록 transition 으로 묶음.
+      // dialog 닫힘 + state flush 가 같은 batch 에 진행.
     });
   }
 
@@ -57,14 +39,20 @@ export function DeleteServiceButton({
     <div className="text-right">
       <button
         type="button"
-        onClick={onClick}
+        onClick={() => setOpen(true)}
         disabled={pending}
         className={`rounded px-2 py-1 text-xs font-medium transition disabled:opacity-50 ${BUTTON_TONE[tone]}`}
       >
-        {pending ? t("deleting") : t("delete")}
+        {t("delete")}
       </button>
-      {error && (
-        <div className={`mt-1 text-[10px] ${ERROR_TONE[tone]}`}>{error}</div>
+      {open && (
+        <ServiceDeleteDialog
+          slug={slug}
+          serviceId={serviceId}
+          serviceName={serviceName}
+          onClose={() => setOpen(false)}
+          onDeleted={onDeleted}
+        />
       )}
     </div>
   );

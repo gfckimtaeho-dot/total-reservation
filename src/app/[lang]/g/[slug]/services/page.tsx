@@ -108,7 +108,7 @@ export default async function GymServicesPage({
 
   const [services, staffRows] = await Promise.all([
     prisma.service.findMany({
-      where: { gymId: business.id },
+      where: { gymId: business.id, active: true },
       orderBy: { createdAt: "asc" },
       include: {
         schedules: {

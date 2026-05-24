@@ -286,7 +286,7 @@ export default async function GymProductsPage({
       orderBy: { createdAt: "asc" },
     }),
     prisma.service.findMany({
-      where: { gymId: business.id },
+      where: { gymId: business.id, active: true },
       orderBy: { createdAt: "asc" },
       include: {
         schedules: {
@@ -304,7 +304,7 @@ export default async function GymProductsPage({
       orderBy: { createdAt: "asc" },
     }),
     prisma.packagePlan.findMany({
-      where: { gymId: business.id },
+      where: { gymId: business.id, service: { active: true } },
       orderBy: { createdAt: "asc" },
       include: { service: true },
     }),

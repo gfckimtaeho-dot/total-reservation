@@ -674,7 +674,7 @@ export async function addReservation(input: {
   if (!staff) return { ok: false, error: "트레이너 정보를 찾을 수 없습니다" };
 
   const service = await prisma.service.findFirst({
-    where: { id: input.serviceId, gymId },
+    where: { id: input.serviceId, gymId, active: true },
     select: { durationMin: true, deductCount: true, capacity: true },
   });
   if (!service) return { ok: false, error: "서비스를 찾을 수 없습니다" };

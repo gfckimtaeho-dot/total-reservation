@@ -117,7 +117,7 @@ export async function createSchedule(
   const service = await prisma.service.findUnique({
     where: { id: data.serviceId },
   });
-  if (!service || service.gymId !== gymId) {
+  if (!service || service.gymId !== gymId || !service.active) {
     return { errors: { _global: ["permission"] } };
   }
   if (service.capacity < 2) {

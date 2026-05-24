@@ -62,7 +62,7 @@ export async function DashboardNormal({
   // 단체 수업(ScheduledClass) + 이번 달 reservations + 휴무일 fetch
   const [groupServiceRows, closures] = await Promise.all([
     prisma.service.findMany({
-      where: { gymId, capacity: { gte: 2 } },
+      where: { gymId, active: true, capacity: { gte: 2 } },
       include: {
         schedules: {
           where: { active: true },

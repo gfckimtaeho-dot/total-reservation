@@ -136,7 +136,11 @@ export default async function MemberDetailPage({
         orderBy: { pricePhp: "asc" },
       }),
       prisma.packagePlan.findMany({
-        where: { gymId: business.id, active: true },
+        where: {
+          gymId: business.id,
+          active: true,
+          service: { active: true },
+        },
         select: {
           id: true,
           name: true,

@@ -31,7 +31,7 @@ export default async function IntakePage({
       orderBy: { pricePhp: "asc" },
     }),
     prisma.packagePlan.findMany({
-      where: { gymId, active: true },
+      where: { gymId, active: true, service: { active: true } },
       select: {
         id: true,
         name: true,

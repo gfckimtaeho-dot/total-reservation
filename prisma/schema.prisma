@@ -504,6 +504,10 @@ model Service {
   pricePhp    Int
   payoutPhp   Int      @default(0)
   deductCount Int      @default(1)
+  // 종목 폐지(soft delete) 플래그. hard delete 는 Package/Reservation FK 가
+  // 영구적으로 차단하므로 active=false 로 운영 화면에서만 숨김. 매출/이력은
+  // active 무관. [[decision_class_deletion_refund_flow]] Service 폐지 결정 참고.
+  active      Boolean  @default(true)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
@@ -515,6 +519,7 @@ model Service {
   updatedById  String?
 
   @@index([gymId])
+  @@index([gymId, active])
 }
 
 // ─── ScheduledClass ────────────────────────────────────────

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import type { TimeUnit } from "@/generated/prisma/enums";
+import { packageStoreLiabilityRefund } from "@/lib/refunds/store-liability";
 
 // 숫자 input은 모두 type="text" + 콤마 포맷팅 ("5,000")으로 들어오므로
 // 콤마 제거 후 정수 변환. 빈 문자열은 0으로.
@@ -158,7 +159,7 @@ export async function updateService(
   const svc = await prisma.service.findUnique({
     where: { id: data.serviceId },
   });
-  if (!svc || svc.gymId !== gymId) {
+  if (!svc || svc.gymId !== gymId || !svc.active) {
     return { errors: { _global: ["permission"] } };
   }
 
@@ -216,55 +217,210 @@ export async function updateService(
   return { ok: true, at: Date.now() };
 }
 
-export type DeleteServiceResult =
-  | { ok: true }
-  | { error: "permission" }
+// ─── Service(종목) 폐지 ─────────────────────────────────────
+//
+// 단체수업 스케줄 폐지([[decision_class_deletion_refund_flow]])와 동일 흐름을
+// 종목 단위로 확장. 영향 = 그 종목의 모든 미래 예약 + 모든 잔여 권. 트랜잭션:
+//   1) 미래 예약 자동 취소
+//   2) 영향 회원 전원에게 RefundRequest(CLASS_DISCONTINUED) + 권 동결
+//   3) 그 종목의 ScheduledClass 전부 active=false
+//   4) Service active=false (hard delete 는 Package/Reservation FK 영구 차단)
+
+export type ServiceDeletionAffectedMember = {
+  packageId: string;
+  customerUserId: string;
+  customerName: string;
+  remainingCount: number;
+  paidPhp: number;
+  totalCount: number;
+  refundPhp: number;
+  refundUnits: number;
+};
+
+export type ServiceDeletionImpact =
+  | { ok: false; error: "permission" }
   | {
-      error: "hasReferences";
-      refs: { plans: number; packages: number; reservations: number };
+      ok: true;
+      serviceId: string;
+      serviceName: string;
+      activeSchedulesCount: number;
+      futureReservationsCount: number;
+      affectedMembers: ServiceDeletionAffectedMember[];
+      totalRefundPhp: number;
     };
 
-export async function deleteService(
+export async function previewServiceDeletionImpact(
   slug: string,
   serviceId: string,
-): Promise<DeleteServiceResult> {
+): Promise<ServiceDeletionImpact> {
   const auth = await requireGymStaff(slug);
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { ok: false, error: "permission" };
+  }
+  const gymId = auth.business!.id;
+
+  const svc = await prisma.service.findUnique({
+    where: { id: serviceId },
+    select: { id: true, gymId: true, name: true },
+  });
+  if (!svc || svc.gymId !== gymId) {
+    return { ok: false, error: "permission" };
+  }
+
+  const [activeSchedulesCount, futureReservationsCount, packages] =
+    await Promise.all([
+      prisma.scheduledClass.count({
+        where: { gymId, serviceId, active: true },
+      }),
+      prisma.reservation.count({
+        where: {
+          gymId,
+          serviceId,
+          status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
+          endAt: { gte: new Date() },
+        },
+      }),
+      prisma.package.findMany({
+        where: {
+          gymId,
+          serviceId,
+          remainingCount: { gt: 0 },
+          refundedAt: null,
+        },
+        select: {
+          id: true,
+          userId: true,
+          pricePhp: true,
+          totalCount: true,
+          remainingCount: true,
+          user: { select: { name: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+
+  const affectedMembers: ServiceDeletionAffectedMember[] = packages.map((p) => {
+    const calc = packageStoreLiabilityRefund({
+      pricePhp: p.pricePhp,
+      totalCount: p.totalCount,
+      remainingCount: p.remainingCount,
+    });
+    return {
+      packageId: p.id,
+      customerUserId: p.userId,
+      customerName: p.user.name,
+      remainingCount: p.remainingCount,
+      paidPhp: p.pricePhp,
+      totalCount: p.totalCount,
+      refundPhp: calc.refundPhp,
+      refundUnits: calc.refundUnits,
+    };
+  });
+
+  const totalRefundPhp = affectedMembers.reduce(
+    (sum, m) => sum + m.refundPhp,
+    0,
+  );
+
+  return {
+    ok: true,
+    serviceId: svc.id,
+    serviceName: svc.name,
+    activeSchedulesCount,
+    futureReservationsCount,
+    affectedMembers,
+    totalRefundPhp,
+  };
+}
+
+export async function applyServiceDeletion(input: {
+  slug: string;
+  serviceId: string;
+}): Promise<{ ok?: boolean; error?: string; refundCount?: number }> {
+  const auth = await requireGymStaff(input.slug);
   if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
     return { error: "permission" };
   }
   const gymId = auth.business!.id;
 
-  const svc = await prisma.service.findUnique({ where: { id: serviceId } });
-  if (!svc || svc.gymId !== gymId) {
-    return { error: "permission" };
-  }
+  const impact = await previewServiceDeletionImpact(
+    input.slug,
+    input.serviceId,
+  );
+  if (!impact.ok) return { error: impact.error };
 
-  // 종목 hard delete 는 참조 0건일 때만 허용 — DB의 onDelete: Restrict 와 동일한
-  // 가드를 앱 계층에서 사전에 돌려 P2003(외래키 위반) 500 을 친절한 에러로 변환.
-  // 활성 운영 종목은 사실상 폐지 불가 — 정식 폐지 흐름(Service.active soft delete)은
-  // 별도 결정 대기. [[decision_class_deletion_refund_flow]] 의 "Service 자체 폐지 보류"
-  // 항목 참고. ScheduledClass 는 onDelete: Cascade 라 검사 대상 아님.
-  const [planCount, packageCount, reservationCount] = await Promise.all([
-    prisma.packagePlan.count({ where: { serviceId } }),
-    prisma.package.count({ where: { serviceId } }),
-    prisma.reservation.count({ where: { serviceId } }),
-  ]);
-  if (planCount + packageCount + reservationCount > 0) {
-    return {
-      error: "hasReferences",
-      refs: {
-        plans: planCount,
-        packages: packageCount,
-        reservations: reservationCount,
+  await prisma.$transaction(async (tx) => {
+    // 1) 미래 예약 자동 취소 + 로그
+    const futureResv = await tx.reservation.findMany({
+      where: {
+        gymId,
+        serviceId: input.serviceId,
+        status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
+        endAt: { gte: new Date() },
       },
-    };
-  }
+      select: { id: true, customerUserId: true },
+    });
+    if (futureResv.length > 0) {
+      await tx.reservation.updateMany({
+        where: { id: { in: futureResv.map((r) => r.id) } },
+        data: { status: "CANCELLED" },
+      });
+      await tx.reservationLog.createMany({
+        data: futureResv.map((r) => ({
+          gymId,
+          reservationId: r.id,
+          action: "CANCELLED_BY_CUSTOMER" as const,
+          actorUserId: r.customerUserId,
+        })),
+      });
+    }
 
-  await prisma.service.delete({ where: { id: serviceId } });
+    // 2) 영향 회원 환불 자동 생성 + 권 동결
+    if (impact.affectedMembers.length > 0) {
+      for (const m of impact.affectedMembers) {
+        await tx.refundRequest.create({
+          data: {
+            gymId,
+            userId: m.customerUserId,
+            kind: "PACKAGE",
+            packageId: m.packageId,
+            serviceName: impact.serviceName,
+            trainerName: null,
+            paidPhp: m.paidPhp,
+            refundPhp: m.refundPhp,
+            totalUnits: m.totalCount,
+            completedUnits: m.totalCount - m.remainingCount,
+            todayUnits: 0,
+            refundUnits: m.refundUnits,
+            payoutMethod: "IN_PERSON",
+            reason: "CLASS_DISCONTINUED",
+          },
+        });
+        await tx.package.update({
+          where: { id: m.packageId },
+          data: { refundedAt: new Date() },
+        });
+      }
+    }
 
-  revalidatePath(`/ko/g/${slug}/services`);
-  revalidatePath(`/en/g/${slug}/services`);
-  revalidatePath(`/ko/g/${slug}/products`);
-  revalidatePath(`/en/g/${slug}/products`);
-  return { ok: true };
+    // 3) 그 종목의 모든 ScheduledClass active=false
+    await tx.scheduledClass.updateMany({
+      where: { gymId, serviceId: input.serviceId, active: true },
+      data: { active: false },
+    });
+
+    // 4) Service active=false (soft delete)
+    await tx.service.update({
+      where: { id: input.serviceId },
+      data: { active: false },
+    });
+  });
+
+  revalidatePath(`/ko/g/${input.slug}/services`);
+  revalidatePath(`/en/g/${input.slug}/services`);
+  revalidatePath(`/ko/g/${input.slug}/products`);
+  revalidatePath(`/en/g/${input.slug}/products`);
+  revalidatePath(`/ko/g/${input.slug}/refunds`);
+  revalidatePath(`/en/g/${input.slug}/refunds`);
+  return { ok: true, refundCount: impact.affectedMembers.length };
 }
