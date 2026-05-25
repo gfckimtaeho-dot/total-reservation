@@ -2,54 +2,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { getTheme } from "@/lib/theme";
 import { logout } from "@/lib/auth/actions";
 import { listAuditTrainerThreads, type ChatViewer } from "@/lib/chat/queries";
 import { SidebarNav } from "../../dashboard/SidebarNav";
 
-const TONE = {
-  normal: {
-    page: "bg-amber-50/50",
-    aside: "bg-band",
-    border: "border-ink/10",
-    eyebrow: "text-ink/70",
-    name: "text-ink",
-    sub: "text-ink/60",
-    logout: "text-ink/80 hover:bg-white/40",
-    h1: "text-ink",
-    notice: "bg-amber-100/60 text-amber-900 ring-1 ring-amber-300",
-    card: "bg-white ring-1 ring-ink/10 hover:ring-orange-300",
-    cardLabel: "text-ink",
-    cardSub: "text-ink/60",
-  },
-  black: {
-    page: "bg-zinc-950 text-zinc-200",
-    aside: "bg-black",
-    border: "border-white/5",
-    eyebrow: "text-lime-300/80",
-    name: "text-white",
-    sub: "text-zinc-500",
-    logout: "text-zinc-400 hover:bg-white/5",
-    h1: "text-white",
-    notice: "bg-amber-500/10 text-amber-300 ring-1 ring-amber-400/30",
-    card: "bg-zinc-900 ring-1 ring-white/5 hover:ring-orange-400/40",
-    cardLabel: "text-white",
-    cardSub: "text-zinc-400",
-  },
-  white: {
-    page: "bg-violet-50/40",
-    aside: "bg-violet-50",
-    border: "border-violet-100",
-    eyebrow: "text-ink/60",
-    name: "text-ink",
-    sub: "text-ink/50",
-    logout: "text-zinc-700 hover:bg-zinc-50",
-    h1: "text-ink",
-    notice: "bg-amber-50 text-amber-900 ring-1 ring-amber-200",
-    card: "bg-white ring-1 ring-violet-100 hover:ring-orange-300",
-    cardLabel: "text-ink",
-    cardSub: "text-ink/60",
-  },
+const TK = {
+  page: "bg-violet-50/40",
+  aside: "bg-violet-50",
+  border: "border-violet-100",
+  eyebrow: "text-ink/60",
+  name: "text-ink",
+  sub: "text-ink/50",
+  logout: "text-zinc-700 hover:bg-zinc-50",
+  h1: "text-ink",
+  notice: "bg-amber-50 text-amber-900 ring-1 ring-amber-200",
+  card: "bg-white ring-1 ring-violet-100 hover:ring-orange-300",
+  cardLabel: "text-ink",
+  cardSub: "text-ink/60",
 } as const;
 
 export default async function ChatAuditPage({
@@ -64,8 +33,6 @@ export default async function ChatAuditPage({
     redirect(`/${lang}/g/${slug}/chat`);
   }
   const business = auth.business!;
-  const theme = await getTheme();
-  const tk = TONE[theme];
   const t = await getTranslations("chat");
   const tn = await getTranslations("nav");
 
@@ -77,28 +44,28 @@ export default async function ChatAuditPage({
   const threads = await listAuditTrainerThreads(viewer);
 
   return (
-    <div className={`flex min-h-screen ${tk.page}`}>
+    <div className={`flex min-h-screen ${TK.page}`}>
       <aside
-        className={`hidden w-60 shrink-0 flex-col border-r ${tk.border} ${tk.aside} lg:flex`}
+        className={`hidden w-60 shrink-0 flex-col border-r ${TK.border} ${TK.aside} lg:flex`}
       >
-        <div className={`border-b ${tk.border} px-6 py-6`}>
+        <div className={`border-b ${TK.border} px-6 py-6`}>
           <span
-            className={`text-xs font-semibold uppercase tracking-[0.22em] ${tk.eyebrow}`}
+            className={`text-xs font-semibold uppercase tracking-[0.22em] ${TK.eyebrow}`}
           >
             {tn("studio")}
           </span>
           <div
-            className={`mt-1 font-heading text-lg tracking-tight ${tk.name}`}
+            className={`mt-1 font-heading text-lg tracking-tight ${TK.name}`}
           >
             {business.name}
           </div>
-          <div className={`mt-0.5 text-xs ${tk.sub}`}>/g/{slug}</div>
+          <div className={`mt-0.5 text-xs ${TK.sub}`}>/g/{slug}</div>
         </div>
-        <SidebarNav tone={theme} />
-        <div className={`border-t ${tk.border} px-3 py-4`}>
+        <SidebarNav />
+        <div className={`border-t ${TK.border} px-3 py-4`}>
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button
-              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${tk.logout}`}
+              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${TK.logout}`}
             >
               {tn("logout")}
             </button>
@@ -108,22 +75,22 @@ export default async function ChatAuditPage({
 
       <main className="flex-1 px-5 py-6 sm:px-8">
         <div className="mb-3 flex items-center gap-3">
-          <Link href={`/${lang}/g/${slug}/chat`} className={`text-xs ${tk.sub} hover:underline`}>
+          <Link href={`/${lang}/g/${slug}/chat`} className={`text-xs ${TK.sub} hover:underline`}>
             ← {t("title")}
           </Link>
         </div>
         <h1
-          className={`font-heading text-xl tracking-tight sm:text-2xl ${tk.h1}`}
+          className={`font-heading text-xl tracking-tight sm:text-2xl ${TK.h1}`}
         >
           {t("auditTitle")}
         </h1>
 
-        <div className={`mt-4 rounded-lg px-4 py-3 text-xs ${tk.notice}`}>
+        <div className={`mt-4 rounded-lg px-4 py-3 text-xs ${TK.notice}`}>
           {t("auditNotice")}
         </div>
 
         {threads.length === 0 ? (
-          <p className={`mt-12 text-center text-sm ${tk.sub}`}>
+          <p className={`mt-12 text-center text-sm ${TK.sub}`}>
             {t("emptyList")}
           </p>
         ) : (
@@ -144,18 +111,18 @@ export default async function ChatAuditPage({
                 <li key={th.id}>
                   <Link
                     href={`/${lang}/g/${slug}/chat/${th.id}`}
-                    className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 transition ${tk.card}`}
+                    className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 transition ${TK.card}`}
                   >
                     <div className="min-w-0">
-                      <div className={`truncate text-sm font-medium ${tk.cardLabel}`}>
+                      <div className={`truncate text-sm font-medium ${TK.cardLabel}`}>
                         {peer}
                       </div>
-                      <div className={`mt-0.5 truncate text-xs ${tk.cardSub}`}>
+                      <div className={`mt-0.5 truncate text-xs ${TK.cardSub}`}>
                         {preview}
                       </div>
                     </div>
                     {th.lastMessageAt && (
-                      <time className={`shrink-0 text-[10px] ${tk.cardSub}`}>
+                      <time className={`shrink-0 text-[10px] ${TK.cardSub}`}>
                         {new Date(th.lastMessageAt).toLocaleDateString()}
                       </time>
                     )}

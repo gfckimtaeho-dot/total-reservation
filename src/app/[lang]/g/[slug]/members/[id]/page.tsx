@@ -5,82 +5,24 @@ import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { getTheme } from "@/lib/theme";
 import { SidebarNav } from "../../dashboard/SidebarNav";
 import { MemberAddDialog } from "../MemberAddDialog";
 import { OwnerIssuePanel } from "./OwnerIssuePanel";
 import { HandoverDialog } from "../../handover/HandoverDialog";
 
-const PAGE_BG = {
-  normal: "bg-amber-50/50",
-  black: "bg-zinc-950 text-zinc-200",
-  white: "bg-violet-50/40",
-} as const;
-
-const SIDEBAR_BG = {
-  normal: "bg-band",
-  black: "bg-black",
-  white: "border-r border-violet-100 bg-violet-50",
-} as const;
-
-const SIDEBAR_BORDER = {
-  normal: "border-ink/10",
-  black: "border-white/5",
-  white: "border-violet-100",
-} as const;
-
-const SIDEBAR_LABEL = {
-  normal: "text-ink/70",
-  black: "text-lime-300/80",
-  white: "text-ink/60",
-} as const;
-
-const SIDEBAR_NAME = {
-  normal: "text-ink",
-  black: "text-white",
-  white: "text-ink",
-} as const;
-
-const HEADER_BORDER = {
-  normal: "border-amber-200/60",
-  black: "border-white/5",
-  white: "border-violet-100",
-} as const;
-
-const SECTION = {
-  normal: "rounded-2xl bg-white ring-1 ring-amber-200/60 p-6",
-  black: "rounded-2xl bg-zinc-900 ring-1 ring-white/10 p-6",
-  white: "rounded-2xl bg-white ring-1 ring-violet-100 p-6",
-} as const;
-
-const TITLE = {
-  normal: "text-ink",
-  black: "text-white",
-  white: "text-ink",
-} as const;
-
-const SUBTLE = {
-  normal: "text-zinc-600",
-  black: "text-zinc-400",
-  white: "text-zinc-600",
-} as const;
-
-const PILL_ACTIVE = {
-  normal: "bg-band/60 text-ink",
-  black: "bg-lime-300/20 text-lime-300",
-  white: "bg-violet-100 text-violet-800",
-} as const;
-
-const PILL_PENDING = {
-  normal: "bg-amber-100 text-amber-900/80",
-  black: "bg-amber-300/20 text-amber-300",
-  white: "bg-amber-100 text-amber-800",
-} as const;
-
-const ROW_BORDER = {
-  normal: "border-amber-200/60",
-  black: "border-white/10",
-  white: "border-violet-100",
+const TK = {
+  page: "bg-violet-50/40",
+  sidebar: "border-r border-violet-100 bg-violet-50",
+  border: "border-violet-100",
+  label: "text-ink/60",
+  name: "text-ink",
+  headerBorder: "border-violet-100",
+  section: "rounded-2xl bg-white ring-1 ring-violet-100 p-6",
+  title: "text-ink",
+  subtle: "text-zinc-600",
+  pillActive: "bg-violet-100 text-violet-800",
+  pillPending: "bg-amber-100 text-amber-800",
+  rowBorder: "border-violet-100",
 } as const;
 
 export default async function MemberDetailPage({
@@ -91,7 +33,6 @@ export default async function MemberDetailPage({
   const { lang, slug, id } = await params;
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
-  const theme = await getTheme();
   const t = await getTranslations("memberDetail");
   const tn = await getTranslations("nav");
 
@@ -203,7 +144,7 @@ export default async function MemberDetailPage({
         ? t("statusPending")
         : t("statusWithdrawn");
   const statusPill =
-    u.status === "ACTIVE" ? PILL_ACTIVE[theme] : PILL_PENDING[theme];
+    u.status === "ACTIVE" ? TK.pillActive : TK.pillPending;
 
   // 회원권 + 횟수권을 한 표("보유 상품") 안에 보여줌. 구분 컬럼으로 종류 표시.
   type Holding = {
@@ -287,44 +228,29 @@ export default async function MemberDetailPage({
     }
   }
   const handoverGroups = Array.from(handoverGroupsMap.values());
-  const handoverDialogTone = theme === "black" ? "dark" : "light";
 
   return (
-    <div className={`flex min-h-screen ${PAGE_BG[theme]}`}>
+    <div className={`flex min-h-screen ${TK.page}`}>
       <aside
-        className={`hidden w-60 shrink-0 flex-col lg:flex ${SIDEBAR_BG[theme]}`}
+        className={`hidden w-60 shrink-0 flex-col lg:flex ${TK.sidebar}`}
       >
-        <div className={`border-b px-6 py-6 ${SIDEBAR_BORDER[theme]}`}>
+        <div className={`border-b px-6 py-6 ${TK.border}`}>
           <span
-            className={`text-xs font-semibold uppercase tracking-[0.22em] ${SIDEBAR_LABEL[theme]}`}
+            className={`text-xs font-semibold uppercase tracking-[0.22em] ${TK.label}`}
           >
             {tn("studio")}
           </span>
           <div
-            className={`mt-1 font-heading text-lg tracking-tight ${SIDEBAR_NAME[theme]}`}
+            className={`mt-1 font-heading text-lg tracking-tight ${TK.name}`}
           >
             {business.name}
           </div>
-          <div
-            className={`mt-0.5 text-xs ${
-              theme === "normal" ? "text-ink/60" : "text-zinc-500"
-            }`}
-          >
-            /g/{slug}
-          </div>
+          <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
         </div>
-        <SidebarNav tone={theme} />
-        <div className={`border-t px-3 py-4 ${SIDEBAR_BORDER[theme]}`}>
+        <SidebarNav />
+        <div className={`border-t px-3 py-4 ${TK.border}`}>
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button
-              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                theme === "black"
-                  ? "text-zinc-400 hover:bg-white/5"
-                  : theme === "white"
-                    ? "text-zinc-700 hover:bg-zinc-50"
-                    : "text-ink/80 hover:bg-white/40"
-              }`}
-            >
+            <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
               {tn("logout")}
             </button>
           </form>
@@ -333,18 +259,14 @@ export default async function MemberDetailPage({
 
       <main className="flex-1 overflow-x-hidden">
         <header
-          className={`flex items-center justify-between border-b px-8 py-5 ${HEADER_BORDER[theme]}`}
+          className={`flex items-center justify-between border-b px-8 py-5 ${TK.headerBorder}`}
         >
           <div>
-            <span
-              className={`text-xs font-semibold uppercase tracking-[0.22em] ${
-                theme === "black" ? "text-lime-300/80" : "text-ink/60"
-              }`}
-            >
+            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
               {t("eyebrow")}
             </span>
             <h1
-              className={`font-heading text-xl tracking-tight ${TITLE[theme]}`}
+              className={`font-heading text-xl tracking-tight ${TK.title}`}
             >
               {u.name}{" "}
               <span
@@ -357,7 +279,6 @@ export default async function MemberDetailPage({
           <div className="flex items-center gap-3">
             <MemberAddDialog
               slug={slug}
-              tone={theme}
               lang={lang}
               mode="edit"
               member={{
@@ -374,11 +295,7 @@ export default async function MemberDetailPage({
             />
             <Link
               href={`/${lang}/g/${slug}/members`}
-              className={`text-sm transition ${
-                theme === "black"
-                  ? "text-zinc-400 hover:text-lime-300"
-                  : "text-zinc-600 hover:text-ink"
-              }`}
+              className="text-sm transition text-zinc-600 hover:text-ink"
             >
               {t("back")}
             </Link>
@@ -387,9 +304,9 @@ export default async function MemberDetailPage({
 
         <div className="mx-auto w-full max-w-5xl space-y-5 p-6">
           {/* Basic */}
-          <section className={SECTION[theme]}>
+          <section className={TK.section}>
             <h2
-              className={`font-heading text-2xl tracking-tight ${TITLE[theme]}`}
+              className={`font-heading text-2xl tracking-tight ${TK.title}`}
             >
               {t("basicHeading")}
             </h2>
@@ -403,68 +320,35 @@ export default async function MemberDetailPage({
                       ? t("genderFemale")
                       : t("noValue")
                 }
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
               <Cell
                 label={t("labelAge")}
                 value={age != null ? t("ageUnit", { age }) : t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
-              <Cell
-                label={t("labelDob")}
-                value={dobStr ?? t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
-              />
-              <Cell
-                label={t("labelPhone")}
-                value={u.phone ?? t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
-              />
-              <Cell
-                label={t("labelEmail")}
-                value={u.email ?? t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
-              />
+              <Cell label={t("labelDob")} value={dobStr ?? t("noValue")} />
+              <Cell label={t("labelPhone")} value={u.phone ?? t("noValue")} />
+              <Cell label={t("labelEmail")} value={u.email ?? t("noValue")} />
               <Cell
                 label={t("labelEmergency")}
                 value={u.emergencyContactPhone ?? t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
               <Cell
                 label={t("labelLanguage")}
                 value={
                   u.locale === "en" ? t("langEnglish") : t("langKorean")
                 }
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
-              <Cell
-                label={t("labelStatus")}
-                value={statusLabel}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
-              />
-              <Cell
-                label={t("labelJoined")}
-                value={joinedStr}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
-              />
+              <Cell label={t("labelStatus")} value={statusLabel} />
+              <Cell label={t("labelJoined")} value={joinedStr} />
             </dl>
             <div className="mt-5">
               <dt
-                className={`text-xs font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
+                className={`text-xs font-semibold uppercase tracking-[0.18em] ${TK.subtle}`}
               >
                 {t("labelNote")}
               </dt>
               <dd
-                className={`mt-1 whitespace-pre-wrap text-base ${TITLE[theme]}`}
+                className={`mt-1 whitespace-pre-wrap text-base ${TK.title}`}
               >
                 {u.note || t("noValue")}
               </dd>
@@ -472,32 +356,32 @@ export default async function MemberDetailPage({
           </section>
 
           {/* 보유 상품 — 회원권 + 1:1 횟수권 + 단체 횟수권 통합 */}
-          <section className={SECTION[theme]}>
+          <section className={TK.section}>
             <h2
-              className={`font-heading text-2xl tracking-tight ${TITLE[theme]}`}
+              className={`font-heading text-2xl tracking-tight ${TK.title}`}
             >
               {t("holdingsHeading")}
             </h2>
             {holdings.length === 0 ? (
-              <p className={`mt-3 text-base ${SUBTLE[theme]}`}>
+              <p className={`mt-3 text-base ${TK.subtle}`}>
                 {t("holdingsNone")}
               </p>
             ) : (
               <table className="mt-4 w-full text-base">
                 <thead>
-                  <tr className={`border-b ${ROW_BORDER[theme]}`}>
+                  <tr className={`border-b ${TK.rowBorder}`}>
                     <th
-                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
+                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${TK.subtle}`}
                     >
                       {t("colKind")}
                     </th>
                     <th
-                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
+                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${TK.subtle}`}
                     >
                       {t("colItem")}
                     </th>
                     <th
-                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${SUBTLE[theme]}`}
+                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${TK.subtle}`}
                     >
                       {t("colInfo")}
                     </th>
@@ -507,18 +391,18 @@ export default async function MemberDetailPage({
                   {holdings.map((h) => (
                     <tr
                       key={h.id}
-                      className={`border-b ${ROW_BORDER[theme]}`}
+                      className={`border-b ${TK.rowBorder}`}
                     >
                       <td
-                        className={`px-3 py-3 text-left text-sm ${SUBTLE[theme]}`}
+                        className={`px-3 py-3 text-left text-sm ${TK.subtle}`}
                       >
                         {kindLabel(h.kind)}
                       </td>
-                      <td className={`px-3 py-3 text-left font-medium ${TITLE[theme]}`}>
+                      <td className={`px-3 py-3 text-left font-medium ${TK.title}`}>
                         {h.item}
                       </td>
                       <td
-                        className={`px-3 py-3 text-center tabular-nums ${TITLE[theme]}`}
+                        className={`px-3 py-3 text-center tabular-nums ${TK.title}`}
                       >
                         {h.info}
                       </td>
@@ -530,17 +414,17 @@ export default async function MemberDetailPage({
           </section>
 
           {/* 트레이너 담당 — 1:1 서비스만 양도. 단체 수업 제외. */}
-          <section className={SECTION[theme]}>
+          <section className={TK.section}>
             <h2
-              className={`font-heading text-2xl tracking-tight ${TITLE[theme]}`}
+              className={`font-heading text-2xl tracking-tight ${TK.title}`}
             >
               {t("handoverHeading")}
             </h2>
-            <p className={`mt-2 text-base ${SUBTLE[theme]}`}>
+            <p className={`mt-2 text-base ${TK.subtle}`}>
               {t("handoverHint")}
             </p>
             {handoverGroups.length === 0 ? (
-              <p className={`mt-4 text-sm ${SUBTLE[theme]}`}>
+              <p className={`mt-4 text-sm ${TK.subtle}`}>
                 {t("handoverEmpty")}
               </p>
             ) : (
@@ -548,17 +432,13 @@ export default async function MemberDetailPage({
                 {handoverGroups.map((g) => (
                   <li
                     key={g.serviceId}
-                    className={`flex items-center justify-between gap-3 rounded-lg px-4 py-3 ${
-                      theme === "black"
-                        ? "bg-zinc-900/60 ring-1 ring-white/5"
-                        : "bg-white ring-1 ring-ink/10"
-                    }`}
+                    className="flex items-center justify-between gap-3 rounded-lg px-4 py-3 bg-white ring-1 ring-ink/10"
                   >
                     <div className="min-w-0">
-                      <div className={`truncate text-sm font-semibold ${TITLE[theme]}`}>
+                      <div className={`truncate text-sm font-semibold ${TK.title}`}>
                         {g.serviceName}
                       </div>
-                      <div className={`mt-0.5 text-xs ${SUBTLE[theme]}`}>
+                      <div className={`mt-0.5 text-xs ${TK.subtle}`}>
                         {t("handoverCurrentLabel")}:{" "}
                         {g.currentTrainerName ?? "-"}
                       </div>
@@ -574,7 +454,7 @@ export default async function MemberDetailPage({
                         fromStaffName={g.currentTrainerName ?? ""}
                         activePackages={g.activePackages}
                         upcomingReservations={g.upcomingReservations}
-                        tone={handoverDialogTone}
+                        tone="light"
                       />
                     )}
                   </li>
@@ -584,18 +464,17 @@ export default async function MemberDetailPage({
           </section>
 
           {/* 서비스 발급 — 회원관리 → 회원 row → 상세 → 그 자리에서 발급 완결 */}
-          <section className={SECTION[theme]}>
+          <section className={TK.section}>
             <h2
-              className={`font-heading text-2xl tracking-tight ${TITLE[theme]}`}
+              className={`font-heading text-2xl tracking-tight ${TK.title}`}
             >
               {t("issueHeading")}
             </h2>
-            <p className={`mt-2 text-base ${SUBTLE[theme]}`}>
+            <p className={`mt-2 text-base ${TK.subtle}`}>
               {t("issueHint")}
             </p>
             <div className="mt-4">
               <OwnerIssuePanel
-                tone={theme}
                 slug={slug}
                 lang={lang}
                 customer={{ id: u.id, name: u.name }}
@@ -626,25 +505,13 @@ export default async function MemberDetailPage({
   );
 }
 
-function Cell({
-  label,
-  value,
-  title,
-  subtle,
-}: {
-  label: string;
-  value: string;
-  title: string;
-  subtle: string;
-}) {
+function Cell({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt
-        className={`text-xs font-semibold uppercase tracking-[0.18em] ${subtle}`}
-      >
+      <dt className={`text-xs font-semibold uppercase tracking-[0.18em] ${TK.subtle}`}>
         {label}
       </dt>
-      <dd className={`mt-1 text-base font-medium ${title}`}>{value}</dd>
+      <dd className={`mt-1 text-base font-medium ${TK.title}`}>{value}</dd>
     </div>
   );
 }

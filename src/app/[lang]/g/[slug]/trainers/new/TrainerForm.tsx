@@ -295,7 +295,6 @@ export function TrainerForm({
             name="dob"
             lang={lang}
             label={t("dob")}
-            tone={tone}
             initialDate={iv?.dob ?? undefined}
           />
           <Field

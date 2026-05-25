@@ -12,8 +12,6 @@ import { pickBestPromo, type PromoLike } from "@/lib/catalog/promo";
 //   - 톤(normal/black/white) — 회원 상세 페이지 SECTION/TITLE/SUBTLE 와 일관
 //   - 발급 로직은 issueCart 서버 액션 그대로 호출(트레이너 화면과 행동 동일)
 
-type Tone = "normal" | "black" | "white";
-
 type Membership = {
   id: string;
   name: string;
@@ -34,95 +32,34 @@ type Combo = {
   parts: string[];
 };
 
-const TONE = {
-  normal: {
-    subCard: "rounded-xl bg-amber-50/60 ring-1 ring-amber-200/60 p-4",
-    title: "text-ink",
-    subtle: "text-zinc-600",
-    eyebrow: "text-ink/70",
-    rowCard: "rounded-lg bg-white ring-1 ring-amber-200/60 p-3",
-    tabActive: "bg-amber-400 text-zinc-950",
-    tabInactive:
-      "bg-white text-zinc-700 ring-1 ring-amber-200/60 hover:bg-amber-50",
-    addBtn:
-      "rounded-md bg-amber-400 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40",
-    price: "text-ink",
-    priceSale: "text-emerald-600",
-    priceStrike: "text-zinc-400 line-through",
-    cartCard: "rounded-xl bg-white ring-2 ring-amber-300/70 p-4",
-    cartLine: "rounded-lg bg-amber-50/40 ring-1 ring-amber-200/40 p-2.5",
-    issueBtn:
-      "w-full rounded-lg bg-amber-500 py-3 text-sm font-semibold text-white hover:bg-amber-400 disabled:opacity-40",
-    issueBarMobile:
-      "rounded-lg bg-amber-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40",
-    mobileBar: "bg-white/95 border-t border-amber-200/60",
-    removeBtn:
-      "rounded-md ring-1 ring-amber-200/60 px-2 py-1 text-xs text-zinc-600 hover:text-rose-600 hover:ring-rose-300",
-    clearLink: "text-xs text-zinc-500 hover:text-rose-500",
-    doneCard: "rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-5 text-center",
-    doneText: "text-emerald-700",
-    againBtn:
-      "rounded-md bg-amber-100 px-4 py-2 text-sm font-medium text-ink hover:bg-amber-200",
-  },
-  black: {
-    subCard: "rounded-xl bg-zinc-950 ring-1 ring-white/10 p-4",
-    title: "text-white",
-    subtle: "text-zinc-400",
-    eyebrow: "text-lime-300/80",
-    rowCard: "rounded-lg bg-zinc-900 ring-1 ring-white/10 p-3",
-    tabActive: "bg-lime-300 text-zinc-950",
-    tabInactive:
-      "bg-zinc-900 text-zinc-400 ring-1 ring-white/10 hover:bg-zinc-800",
-    addBtn:
-      "rounded-md bg-lime-300 px-3 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-lime-200 disabled:opacity-40",
-    price: "text-zinc-100",
-    priceSale: "text-emerald-300",
-    priceStrike: "text-zinc-500 line-through",
-    cartCard: "rounded-xl bg-zinc-950 ring-2 ring-lime-300/40 p-4",
-    cartLine: "rounded-lg bg-zinc-900 ring-1 ring-white/10 p-2.5",
-    issueBtn:
-      "w-full rounded-lg bg-lime-300 py-3 text-sm font-semibold text-zinc-950 hover:bg-lime-200 disabled:opacity-40",
-    issueBarMobile:
-      "rounded-lg bg-lime-300 px-4 py-3 text-sm font-semibold text-zinc-950 disabled:opacity-40",
-    mobileBar: "bg-zinc-950/95 border-t border-white/10",
-    removeBtn:
-      "rounded-md ring-1 ring-white/15 px-2 py-1 text-xs text-zinc-400 hover:text-rose-300 hover:ring-rose-400/40",
-    clearLink: "text-xs text-zinc-500 hover:text-rose-300",
-    doneCard:
-      "rounded-xl bg-emerald-500/10 ring-1 ring-emerald-400/30 p-5 text-center",
-    doneText: "text-emerald-300",
-    againBtn:
-      "rounded-md bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700",
-  },
-  white: {
-    subCard: "rounded-xl bg-violet-50/60 ring-1 ring-violet-100 p-4",
-    title: "text-ink",
-    subtle: "text-zinc-600",
-    eyebrow: "text-violet-700/80",
-    rowCard: "rounded-lg bg-white ring-1 ring-violet-100 p-3",
-    tabActive: "bg-violet-500 text-white",
-    tabInactive:
-      "bg-white text-zinc-700 ring-1 ring-violet-100 hover:bg-violet-50",
-    addBtn:
-      "rounded-md bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-40",
-    price: "text-ink",
-    priceSale: "text-emerald-600",
-    priceStrike: "text-zinc-400 line-through",
-    cartCard: "rounded-xl bg-white ring-2 ring-violet-300 p-4",
-    cartLine: "rounded-lg bg-violet-50/60 ring-1 ring-violet-100 p-2.5",
-    issueBtn:
-      "w-full rounded-lg bg-violet-500 py-3 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-40",
-    issueBarMobile:
-      "rounded-lg bg-violet-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40",
-    mobileBar: "bg-white/95 border-t border-violet-100",
-    removeBtn:
-      "rounded-md ring-1 ring-violet-100 px-2 py-1 text-xs text-zinc-600 hover:text-rose-600 hover:ring-rose-300",
-    clearLink: "text-xs text-zinc-500 hover:text-rose-500",
-    doneCard: "rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-5 text-center",
-    doneText: "text-emerald-700",
-    againBtn:
-      "rounded-md bg-violet-100 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-200",
-  },
+const TK = {
+  subCard: "rounded-xl bg-violet-50/60 ring-1 ring-violet-100 p-4",
+  title: "text-ink",
+  subtle: "text-zinc-600",
+  eyebrow: "text-violet-700/80",
+  rowCard: "rounded-lg bg-white ring-1 ring-violet-100 p-3",
+  tabActive: "bg-violet-500 text-white",
+  tabInactive:
+    "bg-white text-zinc-700 ring-1 ring-violet-100 hover:bg-violet-50",
+  addBtn:
+    "rounded-md bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-40",
+  price: "text-ink",
+  priceSale: "text-emerald-600",
+  priceStrike: "text-zinc-400 line-through",
+  cartCard: "rounded-xl bg-white ring-2 ring-violet-300 p-4",
+  cartLine: "rounded-lg bg-violet-50/60 ring-1 ring-violet-100 p-2.5",
+  issueBtn:
+    "w-full rounded-lg bg-violet-500 py-3 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-40",
+  issueBarMobile:
+    "rounded-lg bg-violet-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40",
+  mobileBar: "bg-white/95 border-t border-violet-100",
+  removeBtn:
+    "rounded-md ring-1 ring-violet-100 px-2 py-1 text-xs text-zinc-600 hover:text-rose-600 hover:ring-rose-300",
+  clearLink: "text-xs text-zinc-500 hover:text-rose-500",
+  doneCard: "rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-5 text-center",
+  doneText: "text-emerald-700",
+  againBtn:
+    "rounded-md bg-violet-100 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-200",
 } as const;
 
 type CartLine = {
@@ -134,7 +71,6 @@ type CartLine = {
 };
 
 export function OwnerIssuePanel({
-  tone,
   slug,
   customer,
   memberships,
@@ -142,7 +78,6 @@ export function OwnerIssuePanel({
   combos,
   promotions,
 }: {
-  tone: Tone;
   slug: string;
   lang: string;
   customer: { id: string; name: string };
@@ -152,7 +87,6 @@ export function OwnerIssuePanel({
   promotions: PromoLike[];
 }) {
   const t = useTranslations("trainerCal");
-  const tk = TONE[tone];
   const router = useRouter();
   const [pending, start] = useTransition();
   const [cat, setCat] = useState<"membership" | "package" | "combo">(
@@ -210,16 +144,16 @@ export function OwnerIssuePanel({
 
   if (done) {
     return (
-      <div className={tk.doneCard}>
-        <p className={`text-lg font-semibold ${tk.doneText}`}>
+      <div className={TK.doneCard}>
+        <p className={`text-lg font-semibold ${TK.doneText}`}>
           ✓ {t("issuedCount", { count: issuedN })}
         </p>
-        <p className={`mt-1 text-sm ${tk.subtle}`}>{customer.name}</p>
+        <p className={`mt-1 text-sm ${TK.subtle}`}>{customer.name}</p>
         <div className="mt-4 flex justify-center">
           <button
             type="button"
             onClick={() => setDone(false)}
-            className={tk.againBtn}
+            className={TK.againBtn}
           >
             {t("issueAnother")}
           </button>
@@ -231,26 +165,26 @@ export function OwnerIssuePanel({
   return (
     <div className="lg:grid lg:grid-cols-[1fr_320px] lg:items-start lg:gap-4">
       {/* 카탈로그 — 헤딩은 외부 섹션 "서비스 발급" 이 이미 표시 */}
-      <div className={tk.subCard}>
+      <div className={TK.subCard}>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setCat("membership")}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${cat === "membership" ? tk.tabActive : tk.tabInactive}`}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${cat === "membership" ? TK.tabActive : TK.tabInactive}`}
           >
             {t("tabMembership")}
           </button>
           <button
             type="button"
             onClick={() => setCat("package")}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${cat === "package" ? tk.tabActive : tk.tabInactive}`}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${cat === "package" ? TK.tabActive : TK.tabInactive}`}
           >
             {t("tabPackage")}
           </button>
           <button
             type="button"
             onClick={() => setCat("combo")}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${cat === "combo" ? tk.tabActive : tk.tabInactive}`}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${cat === "combo" ? TK.tabActive : TK.tabInactive}`}
           >
             {t("tabCombo")}
           </button>
@@ -259,23 +193,23 @@ export function OwnerIssuePanel({
         <ul className="mt-3 space-y-2">
           {cat === "membership" &&
             (memberships.length === 0 ? (
-              <li className={`text-sm ${tk.subtle}`}>{t("noPlansHere")}</li>
+              <li className={`text-sm ${TK.subtle}`}>{t("noPlansHere")}</li>
             ) : (
               memberships.map((m) => (
                 <li
                   key={m.id}
-                  className={`flex items-center justify-between gap-3 ${tk.rowCard}`}
+                  className={`flex items-center justify-between gap-3 ${TK.rowCard}`}
                 >
                   <span>
-                    <span className={`font-medium ${tk.title}`}>
+                    <span className={`font-medium ${TK.title}`}>
                       {m.name}
                     </span>
-                    <span className={`ml-2 text-xs ${tk.subtle}`}>
+                    <span className={`ml-2 text-xs ${TK.subtle}`}>
                       {m.durationDays}d
                     </span>
                   </span>
                   <span className="flex items-center gap-3">
-                    <span className={`tabular-nums ${tk.price}`}>
+                    <span className={`tabular-nums ${TK.price}`}>
                       {peso(m.pricePhp)}
                     </span>
                     <button
@@ -289,7 +223,7 @@ export function OwnerIssuePanel({
                           pricePhp: m.pricePhp,
                         })
                       }
-                      className={tk.addBtn}
+                      className={TK.addBtn}
                     >
                       {t("addToCart")}
                     </button>
@@ -300,23 +234,23 @@ export function OwnerIssuePanel({
 
           {cat === "package" &&
             (packages.length === 0 ? (
-              <li className={`text-sm ${tk.subtle}`}>{t("noPlansHere")}</li>
+              <li className={`text-sm ${TK.subtle}`}>{t("noPlansHere")}</li>
             ) : (
               packages.map((p) => (
                 <li
                   key={p.id}
-                  className={`flex items-center justify-between gap-3 ${tk.rowCard}`}
+                  className={`flex items-center justify-between gap-3 ${TK.rowCard}`}
                 >
                   <span>
-                    <span className={`font-medium ${tk.title}`}>
+                    <span className={`font-medium ${TK.title}`}>
                       {p.name}
                     </span>
-                    <span className={`ml-2 text-xs ${tk.subtle}`}>
+                    <span className={`ml-2 text-xs ${TK.subtle}`}>
                       {p.serviceName} · {p.sessionCount}회
                     </span>
                   </span>
                   <span className="flex items-center gap-3">
-                    <span className={`tabular-nums ${tk.price}`}>
+                    <span className={`tabular-nums ${TK.price}`}>
                       {peso(p.pricePhp)}
                     </span>
                     <button
@@ -330,7 +264,7 @@ export function OwnerIssuePanel({
                           pricePhp: p.pricePhp,
                         })
                       }
-                      className={tk.addBtn}
+                      className={TK.addBtn}
                     >
                       {t("addToCart")}
                     </button>
@@ -341,14 +275,14 @@ export function OwnerIssuePanel({
 
           {cat === "combo" &&
             (combos.length === 0 ? (
-              <li className={`text-sm ${tk.subtle}`}>{t("noPlansHere")}</li>
+              <li className={`text-sm ${TK.subtle}`}>{t("noPlansHere")}</li>
             ) : (
               combos.map((c) => (
-                <li key={c.id} className={tk.rowCard}>
+                <li key={c.id} className={TK.rowCard}>
                   <div className="flex items-center justify-between gap-3">
-                    <span className={`font-medium ${tk.title}`}>{c.name}</span>
+                    <span className={`font-medium ${TK.title}`}>{c.name}</span>
                     <span className="flex items-center gap-3">
-                      <span className={`tabular-nums ${tk.price}`}>
+                      <span className={`tabular-nums ${TK.price}`}>
                         {peso(c.pricePhp)}
                       </span>
                       <button
@@ -362,13 +296,13 @@ export function OwnerIssuePanel({
                             pricePhp: c.pricePhp,
                           })
                         }
-                        className={tk.addBtn}
+                        className={TK.addBtn}
                       >
                         {t("addToCart")}
                       </button>
                     </span>
                   </div>
-                  <p className={`mt-1 text-xs ${tk.subtle}`}>
+                  <p className={`mt-1 text-xs ${TK.subtle}`}>
                     {t("comboIncludes")}: {c.parts.join(" + ")}
                   </p>
                 </li>
@@ -379,10 +313,10 @@ export function OwnerIssuePanel({
 
       {/* 장바구니 */}
       <aside className="mt-4 lg:sticky lg:top-4 lg:mt-0">
-        <div className={tk.cartCard}>
+        <div className={TK.cartCard}>
           <div className="flex items-center justify-between">
             <h3
-              className={`text-xs font-semibold uppercase tracking-[0.18em] ${tk.eyebrow}`}
+              className={`text-xs font-semibold uppercase tracking-[0.18em] ${TK.eyebrow}`}
             >
               {t("cartTitle")}
               {cart.length > 0 ? ` · ${cart.length}` : ""}
@@ -391,14 +325,14 @@ export function OwnerIssuePanel({
               <button
                 type="button"
                 onClick={() => setCart([])}
-                className={tk.clearLink}
+                className={TK.clearLink}
               >
                 {t("cartClear")}
               </button>
             )}
           </div>
           {cart.length === 0 ? (
-            <p className={`mt-3 text-sm ${tk.subtle}`}>{t("cartEmpty")}</p>
+            <p className={`mt-3 text-sm ${TK.subtle}`}>{t("cartEmpty")}</p>
           ) : (
             <>
               <ul className="mt-3 space-y-2">
@@ -407,13 +341,13 @@ export function OwnerIssuePanel({
                   return (
                     <li
                       key={l.uid}
-                      className={`flex items-center justify-between gap-2 ${tk.cartLine}`}
+                      className={`flex items-center justify-between gap-2 ${TK.cartLine}`}
                     >
                       <span className="min-w-0">
-                        <span className={`block truncate text-sm font-medium ${tk.title}`}>
+                        <span className={`block truncate text-sm font-medium ${TK.title}`}>
                           {l.name}
                         </span>
-                        <span className={`text-[11px] ${tk.subtle}`}>
+                        <span className={`text-[11px] ${TK.subtle}`}>
                           {t(
                             l.kind === "MEMBERSHIP"
                               ? "tabMembership"
@@ -426,15 +360,15 @@ export function OwnerIssuePanel({
                       <span className="flex shrink-0 items-center gap-2">
                         {d > 0 ? (
                           <span className="text-right">
-                            <span className={`block text-[11px] tabular-nums ${tk.priceStrike}`}>
+                            <span className={`block text-[11px] tabular-nums ${TK.priceStrike}`}>
                               {peso(l.pricePhp)}
                             </span>
-                            <span className={`block text-sm font-semibold tabular-nums ${tk.priceSale}`}>
+                            <span className={`block text-sm font-semibold tabular-nums ${TK.priceSale}`}>
                               {peso(l.pricePhp - d)}
                             </span>
                           </span>
                         ) : (
-                          <span className={`tabular-nums text-sm ${tk.price}`}>
+                          <span className={`tabular-nums text-sm ${TK.price}`}>
                             {peso(l.pricePhp)}
                           </span>
                         )}
@@ -442,7 +376,7 @@ export function OwnerIssuePanel({
                           type="button"
                           aria-label={t("cartClear")}
                           onClick={() => removeFromCart(l.uid)}
-                          className={tk.removeBtn}
+                          className={TK.removeBtn}
                         >
                           ✕
                         </button>
@@ -451,16 +385,16 @@ export function OwnerIssuePanel({
                   );
                 })}
               </ul>
-              <div className={`mt-3 border-t pt-3 ${tone === "black" ? "border-white/10" : tone === "white" ? "border-violet-100" : "border-amber-200/60"}`}>
+              <div className="mt-3 border-t pt-3 border-violet-100">
                 {cartSaved > 0 && (
-                  <div className={`mb-1 flex items-center justify-between text-xs ${tk.priceSale}`}>
+                  <div className={`mb-1 flex items-center justify-between text-xs ${TK.priceSale}`}>
                     <span>{t("cartSavedLabel")}</span>
                     <span className="tabular-nums">− {peso(cartSaved)}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm ${tk.subtle}`}>{t("cartTotal")}</span>
-                  <span className={`tabular-nums text-base font-semibold ${tk.title}`}>
+                  <span className={`text-sm ${TK.subtle}`}>{t("cartTotal")}</span>
+                  <span className={`tabular-nums text-base font-semibold ${TK.title}`}>
                     {peso(cartTotal)}
                   </span>
                 </div>
@@ -470,7 +404,7 @@ export function OwnerIssuePanel({
                 type="button"
                 disabled={pending}
                 onClick={doIssue}
-                className={`mt-3 hidden lg:block ${tk.issueBtn}`}
+                className={`mt-3 hidden lg:block ${TK.issueBtn}`}
               >
                 {t("cartIssueBtn", { count: cart.length })}
               </button>
@@ -480,12 +414,12 @@ export function OwnerIssuePanel({
 
         {/* 모바일 하단 발급 바 — 패널이 회원 상세 안에 있으므로 fixed 대신 in-flow */}
         {cart.length > 0 && (
-          <div className={`mt-3 p-3 lg:hidden ${tk.mobileBar} rounded-lg`}>
+          <div className={`mt-3 p-3 lg:hidden ${TK.mobileBar} rounded-lg`}>
             <button
               type="button"
               disabled={pending}
               onClick={doIssue}
-              className={`flex w-full items-center justify-between ${tk.issueBarMobile}`}
+              className={`flex w-full items-center justify-between ${TK.issueBarMobile}`}
             >
               <span>{t("cartIssueBtn", { count: cart.length })}</span>
               <span className="tabular-nums">{peso(cartTotal)}</span>

@@ -149,7 +149,7 @@ export function CalendarMonth({
         {weekdays.map((w) => (
           <span
             key={w}
-            className={`rounded-t-md py-2 pb-2 text-[11px] font-medium ${tk.headRow}`}
+            className={`rounded-t-md py-2 pb-2 text-base font-semibold ${tk.headRow}`}
           >
             {w}
           </span>
@@ -162,10 +162,10 @@ export function CalendarMonth({
             return (
               <div
                 key={day}
-                className={`relative min-h-[68px] rounded-md p-1.5 text-left ${tk.cellClosed}`}
+                className={`relative flex min-h-[96px] flex-col rounded-md p-2 ${tk.cellClosed}`}
               >
-                <div className="text-xs font-medium">{day}</div>
-                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
+                <div className="text-left text-sm font-semibold leading-none">{day}</div>
+                <div className="absolute inset-0 flex items-center justify-center text-xs font-medium">
                   {labels.closed}
                 </div>
               </div>
@@ -178,17 +178,17 @@ export function CalendarMonth({
               key={day}
               type="button"
               onClick={() => setOpenDay(day)}
-              className={`block min-h-[68px] w-full rounded-md p-1.5 text-left transition hover:opacity-90 ${tk.cell} ${
+              className={`flex min-h-[96px] w-full flex-col rounded-md p-2 transition hover:opacity-90 ${tk.cell} ${
                 isToday ? tk.cellToday : ""
               }`}
             >
-              <div className={`text-xs font-medium ${tk.dayNum}`}>{day}</div>
+              <div className={`text-left text-sm font-semibold leading-none ${tk.dayNum}`}>{day}</div>
               {events.length > 0 && (
-                <ul className="mt-1 space-y-0.5">
+                <ul className="mt-2 space-y-0.5">
                   {events.slice(0, 3).map((ev, idx) => (
                     <li
                       key={`${ev.scheduleId}-${idx}`}
-                      className={`block truncate rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      className={`block truncate rounded px-1.5 py-0.5 text-[11px] font-medium ${
                         ev.kind === "ONE_OFF" ? tk.pillOneOff : tk.pillEvent
                       }`}
                       title={`${ev.serviceName} ${fmtMin(ev.startMin)}~${fmtMin(ev.endMin)}`}
@@ -197,7 +197,7 @@ export function CalendarMonth({
                     </li>
                   ))}
                   {events.length > 3 && (
-                    <li className={`text-[10px] font-medium ${tk.rowMeta}`}>
+                    <li className={`text-[11px] font-medium ${tk.rowMeta}`}>
                       +{events.length - 3}
                     </li>
                   )}

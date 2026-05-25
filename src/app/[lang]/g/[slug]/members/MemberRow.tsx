@@ -10,54 +10,20 @@ import {
 } from "./actions";
 import { MemberAddDialog } from "./MemberAddDialog";
 
-type Tone = "normal" | "black" | "white";
-
-const TONE_TOKENS = {
-  normal: {
-    rowBorder: "border-amber-200/60",
-    rowHover: "hover:bg-amber-50/40",
-    text: "text-ink",
-    subtext: "text-zinc-600",
-    pillPending: "bg-amber-100 text-amber-900/80",
-    pillActive: "bg-band/60 text-ink",
-    pillExpiring: "bg-rose-100 text-rose-700",
-    btn: "border border-amber-200/60 bg-white text-ink hover:border-ink",
-    btnPrimary: "bg-ink text-white hover:bg-ink/90",
-    btnDanger: "border border-rose-300 bg-white text-rose-600 hover:bg-rose-50",
-    successText: "text-emerald-700",
-    errorText: "text-rose-600",
-    noteIcon: "text-rose-600",
-  },
-  black: {
-    rowBorder: "border-white/10",
-    rowHover: "hover:bg-white/5",
-    text: "text-white",
-    subtext: "text-zinc-400",
-    pillPending: "bg-amber-300/20 text-amber-300",
-    pillActive: "bg-lime-300/20 text-lime-300",
-    pillExpiring: "bg-rose-500/20 text-rose-300",
-    btn: "border border-white/10 bg-zinc-800 text-zinc-200 hover:border-lime-300",
-    btnPrimary: "bg-lime-300 text-zinc-950 hover:bg-lime-200",
-    btnDanger: "border border-rose-500/40 bg-zinc-800 text-rose-300 hover:bg-rose-500/10",
-    successText: "text-lime-300",
-    errorText: "text-rose-400",
-    noteIcon: "text-rose-300",
-  },
-  white: {
-    rowBorder: "border-violet-100",
-    rowHover: "hover:bg-violet-50",
-    text: "text-ink",
-    subtext: "text-zinc-600",
-    pillPending: "bg-amber-100 text-amber-800",
-    pillActive: "bg-violet-100 text-violet-800",
-    pillExpiring: "bg-rose-100 text-rose-700",
-    btn: "border border-violet-200 bg-white text-zinc-700 hover:border-violet-500",
-    btnPrimary: "bg-violet-600 text-white hover:bg-violet-700",
-    btnDanger: "border border-rose-300 bg-white text-rose-600 hover:bg-rose-50",
-    successText: "text-emerald-700",
-    errorText: "text-rose-600",
-    noteIcon: "text-rose-600",
-  },
+const TK = {
+  rowBorder: "border-violet-100",
+  rowHover: "hover:bg-violet-50",
+  text: "text-ink",
+  subtext: "text-zinc-600",
+  pillPending: "bg-amber-100 text-amber-800",
+  pillActive: "bg-violet-100 text-violet-800",
+  pillExpiring: "bg-rose-100 text-rose-700",
+  btn: "border border-violet-200 bg-white text-zinc-700 hover:border-violet-500",
+  btnPrimary: "bg-violet-600 text-white hover:bg-violet-700",
+  btnDanger: "border border-rose-300 bg-white text-rose-600 hover:bg-rose-50",
+  successText: "text-emerald-700",
+  errorText: "text-rose-600",
+  noteIcon: "text-rose-600",
 } as const;
 
 export type MemberView = {
@@ -85,17 +51,14 @@ export type MemberView = {
 export function MemberRow({
   slug,
   member,
-  tone,
   lang,
 }: {
   slug: string;
   member: MemberView;
-  tone: Tone;
   lang: string;
 }) {
   const t = useTranslations("members");
   const router = useRouter();
-  const tk = TONE_TOKENS[tone];
   const [feedback, setFeedback] = useState<{
     kind: "ok" | "err";
     message: string;
@@ -152,25 +115,25 @@ export function MemberRow({
 
   return (
     <tr
-      className={`cursor-pointer border-b ${tk.rowBorder} ${tk.rowHover}`}
+      className={`cursor-pointer border-b ${TK.rowBorder} ${TK.rowHover}`}
       onClick={() =>
         router.push(`/${lang}/g/${slug}/members/${member.id}`)
       }
     >
       <td className="px-4 py-3 text-left">
         <div className="flex items-center gap-1.5">
-          <span className={`font-medium ${tk.text}`}>{member.name}</span>
+          <span className={`font-medium ${TK.text}`}>{member.name}</span>
           {member.note && (
             <span
               title={`⚠ ${member.note}`}
-              className={`cursor-help text-xs ${tk.noteIcon}`}
+              className={`cursor-help text-xs ${TK.noteIcon}`}
             >
               ⚠
             </span>
           )}
           {!isActive && (
             <span
-              className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${tk.pillPending}`}
+              className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${TK.pillPending}`}
             >
               {t("pendingPill")}
             </span>
@@ -182,18 +145,18 @@ export function MemberRow({
           )}
         </div>
         {member.note && (
-          <div className={`mt-0.5 line-clamp-1 text-xs ${tk.subtext}`}>
+          <div className={`mt-0.5 line-clamp-1 text-xs ${TK.subtext}`}>
             {member.note}
           </div>
         )}
       </td>
-      <td className={`px-4 py-3 text-right text-sm tabular-nums ${tk.text}`}>
+      <td className={`px-4 py-3 text-right text-sm tabular-nums ${TK.text}`}>
         {member.age != null ? t("ageUnit", { age: member.age }) : "-"}
       </td>
-      <td className={`px-4 py-3 text-right text-sm tabular-nums ${tk.text}`}>
+      <td className={`px-4 py-3 text-right text-sm tabular-nums ${TK.text}`}>
         {member.phone ?? "-"}
       </td>
-      <td className={`px-4 py-3 text-left text-sm ${tk.text}`}>
+      <td className={`px-4 py-3 text-left text-sm ${TK.text}`}>
         {member.email ? (
           <span
             className="block max-w-[180px] truncate"
@@ -202,36 +165,36 @@ export function MemberRow({
             {member.email}
           </span>
         ) : (
-          <span className={tk.subtext}>-</span>
+          <span className={TK.subtext}>-</span>
         )}
       </td>
       <td className="px-4 py-3 text-center text-sm">
         {member.nextExpiry ? (
           <span
             className={`inline-flex items-center gap-1.5 ${
-              member.expiringSoon ? "" : tk.text
+              member.expiringSoon ? "" : TK.text
             }`}
           >
-            <span className={`tabular-nums ${tk.text}`}>
+            <span className={`tabular-nums ${TK.text}`}>
               {member.nextExpiry}
             </span>
             {member.expiringSoon && (
               <span
-                className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${tk.pillExpiring}`}
+                className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${TK.pillExpiring}`}
               >
                 {t("expiringPill")}
               </span>
             )}
           </span>
         ) : (
-          <span className={tk.subtext}>-</span>
+          <span className={TK.subtext}>-</span>
         )}
       </td>
       <td
-        className={`min-w-[16rem] px-4 py-3 text-right text-sm ${tk.text}`}
+        className={`min-w-[16rem] px-4 py-3 text-right text-sm ${TK.text}`}
       >
         {member.remainingPerService.length === 0 ? (
-          <span className={tk.subtext}>-</span>
+          <span className={TK.subtext}>-</span>
         ) : (
           <div className="flex flex-wrap justify-end gap-x-3 gap-y-0.5">
             {member.remainingPerService.map((it, i) => (
@@ -264,7 +227,7 @@ export function MemberRow({
                 ? t("rowSendTooltip")
                 : t("rowSendTooltipNoEmail")
             }
-            className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${tk.btnPrimary}`}
+            className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${TK.btnPrimary}`}
           >
             {pending && member.email ? t("rowSending") : t("rowSendEmail")}
           </button>
@@ -272,13 +235,12 @@ export function MemberRow({
             type="button"
             onClick={onCopyUrl}
             disabled={pending}
-            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btn}`}
+            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${TK.btn}`}
           >
             {copied ? t("rowCopied") : t("rowCopyUrl")}
           </button>
           <MemberAddDialog
             slug={slug}
-            tone={tone}
             lang={lang}
             mode="edit"
             member={{
@@ -298,7 +260,7 @@ export function MemberRow({
             onClick={onToggleActive}
             disabled={pending}
             className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${
-              member.active ? tk.btnDanger : tk.btnPrimary
+              member.active ? TK.btnDanger : TK.btnPrimary
             }`}
           >
             {member.active ? t("rowDeactivate") : t("rowActivate")}
@@ -307,7 +269,7 @@ export function MemberRow({
         {feedback && (
           <div
             className={`mt-1.5 text-[11px] ${
-              feedback.kind === "ok" ? tk.successText : tk.errorText
+              feedback.kind === "ok" ? TK.successText : TK.errorText
             }`}
           >
             {feedback.message}

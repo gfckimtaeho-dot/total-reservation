@@ -5,8 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { getPendingRefundCount } from "../refunds/actions";
 
-export type SidebarTone = "normal" | "black" | "white";
-
 type ActiveKey =
   | "dashboard"
   | "members"
@@ -38,27 +36,6 @@ function items(lang: string, slug: string): Item[] {
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
   ];
 }
-
-const TONE = {
-  normal: {
-    activeDash: "bg-ink text-white",
-    inactive: "text-ink/80 hover:bg-white/40",
-    soonBadge: "bg-white/40 text-ink/60",
-    spinner: "border-white/40 border-t-white",
-  },
-  black: {
-    activeDash: "bg-lime-300 text-zinc-950",
-    inactive: "text-zinc-400 hover:bg-white/5 hover:text-lime-300",
-    soonBadge: "bg-white/5 text-zinc-500",
-    spinner: "border-zinc-950/30 border-t-zinc-950",
-  },
-  white: {
-    activeDash: "bg-zinc-100 text-ink",
-    inactive: "text-zinc-700 hover:bg-zinc-50",
-    soonBadge: "bg-zinc-100 text-zinc-500",
-    spinner: "border-ink/30 border-t-ink",
-  },
-} as const;
 
 // pathname에서 lang/slug/active key를 모두 derive. props로 안 받아도
 // loading.tsx 같은 곳에서 그대로 mount할 수 있음.
@@ -108,10 +85,9 @@ function keyFromHref(href: string): ActiveKey | null {
   return null;
 }
 
-export function SidebarNav({ tone }: { tone: SidebarTone }) {
+export function SidebarNav() {
   const t = useTranslations("nav");
   const locale = useLocale();
-  const tk = TONE[tone];
   const pathname = usePathname() ?? "";
   const { lang, slug, activeKey } = useMemo(
     () => parsePathname(pathname, locale),
@@ -206,12 +182,14 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
         onClick={() => navigate(dashHref)}
         disabled={pending}
         className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${
-          dashActive ? `${tk.activeDash} font-medium` : tk.inactive
+          dashActive
+            ? "bg-zinc-100 text-ink font-medium"
+            : "text-zinc-700 hover:bg-zinc-50"
         } ${dimWhilePending(dashActive)}`}
       >
         <span>{t("dashboard")}</span>
         {pendingKey === "dashboard" && pending && (
-          <Spinner className={tk.spinner} />
+          <Spinner className="border-ink/30 border-t-ink" />
         )}
       </button>
       {list.map((n) => {
@@ -231,12 +209,10 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
           return (
             <span
               key={n.key}
-              className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${tk.inactive} cursor-default`}
+              className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 cursor-default"
             >
               <span>{t(n.key)}</span>
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${tk.soonBadge}`}
-              >
+              <span className="rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] bg-zinc-100 text-zinc-500">
                 {t("soon")}
               </span>
             </span>
@@ -253,7 +229,9 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
             onClick={() => navigate(href)}
             disabled={pending}
             className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${
-              isActive ? `${tk.activeDash} font-medium` : tk.inactive
+              isActive
+                ? "bg-zinc-100 text-ink font-medium"
+                : "text-zinc-700 hover:bg-zinc-50"
             } ${dimWhilePending(isActive)}`}
           >
             <span>{t(n.key)}</span>
@@ -268,7 +246,9 @@ export function SidebarNav({ tone }: { tone: SidebarTone }) {
                   {chatUnread > 99 ? "99+" : chatUnread}
                 </span>
               )}
-              {isPendingThis && <Spinner className={tk.spinner} />}
+              {isPendingThis && (
+                <Spinner className="border-ink/30 border-t-ink" />
+              )}
             </span>
           </button>
         );

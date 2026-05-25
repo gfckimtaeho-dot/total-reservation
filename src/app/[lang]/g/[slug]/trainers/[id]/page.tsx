@@ -6,88 +6,19 @@ import { getTranslations } from "next-intl/server";
 import { logout } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { getTheme } from "@/lib/theme";
 import { ensureAccessToken } from "@/lib/auth/accessToken";
 import { SidebarNav } from "../../dashboard/SidebarNav";
 import { RegenerateQrButton } from "./RegenerateQrButton";
 import { LeaveManager } from "./LeaveManager";
 
-const PAGE_BG = {
-  normal: "bg-amber-50/50",
-  black: "bg-zinc-950 text-zinc-200",
-  white: "bg-violet-50/40",
-} as const;
-
-const SIDEBAR_BG = {
-  normal: "bg-band",
-  black: "bg-black",
-  white: "border-r border-violet-100 bg-violet-50",
-} as const;
-
-const SIDEBAR_BORDER = {
-  normal: "border-ink/10",
-  black: "border-white/5",
-  white: "border-violet-100",
-} as const;
-
-const SIDEBAR_LABEL = {
-  normal: "text-ink/70",
-  black: "text-lime-300/80",
-  white: "text-ink/60",
-} as const;
-
-const SIDEBAR_NAME = {
-  normal: "text-ink",
-  black: "text-white",
-  white: "text-ink",
-} as const;
-
-const HEADER_BORDER = {
-  normal: "border-amber-200/60",
-  black: "border-white/5",
-  white: "border-violet-100",
-} as const;
-
-const SECTION = {
-  normal: "rounded-2xl bg-white ring-1 ring-amber-200/60 p-6",
-  black: "rounded-2xl bg-zinc-900 ring-1 ring-white/10 p-6",
-  white: "rounded-2xl bg-white ring-1 ring-violet-100 p-6",
-} as const;
-
-const TITLE = {
-  normal: "text-ink",
-  black: "text-white",
-  white: "text-ink",
-} as const;
-
-const SUBTLE = {
-  normal: "text-zinc-600",
-  black: "text-zinc-400",
-  white: "text-zinc-600",
-} as const;
-
-const PILL_TRAINER = {
-  normal: "bg-band/60 text-ink",
-  black: "bg-lime-300/20 text-lime-300",
-  white: "bg-violet-100 text-violet-800",
-} as const;
-
-const PILL_MANAGER = {
-  normal: "bg-amber-100 text-amber-900/80",
-  black: "bg-amber-300/20 text-amber-300",
-  white: "bg-amber-100 text-amber-800",
-} as const;
-
-const WEEKDAY_ON = {
-  normal: "bg-emerald-500 text-white",
-  black: "bg-lime-300 text-zinc-950",
-  white: "bg-violet-600 text-white",
-} as const;
-
-const WEEKDAY_OFF = {
-  normal: "bg-zinc-200 text-zinc-500",
-  black: "bg-zinc-700 text-zinc-400",
-  white: "bg-zinc-200 text-zinc-500",
+const TK = {
+  section: "rounded-2xl bg-white ring-1 ring-violet-100 p-6",
+  title: "text-ink",
+  subtle: "text-zinc-600",
+  pillTrainer: "bg-violet-100 text-violet-800",
+  pillManager: "bg-amber-100 text-amber-800",
+  weekdayOn: "bg-violet-600 text-white",
+  weekdayOff: "bg-zinc-200 text-zinc-500",
 } as const;
 
 const ALL_WEEKDAYS = [
@@ -108,7 +39,6 @@ export default async function TrainerDetailPage({
   const { lang, slug, id } = await params;
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
-  const theme = await getTheme();
   const t = await getTranslations("trainers");
   const tn = await getTranslations("nav");
 
@@ -154,41 +84,21 @@ export default async function TrainerDetailPage({
   });
 
   return (
-    <div className={`flex min-h-screen ${PAGE_BG[theme]}`}>
-      <aside
-        className={`hidden w-60 shrink-0 flex-col lg:flex ${SIDEBAR_BG[theme]}`}
-      >
-        <div className={`border-b px-6 py-6 ${SIDEBAR_BORDER[theme]}`}>
-          <span
-            className={`text-xs font-semibold uppercase tracking-[0.22em] ${SIDEBAR_LABEL[theme]}`}
-          >
+    <div className="flex min-h-screen bg-violet-50/40">
+      <aside className="hidden w-60 shrink-0 flex-col lg:flex border-r border-violet-100 bg-violet-50">
+        <div className="border-b px-6 py-6 border-violet-100">
+          <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
             {tn("studio")}
           </span>
-          <div
-            className={`mt-1 font-heading text-lg tracking-tight ${SIDEBAR_NAME[theme]}`}
-          >
+          <div className="mt-1 font-heading text-lg tracking-tight text-ink">
             {business.name}
           </div>
-          <div
-            className={`mt-0.5 text-xs ${
-              theme === "normal" ? "text-ink/60" : "text-zinc-500"
-            }`}
-          >
-            /g/{slug}
-          </div>
+          <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
         </div>
-        <SidebarNav tone={theme} />
-        <div className={`border-t px-3 py-4 ${SIDEBAR_BORDER[theme]}`}>
+        <SidebarNav />
+        <div className="border-t px-3 py-4 border-violet-100">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button
-              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                theme === "black"
-                  ? "text-zinc-400 hover:bg-white/5"
-                  : theme === "white"
-                    ? "text-zinc-700 hover:bg-zinc-50"
-                    : "text-ink/80 hover:bg-white/40"
-              }`}
-            >
+            <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
               {tn("logout")}
             </button>
           </form>
@@ -196,26 +106,16 @@ export default async function TrainerDetailPage({
       </aside>
 
       <main className="flex-1 overflow-x-hidden">
-        <header
-          className={`flex items-center justify-between border-b px-8 py-5 ${HEADER_BORDER[theme]}`}
-        >
+        <header className="flex items-center justify-between border-b px-8 py-5 border-violet-100">
           <div>
-            <span
-              className={`text-xs font-semibold uppercase tracking-[0.22em] ${
-                theme === "black" ? "text-lime-300/80" : "text-ink/60"
-              }`}
-            >
+            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
               TRAINERS
             </span>
-            <h1
-              className={`font-heading text-xl tracking-tight ${TITLE[theme]}`}
-            >
+            <h1 className={`font-heading text-xl tracking-tight ${TK.title}`}>
               {u.name}{" "}
               <span
                 className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium align-middle ${
-                  staff.role === "MANAGER"
-                    ? PILL_MANAGER[theme]
-                    : PILL_TRAINER[theme]
+                  staff.role === "MANAGER" ? TK.pillManager : TK.pillTrainer
                 }`}
               >
                 {t(staff.role === "MANAGER" ? "roleManager" : "roleTrainer")}
@@ -224,11 +124,7 @@ export default async function TrainerDetailPage({
           </div>
           <Link
             href={`/${lang}/g/${slug}/trainers`}
-            className={`text-sm transition ${
-              theme === "black"
-                ? "text-zinc-400 hover:text-lime-300"
-                : "text-zinc-600 hover:text-ink"
-            }`}
+            className="text-sm transition text-zinc-600 hover:text-ink"
           >
             {t("detailBack")}
           </Link>
@@ -236,15 +132,11 @@ export default async function TrainerDetailPage({
 
         <div className="mx-auto w-full max-w-5xl space-y-5 p-6">
           {/* Access QR */}
-          <section className={SECTION[theme]}>
-            <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
-            >
+          <section className={TK.section}>
+            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
               {t("detailQr")}
             </h2>
-            <p className={`mt-1 text-xs ${SUBTLE[theme]}`}>
-              {t("detailQrHint")}
-            </p>
+            <p className={`mt-1 text-xs ${TK.subtle}`}>{t("detailQrHint")}</p>
             <div className="mt-4 flex flex-wrap items-center gap-5">
               <div className="rounded-xl bg-white p-3 ring-1 ring-zinc-200">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -255,36 +147,26 @@ export default async function TrainerDetailPage({
                 />
               </div>
               <div className="flex flex-1 flex-col gap-2">
-                <code
-                  className={`break-all rounded-md px-2 py-1.5 font-mono text-[11px] ${
-                    theme === "black"
-                      ? "bg-zinc-800 text-zinc-300"
-                      : "bg-zinc-50 text-zinc-600"
-                  }`}
-                >
+                <code className="break-all rounded-md px-2 py-1.5 font-mono text-[11px] bg-zinc-50 text-zinc-600">
                   {accessToken}
                 </code>
                 <RegenerateQrButton
                   slug={slug}
                   staffId={staff.id}
-                  tone={theme}
+                  tone="white"
                 />
               </div>
             </div>
           </section>
 
           {/* Photos */}
-          <section className={SECTION[theme]}>
-            <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
-            >
+          <section className={TK.section}>
+            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
               {t("detailPhotos")}
             </h2>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-5">
               {staff.images.length === 0 ? (
-                <div className={`text-sm ${SUBTLE[theme]}`}>
-                  {t("noValue")}
-                </div>
+                <div className={`text-sm ${TK.subtle}`}>{t("noValue")}</div>
               ) : (
                 staff.images.map((img, i) => (
                   <div
@@ -305,10 +187,8 @@ export default async function TrainerDetailPage({
           </section>
 
           {/* Basic */}
-          <section className={SECTION[theme]}>
-            <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
-            >
+          <section className={TK.section}>
+            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
               {t("detailBasic")}
             </h2>
             <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
@@ -321,69 +201,42 @@ export default async function TrainerDetailPage({
                       ? t("genderFemale")
                       : t("noValue")
                 }
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
               <Row
                 label={t("labelAge")}
                 value={age != null ? t("ageUnit", { age }) : t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
-              <Row
-                label={t("labelDob")}
-                value={dobStr ?? t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
-              />
-              <Row
-                label={t("labelPhone")}
-                value={u.phone ?? t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
-              />
-              <Row
-                label={t("labelEmail")}
-                value={u.email ?? t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
-              />
+              <Row label={t("labelDob")} value={dobStr ?? t("noValue")} />
+              <Row label={t("labelPhone")} value={u.phone ?? t("noValue")} />
+              <Row label={t("labelEmail")} value={u.email ?? t("noValue")} />
               <Row
                 label={t("labelEmergency")}
                 value={u.emergencyContactPhone ?? t("noValue")}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
               <Row
                 label={t("labelLanguage")}
                 value={
                   u.locale === "en" ? t("langEnglish") : t("langKorean")
                 }
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
               <Row
                 label={t("detailSalary")}
                 value={`₱${staff.monthlyBaseSalaryPhp.toLocaleString()}`}
-                title={TITLE[theme]}
-                subtle={SUBTLE[theme]}
               />
             </dl>
           </section>
 
           {/* Specialties + Schedule */}
-          <section className={SECTION[theme]}>
-            <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
-            >
+          <section className={TK.section}>
+            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
               {t("detailRoleSpec")}
             </h2>
-            <p className={`mt-2 text-sm ${TITLE[theme]}`}>
+            <p className={`mt-2 text-sm ${TK.title}`}>
               {allSpecs || t("noValue")}
             </p>
 
             <h3
-              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${SUBTLE[theme]}`}
+              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${TK.subtle}`}
             >
               {t("detailSchedule")}
             </h3>
@@ -394,7 +247,7 @@ export default async function TrainerDetailPage({
                   <span
                     key={w}
                     className={`flex h-9 w-9 items-center justify-center rounded-md text-xs font-bold ${
-                      isOff ? WEEKDAY_OFF[theme] : WEEKDAY_ON[theme]
+                      isOff ? TK.weekdayOff : TK.weekdayOn
                     }`}
                   >
                     {t(`weekday.${w}`)}
@@ -404,11 +257,11 @@ export default async function TrainerDetailPage({
             </div>
 
             <h3
-              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${SUBTLE[theme]}`}
+              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${TK.subtle}`}
             >
               {t("detailWorkTime")}
             </h3>
-            <p className={`mt-1 text-sm tabular-nums ${TITLE[theme]}`}>
+            <p className={`mt-1 text-sm tabular-nums ${TK.title}`}>
               {((m: number | null) =>
                 m == null
                   ? "—"
@@ -425,11 +278,11 @@ export default async function TrainerDetailPage({
             </p>
 
             <h3
-              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${SUBTLE[theme]}`}
+              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${TK.subtle}`}
             >
               {t("detailBreakTime")}
             </h3>
-            <p className={`mt-1 text-sm tabular-nums ${TITLE[theme]}`}>
+            <p className={`mt-1 text-sm tabular-nums ${TK.title}`}>
               {staff.breakStartMin != null && staff.breakEndMin != null
                 ? `${String(Math.floor(staff.breakStartMin / 60)).padStart(
                     2,
@@ -445,50 +298,40 @@ export default async function TrainerDetailPage({
           </section>
 
           {/* Bio + Career */}
-          <section className={SECTION[theme]}>
-            <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
-            >
+          <section className={TK.section}>
+            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
               {t("detailBio")}
             </h2>
-            <p
-              className={`mt-3 whitespace-pre-wrap text-sm leading-relaxed ${TITLE[theme]}`}
-            >
+            <p className={`mt-3 whitespace-pre-wrap text-sm leading-relaxed ${TK.title}`}>
               {staff.bio || t("noValue")}
             </p>
             <h3
-              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${SUBTLE[theme]}`}
+              className={`mt-6 text-[10px] font-semibold uppercase tracking-[0.22em] ${TK.subtle}`}
             >
               {t("detailCareer")}
             </h3>
-            <p
-              className={`mt-2 whitespace-pre-wrap text-sm leading-relaxed ${TITLE[theme]}`}
-            >
+            <p className={`mt-2 whitespace-pre-wrap text-sm leading-relaxed ${TK.title}`}>
               {staff.career || t("noValue")}
             </p>
           </section>
 
           {/* Memo */}
-          <section className={SECTION[theme]}>
-            <h2
-              className={`font-heading text-lg tracking-tight ${TITLE[theme]}`}
-            >
+          <section className={TK.section}>
+            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
               {t("detailMemo")}
             </h2>
-            <p
-              className={`mt-3 whitespace-pre-wrap text-sm leading-relaxed ${TITLE[theme]}`}
-            >
+            <p className={`mt-3 whitespace-pre-wrap text-sm leading-relaxed ${TK.title}`}>
               {u.note || t("noValue")}
             </p>
           </section>
 
           {/* Leaves */}
-          <section className={SECTION[theme]}>
+          <section className={TK.section}>
             <LeaveManager
               lang={lang}
               slug={slug}
               staffId={staff.id}
-              tone={theme}
+              tone="white"
               leaves={staff.leaves.map((l) => ({
                 id: l.id,
                 startDate: l.startDate.toISOString().slice(0, 10),
@@ -503,25 +346,15 @@ export default async function TrainerDetailPage({
   );
 }
 
-function Row({
-  label,
-  value,
-  title,
-  subtle,
-}: {
-  label: string;
-  value: string;
-  title: string;
-  subtle: string;
-}) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt
-        className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${subtle}`}
+        className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${TK.subtle}`}
       >
         {label}
       </dt>
-      <dd className={`mt-0.5 ${title}`}>{value}</dd>
+      <dd className={`mt-0.5 ${TK.title}`}>{value}</dd>
     </div>
   );
 }

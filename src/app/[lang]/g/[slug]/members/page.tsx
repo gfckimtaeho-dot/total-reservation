@@ -2,9 +2,6 @@ import { differenceInYears } from "date-fns";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { getTheme } from "@/lib/theme";
-import { MembersNormal } from "./MembersNormal";
-import { MembersBlack } from "./MembersBlack";
 import { MembersWhite } from "./MembersWhite";
 import type { MemberView } from "./MemberRow";
 
@@ -191,8 +188,5 @@ export default async function GymMembersPage({
     expireMonthCount,
   };
 
-  const theme = await getTheme();
-  if (theme === "black") return <MembersBlack {...props} />;
-  if (theme === "white") return <MembersWhite {...props} />;
-  return <MembersNormal {...props} />;
+  return <MembersWhite {...props} />;
 }

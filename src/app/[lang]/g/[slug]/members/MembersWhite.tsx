@@ -45,7 +45,7 @@ export async function MembersWhite({
           </div>
           <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
         </div>
-        <SidebarNav tone="white" />
+        <SidebarNav />
         <div className="border-t border-violet-100 px-3 py-4">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
@@ -70,7 +70,7 @@ export async function MembersWhite({
               )}
             </h1>
           </div>
-          <MemberAddDialog slug={slug} tone="white" lang={lang} />
+          <MemberAddDialog slug={slug} lang={lang} />
         </header>
 
         <div className="p-6">
@@ -99,7 +99,6 @@ export async function MembersWhite({
             </div>
           </div>
           <MembersSearch
-            tone="white"
             q={q}
             gender={gender}
             expiringSoon={expiringSoon}
@@ -127,7 +126,6 @@ export async function MembersWhite({
                         key={m.id}
                         slug={slug}
                         member={m}
-                        tone="white"
                         lang={lang}
                       />
                     ))}

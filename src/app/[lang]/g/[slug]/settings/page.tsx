@@ -2,34 +2,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { LangToggle } from "@/components/LangToggle";
-import { getTheme, type Theme } from "@/lib/theme";
-import { updateTheme } from "./actions";
-
-const THEMES: {
-  key: Theme;
-  label: string;
-  description: string;
-  swatch: string;
-}[] = [
-  {
-    key: "normal",
-    label: "Normal (Paper)",
-    description: "amber 종이 배경 + 라임 사이드바. 따뜻하고 눈이 편함.",
-    swatch: "bg-amber-100",
-  },
-  {
-    key: "black",
-    label: "Black Studio",
-    description: "검정 배경 + 형광 라임 accent. 헬스장 brutality.",
-    swatch: "bg-zinc-950",
-  },
-  {
-    key: "white",
-    label: "White Pastel",
-    description: "흰 배경 + 영역별 페일 컬러. 정보별 색 구분.",
-    swatch: "bg-sky-100",
-  },
-];
 
 export default async function GymSettingsPage({
   params,
@@ -40,7 +12,6 @@ export default async function GymSettingsPage({
   const user = await requireGymStaff(slug);
   const business = user.business!;
   const t = await getTranslations("settings");
-  const currentTheme = await getTheme();
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -90,62 +61,6 @@ export default async function GymSettingsPage({
                 pathSuffix={`/g/${slug}/settings`}
               />
             </div>
-          </SettingCard>
-
-          <SettingCard
-            heading="화면 컨셉"
-            body="매장 분위기에 맞는 색·톤. 사이드바와 카드 색이 함께 바뀝니다."
-          >
-            <form action={updateTheme} className="mt-5">
-              <div className="grid gap-3 sm:grid-cols-3">
-                {THEMES.map((opt) => {
-                  const isCurrent = opt.key === currentTheme;
-                  return (
-                    <label
-                      key={opt.key}
-                      className={`group cursor-pointer rounded-xl border bg-white p-4 transition hover:border-ink ${
-                        isCurrent
-                          ? "border-ink ring-1 ring-ink"
-                          : "border-zinc-200"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="theme"
-                          value={opt.key}
-                          defaultChecked={isCurrent}
-                          className="h-4 w-4 accent-ink"
-                        />
-                        <span className="text-sm font-medium text-ink">
-                          {opt.label}
-                        </span>
-                      </div>
-                      <div
-                        className={`mt-3 h-16 rounded-md ${opt.swatch} ring-1 ring-ink/10`}
-                      />
-                      <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-                        {opt.description}
-                      </p>
-                    </label>
-                  );
-                })}
-              </div>
-              <div className="mt-5 flex items-center justify-between">
-                <p className="text-xs text-zinc-500">
-                  현재 적용:{" "}
-                  <span className="font-medium text-ink">
-                    {THEMES.find((x) => x.key === currentTheme)?.label}
-                  </span>
-                </p>
-                <button
-                  type="submit"
-                  className="h-10 rounded-md bg-ink px-5 text-sm font-medium text-white transition hover:bg-ink/90"
-                >
-                  적용
-                </button>
-              </div>
-            </form>
           </SettingCard>
 
           <SettingCard

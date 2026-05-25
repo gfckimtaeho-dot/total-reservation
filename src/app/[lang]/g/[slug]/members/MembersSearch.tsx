@@ -3,76 +3,35 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-type Tone = "normal" | "black" | "white";
 type Gender = "all" | "MALE" | "FEMALE";
 
-const TONE = {
-  normal: {
-    wrap: "bg-white ring-1 ring-amber-200/60",
-    label: "text-ink/70",
-    field:
-      "border-amber-200/60 bg-white text-ink focus:border-ink focus:ring-ink/20",
-    submit: "bg-ink text-white hover:bg-ink/90",
-    reset: "border-amber-200/60 bg-white text-zinc-600 hover:border-ink",
-  },
-  black: {
-    wrap: "bg-zinc-900 ring-1 ring-white/10",
-    label: "text-zinc-300",
-    field:
-      "border-white/10 bg-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-lime-300 focus:ring-lime-300/20",
-    submit: "bg-lime-300 text-zinc-950 hover:bg-lime-200",
-    reset: "border-white/10 bg-zinc-800 text-zinc-300 hover:border-lime-300",
-  },
-  white: {
-    wrap: "bg-white ring-1 ring-violet-100",
-    label: "text-ink/70",
-    field:
-      "border-violet-200 bg-white text-ink focus:border-violet-500 focus:ring-violet-500/20",
-    submit: "bg-violet-600 text-white hover:bg-violet-700",
-    reset: "border-violet-200 bg-white text-zinc-600 hover:border-violet-500",
-  },
+const TK = {
+  wrap: "bg-white ring-1 ring-violet-100",
+  label: "text-ink/70",
+  field:
+    "border-violet-200 bg-white text-ink focus:border-violet-500 focus:ring-violet-500/20",
+  submit: "bg-violet-600 text-white hover:bg-violet-700",
+  reset: "border-violet-200 bg-white text-zinc-600 hover:border-violet-500",
 } as const;
 
-const RADIO_ACTIVE = {
-  normal: "bg-band/40 text-ink ring-1 ring-ink",
-  black: "bg-lime-300/20 text-lime-300 ring-1 ring-lime-300",
-  white: "bg-violet-100 text-violet-800 ring-1 ring-violet-600",
-} as const;
+const RADIO_ACTIVE = "bg-violet-100 text-violet-800 ring-1 ring-violet-600";
+const RADIO_INACTIVE =
+  "bg-white text-zinc-600 ring-1 ring-violet-200 hover:ring-violet-500/40";
 
-const RADIO_INACTIVE = {
-  normal: "bg-white text-zinc-600 ring-1 ring-amber-200/60 hover:ring-ink/40",
-  black:
-    "bg-zinc-800 text-zinc-400 ring-1 ring-white/10 hover:ring-lime-300/40",
-  white:
-    "bg-white text-zinc-600 ring-1 ring-violet-200 hover:ring-violet-500/40",
-} as const;
-
-const CHECK_ACTIVE = {
-  normal: "border-ink bg-band/40 text-ink",
-  black: "border-lime-300 bg-lime-300/10 text-lime-300",
-  white: "border-violet-600 bg-violet-100 text-violet-800",
-} as const;
-
-const CHECK_INACTIVE = {
-  normal: "border-amber-200/60 bg-white text-zinc-600 hover:border-ink/40",
-  black: "border-white/10 bg-zinc-800 text-zinc-400 hover:border-lime-300/40",
-  white:
-    "border-violet-200 bg-white text-zinc-600 hover:border-violet-500/40",
-} as const;
+const CHECK_ACTIVE = "border-violet-600 bg-violet-100 text-violet-800";
+const CHECK_INACTIVE =
+  "border-violet-200 bg-white text-zinc-600 hover:border-violet-500/40";
 
 export function MembersSearch({
-  tone,
   q,
   gender,
   expiringSoon,
 }: {
-  tone: Tone;
   q: string;
   gender: Gender;
   expiringSoon: boolean;
 }) {
   const t = useTranslations("members");
-  const tk = TONE[tone];
   const [selectedGender, setSelectedGender] = useState<Gender>(gender);
   const [checkSoon, setCheckSoon] = useState<boolean>(expiringSoon);
 
@@ -85,11 +44,11 @@ export function MembersSearch({
   return (
     <form
       method="get"
-      className={`mb-4 flex flex-wrap items-end gap-4 rounded-2xl px-5 py-4 ${tk.wrap}`}
+      className={`mb-4 flex flex-wrap items-end gap-4 rounded-2xl px-5 py-4 ${TK.wrap}`}
     >
       <label className="flex flex-col gap-1.5">
         <span
-          className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${tk.label}`}
+          className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${TK.label}`}
         >
           {t("searchNameLabel")}
         </span>
@@ -98,13 +57,13 @@ export function MembersSearch({
           name="q"
           defaultValue={q}
           placeholder={t("searchNamePlaceholder")}
-          className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
+          className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${TK.field}`}
         />
       </label>
 
       <div className="flex flex-col gap-1.5">
         <span
-          className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${tk.label}`}
+          className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${TK.label}`}
         >
           {t("searchGenderLabel")}
         </span>
@@ -115,7 +74,7 @@ export function MembersSearch({
               <label
                 key={g.key}
                 className={`cursor-pointer rounded-md px-3 py-1.5 text-sm transition ${
-                  isOn ? RADIO_ACTIVE[tone] : RADIO_INACTIVE[tone]
+                  isOn ? RADIO_ACTIVE : RADIO_INACTIVE
                 }`}
               >
                 <input
@@ -135,7 +94,7 @@ export function MembersSearch({
 
       <label
         className={`flex h-9 cursor-pointer items-center gap-2 self-end rounded-md border px-3 text-sm transition ${
-          checkSoon ? CHECK_ACTIVE[tone] : CHECK_INACTIVE[tone]
+          checkSoon ? CHECK_ACTIVE : CHECK_INACTIVE
         }`}
       >
         <input
@@ -152,13 +111,13 @@ export function MembersSearch({
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          className={`h-9 rounded-md px-4 text-sm font-medium transition ${tk.submit}`}
+          className={`h-9 rounded-md px-4 text-sm font-medium transition ${TK.submit}`}
         >
           {t("searchSubmit")}
         </button>
         <a
           href="?"
-          className={`inline-flex h-9 items-center rounded-md border px-3 text-sm transition ${tk.reset}`}
+          className={`inline-flex h-9 items-center rounded-md border px-3 text-sm transition ${TK.reset}`}
         >
           {t("searchReset")}
         </a>

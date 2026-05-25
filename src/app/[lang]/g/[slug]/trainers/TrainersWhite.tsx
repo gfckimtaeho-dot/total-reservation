@@ -4,6 +4,7 @@ import { logout } from "@/lib/auth/actions";
 import { SidebarNav } from "../dashboard/SidebarNav";
 import { TrainersSearch } from "./TrainersSearch";
 import { TrainerRow, type TrainerView } from "./TrainerRow";
+import { AttendanceMatrix, type AttendanceRow } from "./AttendanceMatrix";
 
 type Specialty = "HEALTH" | "YOGA" | "PILATES" | "DANCE";
 
@@ -16,6 +17,7 @@ type Props = {
   role: "all" | "TRAINER" | "MANAGER";
   specialties: Specialty[];
   onLeave: boolean;
+  attendance: AttendanceRow[];
 };
 
 export async function TrainersWhite({
@@ -27,6 +29,7 @@ export async function TrainersWhite({
   role,
   specialties,
   onLeave,
+  attendance,
 }: Props) {
   const t = await getTranslations("trainers");
   const tn = await getTranslations("nav");
@@ -45,7 +48,7 @@ export async function TrainersWhite({
           </div>
           <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
         </div>
-        <SidebarNav tone="white" />
+        <SidebarNav />
         <div className="border-t border-violet-100 px-3 py-4">
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
             <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
@@ -119,6 +122,8 @@ export async function TrainersWhite({
               )}
             </div>
           </div>
+
+          <AttendanceMatrix attendance={attendance} lang={lang} />
         </div>
 
         <footer className="border-t border-violet-100 px-8 py-5 text-xs text-zinc-500">
