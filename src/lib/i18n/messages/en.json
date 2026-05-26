@@ -102,7 +102,7 @@
     "hero": {
       "label": "INVITE-ONLY",
       "title": "Register your studio with <em>Yeyak Gazua</em>.",
-      "tagline": "A 20-minute form for owners who arrived via an invite link. You can fill in photos, hours, and services later from the dashboard."
+      "tagline": "A 20-minute form for owners who arrived via an invite link. You can fill in photos, hours, and programs later from the dashboard."
     },
     "tokenMissing": {
       "title": "An invite link is required",
@@ -119,7 +119,7 @@
       "selectTimeZone": "Select a time zone",
       "categoryGym": "Gym",
       "categoryMassage": "Massage shop",
-      "gymHint": "Registering as a gym. Trainers, hours, services, and memberships can be filled in later from the dashboard.",
+      "gymHint": "Registering as a gym. Trainers, hours, programs, and memberships can be filled in later from the dashboard.",
       "massageHint": "Registering as a massage shop. Rooms, therapists, and treatment menu can be filled in later from the dashboard.",
       "storeName": "Studio name",
       "storeNamePlaceholder": "e.g. StrongHealth QC",
@@ -214,7 +214,7 @@
     "trainers": "Trainers",
     "hours": "Hours",
     "products": "Products",
-    "services": "Services",
+    "programs": "Programs",
     "revenue": "Revenue",
     "refunds": "Refunds",
     "chat": "Chat",
@@ -344,7 +344,7 @@
     "reasonLabel": {
       "CUSTOMER_REQUEST": "Customer request",
       "CLASS_DISCONTINUED": "Class discontinued",
-      "SERVICE_DISCONTINUED": "Service discontinued",
+      "SERVICE_DISCONTINUED": "Program discontinued",
       "STAFF_UNAVAILABLE": "Staff unavailable"
     }
   },
@@ -354,8 +354,8 @@
     "back": "← Home",
     "tabs": {
       "membership": "Membership",
-      "service": "Class Service",
-      "package": "Session Pack",
+      "program": "Programs",
+      "package": "Sessions",
       "combo": "Combo",
       "promotion": "Promotion"
     },
@@ -398,12 +398,12 @@
       }
     },
     "package": {
-      "heading": "Add session pack",
+      "heading": "Add session",
       "name": "Name",
       "namePlaceholder": "e.g. PT 5 sessions",
-      "service": "Service",
-      "servicePlaceholder": "Select a service",
-      "noServices": "Register a service in 'Class Service' tab first",
+      "program": "Program",
+      "programPlaceholder": "Select a program",
+      "noPrograms": "Register a program in 'Programs' tab first",
       "sessions": "Sessions",
       "sessionUnit": "x",
       "sessionBasic": "(basic)",
@@ -413,11 +413,11 @@
       "submitting": "Adding...",
       "editSubmit": "Save",
       "editSubmitting": "Saving...",
-      "editHeading": "Edit session pack",
-      "listHeading": "Session packs",
-      "empty": "No session packs registered.",
+      "editHeading": "Edit session",
+      "listHeading": "Sessions",
+      "empty": "No sessions registered.",
       "colName": "Name",
-      "colService": "Service",
+      "colProgram": "Program",
       "colSessions": "Sessions",
       "colPerSession": "Per session",
       "colPrice": "Total",
@@ -433,17 +433,17 @@
       "calcPerSession": "Per session",
       "calcPayout": "Trainer payout (expected)",
       "calcMargin": "Owner margin",
-      "calcPayoutHint": "Service.payoutPhp × sessions — frozen at sale, unaffected by combo/promotion.",
+      "calcPayoutHint": "Program.payoutPhp × sessions — frozen at sale, unaffected by combo/promotion.",
       "marginNegativeWarning": "Owner margin is negative — owner will lose money on this product.",
       "listPriceLabel": "List price",
-      "listPriceFormula": "service price × sessions",
+      "listPriceFormula": "program price × sessions",
       "discountQuickPick": "Discount preset",
       "currentDiscount": "{pct}% off (-{amount})",
       "noDiscount": "No discount (list price)",
-      "priceResetHint": "Changing the service resets the price to list price",
+      "priceResetHint": "Changing the program resets the price to list price",
       "errors": {
         "name": "Name is required",
-        "service": "Select a service",
+        "program": "Select a program",
         "sessions": "Sessions must be 1 or more",
         "price": "Price must be 0 or higher",
         "permission": "Permission denied",
@@ -458,7 +458,7 @@
       "membership": "Membership (optional)",
       "membershipNone": "None (packs only)",
       "packages": "Included packs",
-      "packagesEmpty": "Register session packs in 'Session Pack' tab first",
+      "packagesEmpty": "Register sessions in 'Sessions' tab first",
       "packagesHint": "Select multiple",
       "price": "Combo price",
       "priceUnit": "₱",
@@ -491,7 +491,7 @@
       "marginNegativeError": "Owner margin is negative — raise combo price or adjust composition.",
       "errors": {
         "name": "Name is required",
-        "items": "Select at least one membership or session pack",
+        "items": "Select at least one membership or session",
         "price": "Price must be 0 or higher",
         "permission": "Permission denied",
         "marginNegative": "Cannot save with negative owner margin."
@@ -505,9 +505,9 @@
       "scope": {
         "ALL": "All catalog",
         "MEMBERSHIP_ONLY": "All memberships",
-        "PACKAGE_ONLY": "All session packs",
+        "PACKAGE_ONLY": "All sessions",
         "SPECIFIC_MEMBERSHIP": "Specific membership",
-        "SPECIFIC_PACKAGE": "Specific session pack"
+        "SPECIFIC_PACKAGE": "Specific session"
       },
       "targetLabel": "Target product",
       "targetPlaceholder": "Select a target",
@@ -608,9 +608,9 @@
     "myClientsSearchPlaceholder": "Search by name",
     "myClientsEmpty": "No clients assigned yet",
     "myClientsBack": "← Home",
-    "myClientsIssueService": "Issue membership",
-    "myClientsServices": "Packages",
-    "myClientsNoServices": "—",
+    "myClientsIssueProgram": "Issue membership",
+    "myClientsPrograms": "Packages",
+    "myClientsNoPrograms": "—",
     "myClientsHistory": "PT History",
     "myClientsHistoryRecent": "Recent {n}",
     "myClientsHistoryEmpty": "No completed PT yet",
@@ -644,7 +644,7 @@
     "noteLabel": "Note",
     "noEventsForDay": "No group classes on this day.",
     "groupClassesTitle": "Group classes",
-    "groupClassesEmpty": "No group classes registered. Add one on the Services page.",
+    "groupClassesEmpty": "No group classes registered. Add one on the Programs page.",
     "groupClassesEmptyShort": "None",
     "scheduleHeading": "Operating schedules",
     "staffLine": "Trainer: {staff}"
@@ -950,7 +950,7 @@
     "closureTitle": "We are closed today",
     "closureReason": "Reason: {reason}",
     "refundNoticeTitle": "Refund notice",
-    "refundNoticeBody": "This service has been discontinued — 100% refund for your remaining sessions.",
+    "refundNoticeBody": "This program has been discontinued — 100% refund for your remaining sessions.",
     "refundNoticeRemaining": "{n} left",
     "refundNoticeTotalLabel": "Total",
     "refundNoticeVisit": "Please stop by the counter at your convenience.",
@@ -971,8 +971,8 @@
     "membershipExpiresOn": "Expires on {date}",
     "membershipDaysLeft": "{n} days left",
     "membershipExpiringSoon": "Expiring soon",
-    "packagesTitle": "Session packs",
-    "packagesNone": "No active session pack.",
+    "packagesTitle": "Sessions",
+    "packagesNone": "No active session.",
     "packageRemaining": "{remaining} left of {total}",
     "packageAssignedTo": "Trainer: {name}",
     "upcomingTitle": "This Month",
@@ -1052,8 +1052,8 @@
     "fnTrainerFull": "{trainer} fully booked",
     "fnExhausted": "Exhausted",
     "fnNoTrainer": "No trainer assigned — pick one first",
-    "holdingsButton": "Services",
-    "holdingsTitle": "My Services",
+    "holdingsButton": "Programs",
+    "holdingsTitle": "My Programs",
     "holdingsBack": "Close",
     "holdingsSectionMembership": "Memberships",
     "holdingsSectionPersonal": "1:1 Packs",
@@ -1155,18 +1155,18 @@
     "refundSubmitting": "Submitting...",
     "refundError": "Could not submit the refund request. Please try again."
   },
-  "services": {
-    "pageTitle": "Services",
+  "programs": {
+    "pageTitle": "Programs",
     "back": "← Home",
     "eyebrow": "SERVICES",
     "form": {
-      "heading": "Add a new service",
-      "typeLabel": "Service type",
+      "heading": "Add a new program",
+      "typeLabel": "Program type",
       "typePersonal": "1-on-1",
       "typeGroup": "Group class",
       "typeHintPersonal": "PT, private yoga, etc. — one client per session",
       "typeHintGroup": "Group yoga, group PT, etc. — multiple clients per session",
-      "name": "Service name",
+      "name": "Program name",
       "namePlaceholder": "e.g. PT, Yoga, Pilates",
       "duration": "Session length",
       "durationUnit": "min",
@@ -1183,8 +1183,8 @@
       "editSubmitting": "Saving..."
     },
     "list": {
-      "heading": "Existing services",
-      "empty": "No services yet. Add one above.",
+      "heading": "Existing programs",
+      "empty": "No programs yet. Add one above.",
       "personal": "1-on-1",
       "groupCount": "Group of {count}",
       "duration": "{n} min",
@@ -1261,7 +1261,7 @@
         "weekdaysRequired": "Please pick at least one weekday",
         "startTimeFormat": "Invalid start time format",
         "overflowMidnight": "Session ends past midnight",
-        "notGroup": "Only group services (capacity ≥ 2) can have schedules",
+        "notGroup": "Only group programs (capacity ≥ 2) can have schedules",
         "permission": "Permission denied",
         "hasReservations": "Cannot delete — this schedule has active reservations",
         "dateFormat": "Invalid date format",
@@ -1289,13 +1289,13 @@
         "applying": "Processing..."
       }
     },
-    "serviceDelete": {
-      "eyebrow": "Discontinue service",
+    "programDelete": {
+      "eyebrow": "Discontinue program",
       "close": "Close",
       "loading": "Checking impact...",
       "errorPreview": "Failed to check impact. Verify permissions.",
       "errorApply": "An error occurred. Please try again.",
-      "noImpact": "No active schedules, future reservations, or remaining packages. Discontinue this service?",
+      "noImpact": "No active schedules, future reservations, or remaining packages. Discontinue this program?",
       "warningTitle": "Members will be refunded",
       "warningBody": "{schedules} active schedules · {members} members with remaining sessions · {reservations} upcoming reservations affected.",
       "membersHeader": "Refund recipients",
@@ -1307,36 +1307,36 @@
       "applying": "Processing..."
     },
     "errors": {
-      "name": "Please enter a service name",
+      "name": "Please enter a program name",
       "duration": "Duration must be between 5 and 480 minutes",
       "capacity": "Group capacity must be at least 2",
       "price": "Price must be 0 or higher",
       "payoutNegative": "Payout must be 0 or higher",
       "payoutOverPrice": "Payout cannot exceed the price",
       "permission": "Permission denied",
-      "hasReservations": "Cannot delete — this service has active reservations",
-      "hasReferences": "Cannot delete — service has {plans} plans, {packages} issued packages, {reservations} reservation records."
+      "hasReservations": "Cannot delete — this program has active reservations",
+      "hasReferences": "Cannot delete — program has {plans} plans, {packages} issued packages, {reservations} reservation records."
     }
   },
   "showcase": {
     "swipeHint": "Swipe to explore",
     "cat": {
       "membership": "Membership",
-      "service": "Classes",
-      "package": "Session Pack",
+      "program": "Classes",
+      "package": "Sessions",
       "combo": "Combo",
       "promotion": "Events"
     },
     "title": {
       "membership": "Membership Plans",
-      "service": "Class Services",
-      "package": "Session Packages",
+      "program": "Programs",
+      "package": "Sessions",
       "combo": "Combo Packages",
       "promotion": "Active Events"
     },
     "lead": {
       "membership": "Choose the period that fits you",
-      "service": "Train with our specialists",
+      "program": "Train with our specialists",
       "package": "Pay only for what you need",
       "combo": "Bundle for bigger value",
       "promotion": "Limited-time offers, right now"
@@ -1435,12 +1435,12 @@
     "myCustomersLoading": "Loading…",
     "noMyCustomers": "No assigned customers yet",
     "addResBack": "Change customer",
-    "addResPickService": "Service to book",
-    "addResNoService": "This customer has no 1:1 sessions available",
+    "addResPickProgram": "Program to book",
+    "addResNoProgram": "This customer has no 1:1 sessions available",
     "goIntake": "Customer / Issue",
     "intakeTitle": "Register customer / Issue membership",
-    "stepCustomer": "2. All customers",
-    "stepMyCustomers": "1. My customers",
+    "stepCustomer": "All customers",
+    "stepMyCustomers": "My customers",
     "myCustomersNone": "No packs are assigned to you yet.",
     "tabExisting": "Existing",
     "tabNew": "New",
@@ -1456,7 +1456,7 @@
     "createBtn": "Register (auto-sends app link if email)",
     "pickedCustomer": "Selected customer",
     "changeCustomer": "Change",
-    "stepCatalog": "3. Issue membership",
+    "stepCatalog": "Issue membership",
     "tabMembership": "Membership",
     "tabPackage": "Sessions",
     "tabCombo": "Combo",
@@ -1475,7 +1475,7 @@
     "comboIncludes": "Includes",
     "noPlansHere": "No products registered",
     "addCustomer": "Add customer",
-    "addService": "Add service",
+    "addProgram": "Add program",
     "regTitle": "Register new customer",
     "regName": "Customer name",
     "regPhone": "Phone (optional)",
@@ -1502,7 +1502,7 @@
     "net": "Net",
     "colDate": "Date",
     "colCustomer": "Customer",
-    "colService": "Service",
+    "colProgram": "Program",
     "colPayout": "Payout",
     "prevMonth": "Prev",
     "nextMonth": "Next",
@@ -1553,10 +1553,10 @@
     "kindPackageGroup": "Group Pack",
     "ageUnit": "{age} yrs",
     "issueHeading": "Issue membership",
-    "issueHint": "Issue a membership / session pack / combo to this member.",
+    "issueHint": "Issue a membership / session / combo to this member.",
     "handoverHeading": "Trainer assignment",
-    "handoverHint": "Hand over 1:1 service assignment to another trainer. Group classes are excluded.",
-    "handoverEmpty": "No 1:1 service available for handover.",
+    "handoverHint": "Hand over 1:1 program assignment to another trainer. Group classes are excluded.",
+    "handoverEmpty": "No 1:1 program available for handover.",
     "handoverCurrentLabel": "Trainer"
   }
 }
