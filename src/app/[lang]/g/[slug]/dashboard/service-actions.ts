@@ -492,7 +492,7 @@ async function createSaleLine(
       where: { id: item.planId, gymId },
       include: { service: { select: { payoutPhp: true } } },
     });
-    if (!plan) throw new Error("수업권 상품을 찾을 수 없습니다");
+    if (!plan) throw new Error("수업 상품을 찾을 수 없습니다");
     const perPayout = plan.service.payoutPhp;
     const payoutLiab = perPayout * plan.sessionCount;
     const promo = await pickPromotion(
@@ -865,7 +865,7 @@ export async function addReservation(input: {
     where: { id: input.serviceId, gymId, active: true },
     select: { durationMin: true, deductCount: true, capacity: true },
   });
-  if (!service) return { ok: false, error: "서비스를 찾을 수 없습니다" };
+  if (!service) return { ok: false, error: "프로그램을 찾을 수 없습니다" };
 
   // 고른 서비스의 잔여 권 — 같은 서비스 권이 여럿이면 가장 오래된 것부터.
   // 잔여는 있으나 미완료 예약으로 모두 선점된 권은 건너뛴다(초과 예약 차단).
@@ -876,7 +876,7 @@ export async function addReservation(input: {
     service.deductCount,
   );
   if (!pkg) {
-    return { ok: false, error: "이 서비스로 더 예약할 잔여 횟수가 없습니다" };
+    return { ok: false, error: "이 프로그램으로 더 예약할 잔여 횟수가 없습니다" };
   }
 
   const startAt = new Date(

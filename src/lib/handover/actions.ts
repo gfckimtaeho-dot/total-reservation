@@ -53,7 +53,7 @@ export async function handoverServiceAssignment(input: {
     where: { id: input.serviceId, gymId },
     select: { id: true, name: true, capacity: true, durationMin: true },
   });
-  if (!service) return { ok: false, error: "서비스를 찾을 수 없습니다" };
+  if (!service) return { ok: false, error: "프로그램을 찾을 수 없습니다" };
   if (service.capacity !== 1) {
     return {
       ok: false,
