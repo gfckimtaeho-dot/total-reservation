@@ -1037,7 +1037,7 @@ export function TrainerCalendarPro({
         <>
           <div className="fixed inset-0 z-40" onClick={reset} />
           {(() => {
-            const W = 340;
+            const W = 420;
             const vw =
               typeof window !== "undefined" ? window.innerWidth : 1024;
             const vh =
@@ -1229,7 +1229,7 @@ export function TrainerCalendarPro({
                       type="button"
                       disabled={pending || !canComplete}
                       onClick={doComplete}
-                      className="whitespace-nowrap rounded-lg border border-emerald-400/40 bg-emerald-400/15 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/25 disabled:opacity-30"
+                      className="flex items-center justify-center whitespace-nowrap rounded-lg border border-emerald-400/40 bg-emerald-400/15 px-3 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/25 disabled:opacity-30"
                     >
                       {t("complete")}
                     </button>
@@ -1237,19 +1237,19 @@ export function TrainerCalendarPro({
                       type="button"
                       disabled={pending || !canMove}
                       onClick={() => setMoving(true)}
-                      className="whitespace-nowrap rounded-lg border border-orange-400/40 bg-orange-400/15 py-3 text-sm font-semibold text-orange-300 transition hover:bg-orange-400/25 disabled:opacity-30"
+                      className="flex items-center justify-center whitespace-nowrap rounded-lg border border-orange-400/40 bg-orange-400/15 px-3 py-3 text-sm font-semibold text-orange-300 transition hover:bg-orange-400/25 disabled:opacity-30"
                     >
                       {t("move")}
                     </button>
                     {picked.custId ? (
                       <Link
                         href={`/${lang}/g/${slug}/intake?customer=${picked.custId}`}
-                        className="flex items-center justify-center whitespace-nowrap rounded-lg border border-sky-400/40 bg-sky-400/15 py-3 text-sm font-semibold text-sky-300 transition hover:bg-sky-400/25"
+                        className="flex items-center justify-center whitespace-nowrap rounded-lg border border-sky-400/40 bg-sky-400/15 px-3 py-3 text-sm font-semibold text-sky-300 transition hover:bg-sky-400/25"
                       >
                         {t("addService")}
                       </Link>
                     ) : (
-                      <span className="flex items-center justify-center whitespace-nowrap rounded-lg border border-white/10 py-3 text-sm font-semibold text-zinc-600">
+                      <span className="flex items-center justify-center whitespace-nowrap rounded-lg border border-white/10 px-3 py-3 text-sm font-semibold text-zinc-600">
                         {t("addService")}
                       </span>
                     )}
