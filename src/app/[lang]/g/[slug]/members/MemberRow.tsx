@@ -120,32 +120,42 @@ export function MemberRow({
         router.push(`/${lang}/g/${slug}/members/${member.id}`)
       }
     >
-      <td className="px-4 py-3 text-left">
-        <div className="flex items-center gap-1.5">
-          <span className={`font-medium ${TK.text}`}>{member.name}</span>
+      <td className="whitespace-nowrap px-4 py-3 text-left">
+        <div className="flex flex-nowrap items-center gap-1.5">
+          <span className={`whitespace-nowrap font-medium ${TK.text}`}>
+            {member.name}
+          </span>
           {member.note && (
-            <span
-              title={`⚠ ${member.note}`}
-              className={`cursor-help text-xs ${TK.noteIcon}`}
-            >
-              ⚠
+            <span className="group relative inline-flex shrink-0">
+              <span
+                aria-label={member.note}
+                className={`cursor-help text-sm leading-none ${TK.noteIcon}`}
+              >
+                📝
+              </span>
+              <span
+                role="tooltip"
+                className="pointer-events-none invisible absolute left-1/2 top-full z-20 mt-1 w-max max-w-xs -translate-x-1/2 whitespace-pre-wrap break-words rounded-md bg-ink px-2.5 py-1.5 text-left text-xs font-normal normal-case tracking-normal text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100"
+              >
+                {member.note}
+              </span>
             </span>
           )}
           {!isActive && (
             <span
-              className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${TK.pillPending}`}
+              className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${TK.pillPending}`}
             >
               {t("pendingPill")}
             </span>
           )}
           {!member.active && (
-            <span className="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
               {t("inactivePill")}
             </span>
           )}
         </div>
         {member.note && (
-          <div className={`mt-0.5 line-clamp-1 text-xs ${TK.subtext}`}>
+          <div className={`mt-0.5 line-clamp-1 text-xs md:hidden ${TK.subtext}`}>
             {member.note}
           </div>
         )}

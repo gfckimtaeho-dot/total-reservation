@@ -104,7 +104,7 @@ export async function MembersWhite({
             expiringSoon={expiringSoon}
           />
           <div className="overflow-hidden rounded-2xl bg-violet-50 p-2 ring-1 ring-violet-200/50">
-            <div className="overflow-hidden rounded-xl bg-white ring-1 ring-violet-100">
+            <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-violet-100">
               {members.length === 0 ? (
                 <EmptyState filtered={filtered} t={t} />
               ) : (

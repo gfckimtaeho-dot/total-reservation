@@ -39,7 +39,6 @@ export async function DashboardWhite({
 }: Props) {
   const t = await getTranslations("dashboard");
   const tn = await getTranslations("nav");
-  const ts = await getTranslations("services.schedule");
   const [kpi, pendingRefunds, viewerSession] = await Promise.all([
     getKpiExtras(gymId),
     getPendingRefundCount(slug),
@@ -89,7 +88,11 @@ export async function DashboardWhite({
                 status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
                 startAt: { gte: monthStart, lt: monthEndExclusive },
               },
-              select: { startAt: true },
+              select: {
+                startAt: true,
+                customer: { select: { name: true } },
+              },
+              orderBy: { createdAt: "asc" },
             },
           },
         },
@@ -119,7 +122,10 @@ export async function DashboardWhite({
       validFrom: sc.validFrom,
       validUntil: sc.validUntil,
       note: sc.note,
-      reservations: sc.reservations.map((r) => ({ startAt: r.startAt })),
+      reservations: sc.reservations.map((r) => ({
+        startAt: r.startAt,
+        customerName: r.customer.name,
+      })),
     })),
   );
 
@@ -134,18 +140,7 @@ export async function DashboardWhite({
 
   const calendarLabels = {
     closed: t("closed"),
-    badgeRecurring: ts("badgeRecurring"),
-    badgeOneOff: ts("badgeOneOff"),
-    capacityLabel: t("capacityLabel"),
-    enrolledLabel: t("enrolledLabel"),
-    durationLabel: t("durationLabel"),
-    startTimeLabel: t("startTimeLabel"),
-    endTimeLabel: t("endTimeLabel"),
-    staffLabel: t("staffLabel"),
-    staffNone: ts("staffNone"),
-    noteLabel: t("noteLabel"),
-    noEvents: t("noEventsForDay"),
-    unit: { min: t("unitMin"), people: t("unitPeople") },
+    sessionCustomersEmpty: t("sessionCustomersEmpty"),
   };
 
   return (
@@ -233,7 +228,7 @@ export async function DashboardWhite({
               href={`/${lang}/g/${slug}/chat`}
             />
           </div>
-          <section className="col-span-12 flex flex-col rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200/60 xl:col-span-2">
+          <section className="col-span-12 flex flex-col rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200/60 xl:col-span-2 xl:row-span-2">
             <SectionHead title={t("accessTitle")} />
             <ul className="mt-4 flex-1 divide-y divide-amber-200/50 overflow-y-auto">
               {kpi.accessToday.map((e) => (
@@ -333,7 +328,6 @@ export async function DashboardWhite({
               monthInfo={monthInfo}
               eventsByDay={eventsByDay}
               closedDays={closedDays}
-              tone="white"
               labels={calendarLabels}
             />
           </section>

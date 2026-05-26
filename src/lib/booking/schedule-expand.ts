@@ -20,6 +20,7 @@ export type ClassEvent = {
   serviceName: string;
   capacity: number;
   enrolled: number;
+  customers: string[];
   startMin: number;
   endMin: number;
   durationMin: number;
@@ -40,7 +41,7 @@ export type ScheduleInput = {
   validFrom: Date;
   validUntil: Date | null;
   note: string | null;
-  reservations: Array<{ startAt: Date }>;
+  reservations: Array<{ startAt: Date; customerName: string }>;
 };
 
 export function expandSchedulesToMonth(
@@ -66,13 +67,13 @@ export function expandSchedulesToMonth(
       kind: s.kind,
     };
 
-    const enrolledOnDay = (day: number) => {
+    const namesOnDay = (day: number): string[] => {
       const dayStart = new Date(Date.UTC(year, monthIdx, day));
       const dayEnd = new Date(dayStart);
       dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
-      return s.reservations.filter(
-        (r) => r.startAt >= dayStart && r.startAt < dayEnd,
-      ).length;
+      return s.reservations
+        .filter((r) => r.startAt >= dayStart && r.startAt < dayEnd)
+        .map((r) => r.customerName);
     };
 
     if (s.kind === "ONE_OFF") {
@@ -84,7 +85,8 @@ export function expandSchedulesToMonth(
         continue;
       }
       const day = s.specificDate.getUTCDate();
-      pushTo(map, day, { ...common, enrolled: enrolledOnDay(day) });
+      const names = namesOnDay(day);
+      pushTo(map, day, { ...common, enrolled: names.length, customers: names });
       continue;
     }
 
@@ -95,7 +97,8 @@ export function expandSchedulesToMonth(
       if (s.validUntil && dt > s.validUntil) continue;
       const wd = WEEKDAY_ENUM[dt.getUTCDay()]!;
       if (!s.weekdays.includes(wd)) continue;
-      pushTo(map, d, { ...common, enrolled: enrolledOnDay(d) });
+      const names = namesOnDay(d);
+      pushTo(map, d, { ...common, enrolled: names.length, customers: names });
     }
   }
 
