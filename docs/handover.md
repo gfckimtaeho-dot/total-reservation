@@ -25,7 +25,7 @@
 
 - Package 양도와 동시에 **미래 예약 staffId 도 일괄 갱신**.
 - 새 트레이너 가용성 충돌 (정기 휴무·근무시간·휴게·기존 예약) 검사 — **충돌 건만 자동 취소**.
-- **환불 없음, 권 차감 복귀** (잔여 회수 +1 되돌림). 고객과 PT 수업 중 채팅으로 자연스럽게 새 시간 협의.
+- **환불 없음.** `Package.remainingCount` 는 변경하지 않음 — 예약 생성이 차감하지 않는 정책이라 취소 시 복귀도 없음(잔여는 완료 시점에만 차감). 고객과 PT 수업 중 채팅으로 자연스럽게 새 시간 협의.
 
 ### Undo / 재양도
 
@@ -59,7 +59,7 @@
    - WHERE: gymId + customerUserId + serviceId + status IN (CONFIRMED, PENDING_PAYMENT) + startAt >= now
    - 각 예약에 대해 `checkStaffAvailability` + 기존 예약 충돌 검사
    - 충돌 없는 건: `staffId = toStaff.id` 갱신
-   - 충돌 건: `status = CANCELLED` + Package.remainingCount +1 복귀 + ReservationLog row 생성 (action = HANDOVER_CONFLICT_CANCEL)
+   - 충돌 건: `status = CANCELLED` + ReservationLog row 생성 (action = `CANCELLED_BY_HANDOVER`). `Package.remainingCount` 는 손대지 않음 (예약 생성/취소는 잔여 무관, 완료 시점에만 차감 정책).
 
 4. **ChatThread 처리**
    - **새 트레이너 ↔ 고객 thread**: find or create. 시스템 메시지 1줄 삽입:

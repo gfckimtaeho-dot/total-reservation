@@ -101,30 +101,38 @@ export function HandoverDialog({
         toStaffUserId: picked,
       });
       if ("ok" in r && r.ok) {
-        const toName =
-          candidates?.find((c) => c.userId === picked)?.name ?? "";
-        const msg =
-          r.reservationsCancelled > 0
-            ? t("successWithCancel", {
-                toName,
-                transferred: r.reservationsTransferred,
-                cancelled: r.reservationsCancelled,
-              })
-            : t("successOk", { toName });
-        setSuccess(msg);
-        // 잠시 후 닫고 이동/새로고침. 트레이너가 본인 담당 잃은 케이스를 위해
-        // successHref 가 있으면 그 URL 로 이동(가드 notFound 회피), 없으면 refresh.
-        setTimeout(() => {
+        if (successHref) {
+          // 트레이너 본인이 담당을 잃을 수 있는 케이스 — server action 의
+          // revalidatePath 가 현재 페이지(/my-clients/[customerId]) 를 즉시
+          // 백그라운드 refetch 하면, 가드(본인 담당 권 없음) 가 not-found 를
+          // 던져 404 가 잠깐 swap in 된다. 1.2s 메시지 대기 동안 그 깜빡임이
+          // 노출됐던 문제 — 즉시 push 해서 새 URL 로 먼저 이동. 성공 피드백은
+          // 목적지(/my-clients) 의 담당 고객 수 변화로 대체.
           setOpen(false);
-          setSuccess(null);
           setPicked(null);
           setCandidates(null);
-          if (successHref) {
-            router.push(successHref);
-          } else {
+          router.push(successHref);
+        } else {
+          // OWNER/MANAGER — 가드 통과되므로 메시지 잠깐 표시 후 refresh.
+          const toName =
+            candidates?.find((c) => c.userId === picked)?.name ?? "";
+          const msg =
+            r.reservationsCancelled > 0
+              ? t("successWithCancel", {
+                  toName,
+                  transferred: r.reservationsTransferred,
+                  cancelled: r.reservationsCancelled,
+                })
+              : t("successOk", { toName });
+          setSuccess(msg);
+          setTimeout(() => {
+            setOpen(false);
+            setSuccess(null);
+            setPicked(null);
+            setCandidates(null);
             router.refresh();
-          }
-        }, 1200);
+          }, 1200);
+        }
       } else {
         setError(r.error);
       }

@@ -23,7 +23,9 @@ type Result = {
 // 일반 흐름:
 // 1) 권한 — 트레이너는 본인 담당만, OWNER/MANAGER 는 매장 전체.
 // 2) 같은 (customer, service) 의 활성 Package.assignedStaffId 일괄 갱신.
-// 3) 미래 예약 충돌 검사 → 충돌 없으면 staffId 갱신, 충돌이면 status=CANCELLED + 권 +1 복귀.
+// 3) 미래 예약 충돌 검사 → 충돌 없으면 staffId 갱신, 충돌이면 status=CANCELLED.
+//    remainingCount 는 건드리지 않음 — 예약 생성/취소는 잔여를 바꾸지 않고
+//    완료 시점에만 차감하는 정책. (me/actions.ts L127 참조)
 // 4) ChatThread.staffUserId 갱신(있으면) + 시스템 메시지.
 //
 // 모두 한 트랜잭션. 중간 실패 시 일관성 보장.
@@ -223,7 +225,8 @@ export async function handoverServiceAssignment(input: {
       }
     }
 
-    // 3) 충돌 예약 자동 취소 + Package.remainingCount +1 복귀.
+    // 3) 충돌 예약 자동 취소. remainingCount 는 변경하지 않음 —
+    //    예약 생성 시 차감하지 않는 정책(완료 시점에만 차감)이라 취소 시 복귀도 없음.
     for (const r of conflictReservations) {
       await tx.reservation.update({
         where: { id: r.id },
@@ -237,13 +240,6 @@ export async function handoverServiceAssignment(input: {
           actorUserId: user.id,
         },
       });
-      // 권 차감 복귀 — 해당 예약이 차감한 packageId 가 있을 때만 (1:1 PT 는 항상 있음).
-      if (r.packageId) {
-        await tx.package.update({
-          where: { id: r.packageId },
-          data: { remainingCount: { increment: 1 } },
-        });
-      }
     }
 
     // 4) ChatThread 처리 — service 단위 양도 vs thread 가 trainer 페어 단위 1개라
