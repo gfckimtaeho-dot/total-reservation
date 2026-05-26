@@ -42,7 +42,6 @@ export async function completeRefund(
       userId: true,
       serviceName: true,
       refundPhp: true,
-      payoutMethod: true,
     },
   });
   if (!refund || refund.gymId !== gymId) {
@@ -88,7 +87,6 @@ export async function completeRefund(
       body: SystemMessages.refundCompleted({
         serviceName: refund.serviceName,
         amountPhp: refund.refundPhp,
-        payoutMethod: refund.payoutMethod,
       }),
     });
   });

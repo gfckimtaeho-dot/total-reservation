@@ -10,6 +10,7 @@ import {
   checkStaffAvailability,
   weekdayOfUtcDate,
 } from "@/lib/booking/staffAvailability";
+import { insertSystemMessage, SystemMessages } from "@/lib/chat/system";
 
 const weekdayZ = z.enum(["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]);
 const dateZ = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "dateFormat");
@@ -394,7 +395,8 @@ export async function applyScheduleDeletion(input: {
       });
     }
 
-    // 2) 영향 회원이 있으면 — 전원에게 RefundRequest 생성 + 권 동결.
+    // 2) 영향 회원이 있으면 — 전원에게 RefundRequest 생성 + 권 동결 +
+    //    STORE thread(front desk) 시스템 메시지로 정중한 폐지/환불 안내 발송.
     if (impact.affectedMembers.length > 0) {
       for (const m of impact.affectedMembers) {
         await tx.refundRequest.create({
@@ -419,6 +421,30 @@ export async function applyScheduleDeletion(input: {
           where: { id: m.packageId },
           data: { refundedAt: new Date() },
         });
+
+        let storeThread = await tx.chatThread.findFirst({
+          where: { gymId, kind: "STORE", customerId: m.customerUserId },
+          select: { id: true },
+        });
+        if (!storeThread) {
+          storeThread = await tx.chatThread.create({
+            data: {
+              gymId,
+              kind: "STORE",
+              customerId: m.customerUserId,
+              staffUserId: null,
+            },
+            select: { id: true },
+          });
+        }
+        await insertSystemMessage(tx, {
+          threadId: storeThread.id,
+          actorId: auth.id,
+          body: SystemMessages.classDiscontinuedRefund({
+            serviceName: impact.serviceName,
+            amountPhp: m.refundPhp,
+          }),
+        });
       }
     }
 
@@ -433,6 +459,8 @@ export async function applyScheduleDeletion(input: {
   revalidatePath(`/en/g/${input.slug}/services`);
   revalidatePath(`/ko/g/${input.slug}/refunds`);
   revalidatePath(`/en/g/${input.slug}/refunds`);
+  revalidatePath(`/ko/g/${input.slug}/me/chat`);
+  revalidatePath(`/en/g/${input.slug}/me/chat`);
   return {
     ok: true,
     refundCount: impact.affectedMembers.length,

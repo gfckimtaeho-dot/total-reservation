@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import type { TimeUnit } from "@/generated/prisma/enums";
 import { packageStoreLiabilityRefund } from "@/lib/refunds/store-liability";
+import { insertSystemMessage, SystemMessages } from "@/lib/chat/system";
 
 // 숫자 input은 모두 type="text" + 콤마 포맷팅 ("5,000")으로 들어오므로
 // 콤마 제거 후 정수 변환. 빈 문자열은 0으로.
@@ -375,7 +376,7 @@ export async function applyServiceDeletion(input: {
       });
     }
 
-    // 2) 영향 회원 환불 자동 생성 + 권 동결
+    // 2) 영향 회원 환불 자동 생성 + 권 동결 + STORE thread(front desk) 정중한 안내
     if (impact.affectedMembers.length > 0) {
       for (const m of impact.affectedMembers) {
         await tx.refundRequest.create({
@@ -400,6 +401,30 @@ export async function applyServiceDeletion(input: {
           where: { id: m.packageId },
           data: { refundedAt: new Date() },
         });
+
+        let storeThread = await tx.chatThread.findFirst({
+          where: { gymId, kind: "STORE", customerId: m.customerUserId },
+          select: { id: true },
+        });
+        if (!storeThread) {
+          storeThread = await tx.chatThread.create({
+            data: {
+              gymId,
+              kind: "STORE",
+              customerId: m.customerUserId,
+              staffUserId: null,
+            },
+            select: { id: true },
+          });
+        }
+        await insertSystemMessage(tx, {
+          threadId: storeThread.id,
+          actorId: auth.id,
+          body: SystemMessages.classDiscontinuedRefund({
+            serviceName: impact.serviceName,
+            amountPhp: m.refundPhp,
+          }),
+        });
       }
     }
 
@@ -422,5 +447,7 @@ export async function applyServiceDeletion(input: {
   revalidatePath(`/en/g/${input.slug}/products`);
   revalidatePath(`/ko/g/${input.slug}/refunds`);
   revalidatePath(`/en/g/${input.slug}/refunds`);
+  revalidatePath(`/ko/g/${input.slug}/me/chat`);
+  revalidatePath(`/en/g/${input.slug}/me/chat`);
   return { ok: true, refundCount: impact.affectedMembers.length };
 }

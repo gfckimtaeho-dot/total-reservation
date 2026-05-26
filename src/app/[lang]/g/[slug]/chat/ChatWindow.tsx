@@ -254,14 +254,17 @@ function MessageRow({
   const sent = msg.sentAt instanceof Date ? msg.sentAt : new Date(msg.sentAt);
 
   if (msg.system) {
-    // front desk 발 메시지 — 받은 메시지로 분류. 시간은 알약 우측 아래.
-    // flex 자식의 self-end 가 text-right 보다 안정적인 정렬 수단.
+    // front desk 발 메시지 — 받은 메시지로 분류. 짧은/긴 본문 모두 자연스럽게
+    // 처리하려면 rounded-full 알약(짧은 단일 행 전용) 대신 rounded-2xl + max-w
+    // + break-words. 시간은 우측 아래(받은 메시지 패턴).
     return (
       <li className="flex justify-start">
-        <div className="flex flex-col">
-          <span className={`rounded-full px-3 py-1 text-[11px] ${palette.system}`}>
+        <div className="flex max-w-[85%] flex-col">
+          <div
+            className={`rounded-2xl px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap break-words ${palette.system}`}
+          >
             {msg.body}
-          </span>
+          </div>
           <time className={`mt-0.5 self-end text-[10px] ${palette.time}`}>
             {formatTime(sent)}
           </time>
