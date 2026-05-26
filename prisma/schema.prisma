@@ -313,6 +313,11 @@ model User {
   id                    String     @id @default(cuid())
   gymId                 String?
   business              Business?  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  // 로그인 식별자. 매장별 unique. 회원/트레이너/매니저는 활성화 시점에 본인이
+  // 직접 선택, 사장은 매장 등록 form 에서 직접 선택. PENDING(활성화 전) row 는
+  // NULL — 활성화 끝나면 채워짐. Postgres NULL distinct 라 NULL row 들끼리는
+  // 충돌 안 함.
+  loginId               String?
   email                 String?
   passwordHash          String?
   name                  String
@@ -352,7 +357,9 @@ model User {
   createdById         String?
   updatedById         String?
 
-  @@unique([email, gymId])
+  // email 은 더 이상 식별자 아님 (채널 도구로 격하). 중복 허용 — 가족 등이
+  // 같은 이메일 공유 가능. 관리자(gymId NULL)만 partial unique 별도 유지.
+  @@unique([loginId, gymId])
   @@index([gymId, role])
   @@index([gymId, status])
 }

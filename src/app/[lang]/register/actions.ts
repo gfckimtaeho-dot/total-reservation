@@ -9,6 +9,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { issueSession } from "@/lib/auth/session";
 import { sendWelcomeEmail } from "@/lib/email/resend";
 import { isSupportedTimeZone } from "@/lib/calendar/timezones";
+import { normalizeLoginId, LOGIN_ID_PATTERN } from "@/lib/auth/normalize";
 
 const RESERVED_SLUGS = new Set([
   "admin",
@@ -47,7 +48,22 @@ const schema = z
     cityId: z.string().min(1, "시를 선택해 주세요"),
     barangayId: z.string().min(1, "동을 선택해 주세요"),
     ownerName: z.string().min(1, "이름을 입력해 주세요"),
-    ownerEmail: z.string().email("이메일 형식이 올바르지 않습니다"),
+    ownerLoginId: z
+      .string()
+      .transform(normalizeLoginId)
+      .pipe(
+        z
+          .string()
+          .regex(
+            LOGIN_ID_PATTERN,
+            "아이디는 영문/숫자/언더스코어/하이픈 3-30자입니다",
+          ),
+      ),
+    ownerEmail: z
+      .string()
+      .email("이메일 형식이 올바르지 않습니다")
+      .optional()
+      .or(z.literal("")),
     ownerPhone: z.string().min(1, "전화번호를 입력해 주세요"),
     ownerPassword: z.string().min(6, "6자 이상 입력해 주세요"),
     ownerPasswordConfirm: z.string(),
@@ -151,7 +167,8 @@ export async function registerBusiness(
       const owner = await tx.user.create({
         data: {
           gymId: business.id,
-          email: d.ownerEmail,
+          loginId: d.ownerLoginId,
+          email: d.ownerEmail ? d.ownerEmail : null,
           passwordHash,
           name: d.ownerName,
           phone: d.ownerPhone,
@@ -207,24 +224,25 @@ export async function registerBusiness(
     return { message: "매장 등록 중 오류가 발생했습니다." };
   }
 
-  // Welcome email — best-effort. Registration is already committed; if SMTP
-  // fails the owner can still log in, the email is just a convenience for
-  // recovering the studio URL later. So we swallow errors.
-  try {
-    const h = await headers();
-    const host = h.get("host") ?? "localhost:3000";
-    const proto = h.get("x-forwarded-proto") ?? "http";
-    const base = `${proto}://${host}`;
-    await sendWelcomeEmail({
-      to: d.ownerEmail,
-      storeName: d.storeName,
-      ownerName: d.ownerName,
-      publicUrl: `${base}/ko/g/${businessSlug}`,
-      loginUrl: `${base}/ko/g/${businessSlug}/login`,
-      dashboardUrl: `${base}/ko/g/${businessSlug}/dashboard`,
-    });
-  } catch (err) {
-    console.error("[register] welcome email failed:", err);
+  // Welcome email — best-effort. 이메일 있을 때만 발송. 등록은 이미 commit
+  // 됐으니 메일 실패해도 사장은 로그인 가능 — 메일은 매장 URL 회복용 편의일 뿐.
+  if (d.ownerEmail) {
+    try {
+      const h = await headers();
+      const host = h.get("host") ?? "localhost:3000";
+      const proto = h.get("x-forwarded-proto") ?? "http";
+      const base = `${proto}://${host}`;
+      await sendWelcomeEmail({
+        to: d.ownerEmail,
+        storeName: d.storeName,
+        ownerName: d.ownerName,
+        publicUrl: `${base}/ko/g/${businessSlug}`,
+        loginUrl: `${base}/ko/g/${businessSlug}/login`,
+        dashboardUrl: `${base}/ko/g/${businessSlug}/dashboard`,
+      });
+    } catch (err) {
+      console.error("[register] welcome email failed:", err);
+    }
   }
 
   await issueSession(ownerUserId, "OWNER");

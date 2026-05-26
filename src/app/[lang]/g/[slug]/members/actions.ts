@@ -348,6 +348,51 @@ export async function copyActivationUrl(
   return { ok: true, url };
 }
 
+// 비번 재설정 URL 발급 — ACTIVE 회원이 비번 잊은 케이스. 사장이 admin 화면에서
+// 발급 후 회원에게 카톡/문자 등으로 URL 전달. 이메일 있으면 자동 발송은 별도
+// 흐름(/forgot 미구현). 멱등성 위해 같은 회원 재발급 시 이전 PASSWORD_RESET
+// 토큰들 일괄 무효화 후 새 토큰 발급.
+export async function copyPasswordResetUrl(
+  formData: FormData,
+): Promise<SendActivationResult> {
+  const slug = String(formData.get("slug") ?? "");
+  const memberId = String(formData.get("memberId") ?? "");
+  const auth = await requireGymStaff(slug);
+  const gymId = auth.business!.id;
+
+  const member = await prisma.user.findFirst({
+    where: { id: memberId, gymId, role: "CUSTOMER" },
+    select: { id: true },
+  });
+  if (!member) return { ok: false, message: "회원을 찾을 수 없습니다" };
+
+  const token = crypto.randomBytes(32).toString("base64url");
+  await prisma.$transaction([
+    prisma.magicLinkToken.updateMany({
+      where: {
+        targetUserId: member.id,
+        purpose: "PASSWORD_RESET",
+        usedAt: null,
+      },
+      data: { usedAt: new Date() },
+    }),
+    prisma.magicLinkToken.create({
+      data: {
+        token,
+        targetUserId: member.id,
+        gymId,
+        purpose: "PASSWORD_RESET",
+        expiresAt: new Date(Date.now() + SEVEN_DAYS_MS),
+      },
+    }),
+  ]);
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const url = `${proto}://${host}/ko/g/${slug}/activate?token=${token}`;
+  return { ok: true, url };
+}
+
 // 하드 삭제 폐기 — 매출/예약 이력 보존 위해 활성/비활성 토글로 대체.
 export async function setMemberActive(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");

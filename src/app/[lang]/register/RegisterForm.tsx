@@ -154,10 +154,18 @@ export function RegisterForm({
             errors={state.errors?.ownerName}
           />
           <Field
+            label={t("ownerLoginId")}
+            name="ownerLoginId"
+            required
+            hint={t("ownerLoginIdHint")}
+            errorMessage={t("errors.ownerLoginId")}
+            errors={state.errors?.ownerLoginId}
+          />
+          <Field
             label={t("ownerEmail")}
             name="ownerEmail"
             type="email"
-            required
+            hint={t("ownerEmailHint")}
             errorMessage={t("errors.ownerEmail")}
             errors={state.errors?.ownerEmail}
           />
@@ -169,7 +177,6 @@ export function RegisterForm({
             errorMessage={t("errors.ownerPhone")}
             errors={state.errors?.ownerPhone}
           />
-          <div className="hidden sm:block" />
           <Field
             label={t("ownerPassword")}
             name="ownerPassword"

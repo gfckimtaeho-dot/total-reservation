@@ -30,3 +30,16 @@ export function normalizeSlug(input: string): string {
 export function normalizePassword(input: string): string {
   return input.replace(INVISIBLE_RE, "").replace(/^\s+|\s+$/g, "");
 }
+
+// 로그인 아이디 정규화. 영문 소문자/숫자/언더스코어/하이픈만 허용. 3-30자.
+// 회원이 활성화 페이지·사장이 매장 등록 form 에 입력한 ID 를 안전한 식별자로
+// 변환. 입력 단계에서 invisible char 제거 + lowercase + 허용 문자 외 stripping.
+export function normalizeLoginId(input: string): string {
+  return input
+    .replace(INVISIBLE_RE, "")
+    .replace(/\s/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+export const LOGIN_ID_PATTERN = /^[a-z0-9_-]{3,30}$/;

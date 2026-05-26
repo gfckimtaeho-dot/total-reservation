@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/client";
 import { verifyPassword } from "@/lib/auth/password";
 import { issueSession } from "@/lib/auth/session";
 import {
-  normalizeEmail,
+  normalizeLoginId,
   normalizePassword,
   normalizeSlug,
 } from "@/lib/auth/normalize";
@@ -17,10 +17,10 @@ import {
 // .trim() doesn't catch. See src/lib/auth/normalize.ts for details.
 const schema = z.object({
   slug: z.string().transform(normalizeSlug).pipe(z.string().min(1)),
-  email: z
+  loginId: z
     .string()
-    .transform(normalizeEmail)
-    .pipe(z.string().email("이메일 형식이 올바르지 않습니다")),
+    .transform(normalizeLoginId)
+    .pipe(z.string().min(1, "아이디를 입력해 주세요")),
   password: z
     .string()
     .transform(normalizePassword)
@@ -39,12 +39,12 @@ export type GymLoginState = {
     | "withdrawn";
   // 임시 디버그: noUser 분기 진단용. 안정화되면 제거.
   debug?: {
-    rawEmailBytes: number;
-    rawEmailHex: string;
-    normalizedEmail: string;
+    rawLoginIdBytes: number;
+    rawLoginIdHex: string;
+    normalizedLoginId: string;
     rawSlugBytes: number;
     rawSlugHex: string;
-    similarEmails: string[];
+    similarLoginIds: string[];
   };
 };
 
@@ -53,14 +53,14 @@ export async function gymLogin(
   formData: FormData,
 ): Promise<GymLoginState> {
   // raw 입력 캡처 (정규화 전) — invisible char 진단용
-  const rawEmailInput = String(formData.get("email") ?? "");
+  const rawLoginIdInput = String(formData.get("loginId") ?? "");
   const rawSlugInput = String(formData.get("slug") ?? "");
-  const rawEmailHex = Buffer.from(rawEmailInput, "utf8").toString("hex");
+  const rawLoginIdHex = Buffer.from(rawLoginIdInput, "utf8").toString("hex");
   const rawSlugHex = Buffer.from(rawSlugInput, "utf8").toString("hex");
 
   const parsed = schema.safeParse({
     slug: formData.get("slug"),
-    email: formData.get("email"),
+    loginId: formData.get("loginId"),
     password: formData.get("password"),
     rememberMe: formData.get("rememberMe"),
   });
@@ -73,7 +73,7 @@ export async function gymLogin(
       >,
     };
   }
-  const { slug, email, password, rememberMe } = parsed.data;
+  const { slug, loginId, password, rememberMe } = parsed.data;
 
   const business = await prisma.business.findUnique({ where: { slug } });
   if (!business) {
@@ -86,51 +86,53 @@ export async function gymLogin(
     return {
       message: "noBusiness",
       debug: {
-        rawEmailBytes: rawEmailInput.length,
-        rawEmailHex,
-        normalizedEmail: email,
+        rawLoginIdBytes: rawLoginIdInput.length,
+        rawLoginIdHex,
+        normalizedLoginId: loginId,
         rawSlugBytes: rawSlugInput.length,
         rawSlugHex,
-        similarEmails: [],
+        similarLoginIds: [],
       },
     };
   }
 
   const user = await prisma.user.findUnique({
-    where: { email_gymId: { email, gymId: business.id } },
+    where: { loginId_gymId: { loginId, gymId: business.id } },
   });
   if (!user) {
-    // 같은 매장에 비슷한 email이 있는지 prefix 검색 — 입력값과 DB값의 차이를 보여줌
     const similar = await prisma.user.findMany({
-      where: { gymId: business.id, email: { contains: email.split("@")[0]?.slice(0, 4) ?? "" } },
-      select: { email: true },
+      where: {
+        gymId: business.id,
+        loginId: { contains: loginId.slice(0, 4) },
+      },
+      select: { loginId: true },
       take: 5,
     });
     console.error("[gymLogin] user not found:", {
       slug,
       gymId: business.id,
-      email,
-      rawEmailInput,
-      rawEmailHex,
-      rawEmailBytes: rawEmailInput.length,
-      similarEmails: similar.map((s) => s.email),
+      loginId,
+      rawLoginIdInput,
+      rawLoginIdHex,
+      rawLoginIdBytes: rawLoginIdInput.length,
+      similarLoginIds: similar.map((s) => s.loginId),
     });
     return {
       message: "noUser",
       debug: {
-        rawEmailBytes: rawEmailInput.length,
-        rawEmailHex,
-        normalizedEmail: email,
+        rawLoginIdBytes: rawLoginIdInput.length,
+        rawLoginIdHex,
+        normalizedLoginId: loginId,
         rawSlugBytes: rawSlugInput.length,
         rawSlugHex,
-        similarEmails: similar.map((s) => s.email ?? ""),
+        similarLoginIds: similar.map((s) => s.loginId ?? ""),
       },
     };
   }
   if (!user.passwordHash) {
     console.error("[gymLogin] passwordHash missing:", {
       userId: user.id,
-      email,
+      loginId,
       status: user.status,
     });
     return { message: "notActivated" };
@@ -144,7 +146,7 @@ export async function gymLogin(
   if (!ok) {
     console.error("[gymLogin] password mismatch:", {
       userId: user.id,
-      email,
+      loginId,
     });
     return { message: "wrong" };
   }

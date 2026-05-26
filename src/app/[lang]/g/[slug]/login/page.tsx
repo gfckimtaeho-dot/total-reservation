@@ -10,10 +10,10 @@ export default async function GymLoginPage({
   searchParams,
 }: {
   params: Promise<{ lang: string; slug: string }>;
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ loginId?: string }>;
 }) {
   const { lang, slug } = await params;
-  const { email } = await searchParams;
+  const { loginId } = await searchParams;
   const t = await getTranslations("login.gym");
 
   const business = await prisma.business.findUnique({
@@ -35,7 +35,7 @@ export default async function GymLoginPage({
           <div className="flex items-center gap-5">
             <LangToggle
               currentLang={lang}
-              pathSuffix={`/g/${business.slug}/login${email ? `?email=${encodeURIComponent(email)}` : ""}`}
+              pathSuffix={`/g/${business.slug}/login${loginId ? `?loginId=${encodeURIComponent(loginId)}` : ""}`}
             />
             <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
               /g/{business.slug}
@@ -60,7 +60,7 @@ export default async function GymLoginPage({
 
       <main className="flex-1 bg-white">
         <div className="mx-auto w-full max-w-md px-6 py-16">
-          <GymLoginForm slug={business.slug} initialEmail={email ?? ""} />
+          <GymLoginForm slug={business.slug} initialLoginId={loginId ?? ""} />
         </div>
       </main>
 
