@@ -253,6 +253,8 @@
     "deleteWindowOver": "5분이 지나 삭제할 수 없습니다",
     "closedNotice": "이 채팅은 종료되었습니다",
     "readOnlyNotice": "이 채팅은 읽기 전용입니다",
+    "dateToday": "오늘",
+    "dateYesterday": "어제",
     "lengthCap": "메시지는 1000자 이내",
     "channels": {
       "trainer": "{name} 트레이너",
@@ -1137,7 +1139,9 @@
     "refundLineCompleted": "완료",
     "refundLineToday": "오늘 예약 (완료 처리)",
     "refundLineRefundable": "환불 대상",
-    "refundCalcNote": "환불 금액은 환불 대상의 판매가에서 50%입니다(소수점 올림). 오늘 예약 건은 트레이너가 완료 처리하므로 환불 대상에서 빠집니다.",
+    "refundCalcNote": "환불 금액은 정가(할인 전 가격) 기준 50%입니다(소수점 올림). 오늘 예약 건은 트레이너가 완료 처리하므로 환불 대상에서 빠집니다.",
+    "refundPriceBaseTitle": "환불 산정 기준 안내",
+    "refundPriceBaseBody": "환불 금액은 결제하신 금액이 아니라 정가(할인 전 가격)의 50%를 기준으로 계산합니다. 프로모션·할인 등 회원님이 받으셨던 혜택은 환불 시점에 다시 반영되지 않습니다. 매장 사유(수업 폐지·강사 부재 등)로 환불이 발생할 때만 정가의 100%를 돌려드립니다.",
     "refundCalcLabel": "환불 금액 산정",
     "refundRounded": "올림 적용",
     "refundPassPackage": "{name}권",
@@ -1325,21 +1329,38 @@
       "service": "프로그램 안내",
       "package": "수업",
       "combo": "콤보",
-      "promotion": "이벤트"
+      "promotion": "이벤트",
+      "refund": "환불 안내"
     },
     "title": {
       "membership": "기간 회원권",
       "service": "프로그램 안내",
       "package": "수업",
       "combo": "콤보 패키지",
-      "promotion": "진행중 이벤트"
+      "promotion": "진행중 이벤트",
+      "refund": "환불 정책 안내"
     },
     "lead": {
       "membership": "원하는 기간을 선택하세요",
       "service": "전문 트레이너와 함께하는 수업",
       "package": "필요한 만큼, 합리적으로",
       "combo": "묶으면 더 큰 혜택",
-      "promotion": "지금만 누리는 특별 할인"
+      "promotion": "지금만 누리는 특별 할인",
+      "refund": "결제 전에 꼭 알아두실 환불 기준입니다"
+    },
+    "refundDetails": {
+      "memberRequest": "회원 변심 환불",
+      "memberRequestBody": "정가(할인 전 가격)의 50%를 돌려드립니다. 결제하신 금액 기준이 아니며, 프로모션·할인 등 받으셨던 혜택은 환불 시점에 다시 반영되지 않습니다.",
+      "storeLiability": "매장 귀책 환불",
+      "storeLiabilityBody": "수업 폐지·강사 부재 등 매장 사유로 환불이 발생하면 잔여 회수 정가의 100%를 돌려드립니다. 회원님 잘못이 아닐 땐 손해 0.",
+      "today": "당일 예약",
+      "todayBody": "환불 신청 당일에 이미 잡힌 예약은 트레이너가 완료 처리하므로 환불 대상에서 빠집니다.",
+      "freeze": "신청 즉시 권 동결",
+      "freezeBody": "환불을 신청하시면 그 권은 곧바로 사용 정지되고, 잡아두신 미래 예약은 모두 자동 취소됩니다.",
+      "payout": "환불금 수령 방법",
+      "payoutBody": "매장 카운터 직접 수령 또는 계좌이체 중 선택. 매장 귀책 환불은 카운터 직접 수령이 기본입니다.",
+      "rounding": "회원 유리 올림",
+      "roundingBody": "소수점은 항상 회원님께 유리하도록 올림 처리합니다."
     },
     "perMonth": "월 {v} 꼴",
     "perSession": "1회 {v} 꼴",

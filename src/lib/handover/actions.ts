@@ -181,21 +181,6 @@ export async function handoverServiceAssignment(input: {
 
   // 트랜잭션 실행.
   const out = await prisma.$transaction(async (tx) => {
-    // 0) 양도 직전 옛 담당 트레이너 User.id 수집 — 시스템 메시지 대상 thread 식별용.
-    const beforePkgs = await tx.package.findMany({
-      where: {
-        gymId,
-        userId: input.customerId,
-        serviceId: input.serviceId,
-        remainingCount: { gt: 0 },
-      },
-      select: { assignedStaff: { select: { userId: true } } },
-    });
-    const fromStaffUserIds = new Set<string>();
-    for (const p of beforePkgs) {
-      if (p.assignedStaff?.userId) fromStaffUserIds.add(p.assignedStaff.userId);
-    }
-
     // 1) Package 일괄 갱신.
     const pkgUpd = await tx.package.updateMany({
       where: {
@@ -242,13 +227,13 @@ export async function handoverServiceAssignment(input: {
       });
     }
 
-    // 4) ChatThread 처리 — service 단위 양도 vs thread 가 trainer 페어 단위 1개라
-    //    부수 효과를 일으키지 않도록 다음 규칙으로 좁힌다:
-    //    - 새 트레이너 ↔ customer thread: find or create + 시스템 메시지 1줄.
-    //    - 옛 담당 트레이너(이번 양도 직전 assignedStaff) ↔ customer thread:
-    //      thread close 하지 않음 (다른 service 담당으로 여전히 연결돼 있을 수 있음).
-    //      시스템 메시지만 1줄 박아 변경 사실을 trail 로 남김.
-    //    - 그 외 다른 트레이너 thread (이번 양도와 무관) 는 건드리지 않음.
+    // 4) ChatThread 처리 — 양도 알림은 두 채널로 발송한다:
+    //    - 새 트레이너 ↔ 회원 TRAINER thread: find or create + 시스템 메시지 1줄.
+    //      새 트레이너 입장 알림(본인 sidebar 채팅 뱃지) + 회원 입장 새 thread 시작 안내.
+    //    - 회원 ↔ 매장 STORE thread: front desk 통지 시스템 메시지 1줄.
+    //      "시스템 = 매장(front desk)" 도메인 관점([[decision-chat-scope-phase1]] 보강).
+    //    옛 담당 TRAINER thread 에는 시스템 메시지 발송하지 않는다 — 회원이 다시
+    //    열어볼 이유 없는 thread 에 unread 가 영구 잔존하는 문제 방지.
     let toThread = await tx.chatThread.findFirst({
       where: {
         gymId,
@@ -275,28 +260,32 @@ export async function handoverServiceAssignment(input: {
       body: `${service.name} 담당 트레이너가 ${toStaff.user.name}으로 변경되었습니다.`,
     });
 
-    // 옛 담당 트레이너 식별 — 양도 직전 Package.assignedStaff. fromStaffUserIds
-    // 는 1명일 수도 N명일 수도 (드물게 같은 service 의 여러 권이 서로 다른
-    // 트레이너로 매핑된 비정상 케이스). 모두 시스템 메시지 1줄.
-    if (fromStaffUserIds.size > 0) {
-      const fromThreads = await tx.chatThread.findMany({
-        where: {
+    // STORE thread find or create — 회원이 매장 채팅을 한 번도 안 열었어도
+    // front desk 양도 통지를 받게 한다.
+    let storeThread = await tx.chatThread.findFirst({
+      where: {
+        gymId,
+        kind: "STORE",
+        customerId: input.customerId,
+      },
+      select: { id: true },
+    });
+    if (!storeThread) {
+      storeThread = await tx.chatThread.create({
+        data: {
           gymId,
-          kind: "TRAINER",
+          kind: "STORE",
           customerId: input.customerId,
-          staffUserId: { in: Array.from(fromStaffUserIds) },
+          staffUserId: null,
         },
-        select: { id: true, staffUserId: true },
+        select: { id: true },
       });
-      for (const th of fromThreads) {
-        if (th.staffUserId === toStaff.userId) continue; // 같은 사람일 리 없지만 방어.
-        await insertSystemMessage(tx, {
-          threadId: th.id,
-          actorId: user.id,
-          body: `${service.name} 담당이 ${toStaff.user.name}으로 변경되었습니다.`,
-        });
-      }
     }
+    await insertSystemMessage(tx, {
+      threadId: storeThread.id,
+      actorId: user.id,
+      body: `[담당 변경] ${service.name} 담당 트레이너가 ${toStaff.user.name}으로 변경되었습니다.`,
+    });
 
     return {
       packagesUpdated: pkgUpd.count,

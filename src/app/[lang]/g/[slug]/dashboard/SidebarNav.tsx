@@ -113,11 +113,18 @@ export function SidebarNav() {
   useEffect(() => {
     if (!slug) return;
     let cancelled = false;
-    void getPendingRefundCount(slug).then((n) => {
-      if (!cancelled) setPendingRefund(n);
-    });
+    function refetch() {
+      void getPendingRefundCount(slug).then((n) => {
+        if (!cancelled) setPendingRefund(n);
+      });
+    }
+    refetch();
+    // 환불 완료 등 도메인 이벤트 직후 즉시 갱신 — RefundsTable 등 호출처에서
+    // `pending-refund-changed` 커스텀 이벤트 dispatch.
+    window.addEventListener("pending-refund-changed", refetch);
     return () => {
       cancelled = true;
+      window.removeEventListener("pending-refund-changed", refetch);
     };
   }, [slug, pathname]);
 
@@ -162,6 +169,12 @@ export function SidebarNav() {
   function navigate(href: string) {
     const k = keyFromHref(href);
     if (k) setPendingKey(k);
+    // 메뉴 클릭 자체로 환불 카운트 refetch — /refunds 안에서 완료 처리한 직후
+    // 같은 /refunds 메뉴를 다시 누르면 pathname 안 바뀌어 useEffect 가 안 도는
+    // 회귀 fix(뱃지 stale).
+    if (slug) {
+      void getPendingRefundCount(slug).then((n) => setPendingRefund(n));
+    }
     startTransition(() => {
       router.push(href);
     });

@@ -37,6 +37,7 @@ export default async function MyClientDetailPage({
         gymId: business.id,
         userId: customerId,
         assignedStaffId: staff.id,
+        refundedAt: null,
       },
       select: { id: true },
     });
@@ -54,6 +55,7 @@ export default async function MyClientDetailPage({
           gymId: business.id,
           userId: customerId,
           remainingCount: { gt: 0 },
+          refundedAt: null,
           ...(staff ? { assignedStaffId: staff.id } : {}),
         },
         select: {

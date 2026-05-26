@@ -253,6 +253,8 @@
     "deleteWindowOver": "Cannot delete after 5 minutes",
     "closedNotice": "This chat is closed",
     "readOnlyNotice": "Read-only",
+    "dateToday": "Today",
+    "dateYesterday": "Yesterday",
     "lengthCap": "Up to 1000 characters",
     "channels": {
       "trainer": "Trainer {name}",
@@ -1137,7 +1139,9 @@
     "refundLineCompleted": "Completed",
     "refundLineToday": "Today (counts as used)",
     "refundLineRefundable": "Refundable",
-    "refundCalcNote": "The refund is 50% of the sale value of the refundable amount (rounded up). Today's reservations are completed by the trainer, so they are excluded.",
+    "refundCalcNote": "The refund is 50% of the list price (before any discount), rounded up. Today's reservations are completed by the trainer, so they are excluded.",
+    "refundPriceBaseTitle": "How the refund is calculated",
+    "refundPriceBaseBody": "The refund is based on 50% of the list price (before any discount), not the amount you paid. Any promotion or discount you received does not apply again at refund time. A full 100% refund is only issued when the refund is caused by the store side (a class is discontinued, a trainer is unavailable, and so on).",
     "refundCalcLabel": "How the refund is calculated",
     "refundRounded": "rounded up",
     "refundPassPackage": "{name} pass",
@@ -1325,21 +1329,38 @@
       "service": "Classes",
       "package": "Sessions",
       "combo": "Combo",
-      "promotion": "Events"
+      "promotion": "Events",
+      "refund": "Refunds"
     },
     "title": {
       "membership": "Membership Plans",
       "service": "Programs",
       "package": "Sessions",
       "combo": "Combo Packages",
-      "promotion": "Active Events"
+      "promotion": "Active Events",
+      "refund": "Refund Policy"
     },
     "lead": {
       "membership": "Choose the period that fits you",
       "service": "Train with our specialists",
       "package": "Pay only for what you need",
       "combo": "Bundle for bigger value",
-      "promotion": "Limited-time offers, right now"
+      "promotion": "Limited-time offers, right now",
+      "refund": "What you should know before you pay"
+    },
+    "refundDetails": {
+      "memberRequest": "Change of mind refund",
+      "memberRequestBody": "We refund 50% of the list price (before any discount). It is not based on the amount you paid — any promotion or discount you received is not re-applied at refund time.",
+      "storeLiability": "Store-side refund",
+      "storeLiabilityBody": "If a class is discontinued or a trainer is unavailable, we refund 100% of the list price for the remaining sessions. Zero loss when it is not your fault.",
+      "today": "Today's reservations",
+      "todayBody": "Reservations already booked for the day you request the refund are completed by the trainer and excluded from the refund.",
+      "freeze": "Immediate freeze",
+      "freezeBody": "Once you submit, that pass is immediately frozen and every upcoming reservation on it is automatically cancelled.",
+      "payout": "How you receive the refund",
+      "payoutBody": "Choose between in-person at the front desk or bank transfer. Store-side refunds default to in-person.",
+      "rounding": "Rounded in your favor",
+      "roundingBody": "Decimals are always rounded up for your benefit."
     },
     "perMonth": "≈ {v} / month",
     "perSession": "≈ {v} / session",

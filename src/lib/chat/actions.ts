@@ -16,7 +16,6 @@ import { insertSystemMessage, SystemMessages } from "@/lib/chat/system";
 type R<T = unknown> = ({ ok: true } & T) | { ok: false; error: string };
 
 const MAX_BODY = 1000;
-const SOFT_DELETE_WINDOW_MS = 5 * 60 * 1000;
 
 async function authViewer(slug: string): Promise<ChatViewer | null> {
   const user = await verifySession();
@@ -104,36 +103,6 @@ export async function markRead(input: {
     },
   });
 
-  return { ok: true };
-}
-
-// 본인 메시지 5분 내 soft delete -----------------------------------------
-
-export async function softDeleteMessage(input: {
-  slug: string;
-  messageId: string;
-}): Promise<R> {
-  const viewer = await authViewer(input.slug);
-  if (!viewer) return { ok: false, error: "로그인이 필요합니다" };
-
-  const msg = await prisma.chatMessage.findFirst({
-    where: { id: input.messageId, thread: { gymId: viewer.gymId } },
-    select: { id: true, senderId: true, sentAt: true, deletedAt: true, system: true },
-  });
-  if (!msg) return { ok: false, error: "메시지를 찾을 수 없습니다" };
-  if (msg.system) return { ok: false, error: "시스템 메시지는 삭제할 수 없습니다" };
-  if (msg.senderId !== viewer.id) {
-    return { ok: false, error: "본인 메시지만 삭제할 수 있습니다" };
-  }
-  if (msg.deletedAt) return { ok: true };
-  if (Date.now() - msg.sentAt.getTime() > SOFT_DELETE_WINDOW_MS) {
-    return { ok: false, error: "5분이 지난 메시지는 삭제할 수 없습니다" };
-  }
-
-  await prisma.chatMessage.update({
-    where: { id: msg.id },
-    data: { deletedAt: new Date() },
-  });
   return { ok: true };
 }
 

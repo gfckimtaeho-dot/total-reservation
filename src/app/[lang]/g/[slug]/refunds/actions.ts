@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
+import { insertSystemMessage, SystemMessages } from "@/lib/chat/system";
 
 // 사이드바 뱃지용 미지급 환불 카운트. 권한 없으면 0(에러 throw 안 함 —
 // 사이드바 마운트 시점에 unauthorized 페이지에서도 안전).
@@ -34,26 +35,66 @@ export async function completeRefund(
 
   const refund = await prisma.refundRequest.findUnique({
     where: { id: refundId },
-    select: { id: true, gymId: true, status: true },
+    select: {
+      id: true,
+      gymId: true,
+      status: true,
+      userId: true,
+      serviceName: true,
+      refundPhp: true,
+      payoutMethod: true,
+    },
   });
   if (!refund || refund.gymId !== gymId) {
     return { ok: false, error: "환불 요청을 찾을 수 없습니다" };
   }
   if (refund.status === "COMPLETED") return { ok: true }; // 멱등
 
-  await prisma.refundRequest.update({
-    where: { id: refund.id },
-    data: {
-      status: "COMPLETED",
-      completedAt: new Date(),
-      completedById: auth.id,
-    },
+  // 환불 마감 + STORE thread 에 시스템 메시지 1줄(영수증 성격) 발송.
+  // 트랜잭션으로 묶어 chat 발송 실패 시 status 변경도 롤백 — 회원 입장에서
+  // "환불은 됐는데 알림은 안 옴" 갈라짐 방지.
+  await prisma.$transaction(async (tx) => {
+    await tx.refundRequest.update({
+      where: { id: refund.id },
+      data: {
+        status: "COMPLETED",
+        completedAt: new Date(),
+        completedById: auth.id,
+      },
+    });
+
+    // STORE thread find-or-create. 정책상 customer 만 lazy-create 가능하나
+    // 여기는 시스템 트리거이므로 직접 생성. customer 가 매장 채팅을 한 번도
+    // 안 열었어도 환불 완료 영수증을 받게 된다.
+    let thread = await tx.chatThread.findFirst({
+      where: { gymId, kind: "STORE", customerId: refund.userId },
+      select: { id: true },
+    });
+    if (!thread) {
+      thread = await tx.chatThread.create({
+        data: {
+          gymId,
+          kind: "STORE",
+          customerId: refund.userId,
+          staffUserId: null,
+        },
+        select: { id: true },
+      });
+    }
+
+    await insertSystemMessage(tx, {
+      threadId: thread.id,
+      actorId: auth.id,
+      body: SystemMessages.refundCompleted({
+        serviceName: refund.serviceName,
+        amountPhp: refund.refundPhp,
+        payoutMethod: refund.payoutMethod,
+      }),
+    });
   });
 
-  // ToBe — 고객 알림 발송("환불이 완료되었습니다"). 알림 인프라(웹 push/
-  // 인앱 인박스) 구축 후 여기서 트리거. 이메일은 도달률 낮아 안 씀.
   // 권은 자동으로 고객 보유 화면(/me, /me/holdings)에서 사라짐(COMPLETED
-  // RefundRequest 가진 권은 쿼리 제외).
+  // RefundRequest 가진 권은 쿼리 제외). 채팅 인박스는 새 메시지 1건으로 갱신.
 
   revalidatePath(`/ko/g/${slug}/refunds`);
   revalidatePath(`/en/g/${slug}/refunds`);
@@ -61,5 +102,7 @@ export async function completeRefund(
   revalidatePath(`/en/g/${slug}/me`);
   revalidatePath(`/ko/g/${slug}/me/holdings`);
   revalidatePath(`/en/g/${slug}/me/holdings`);
+  revalidatePath(`/ko/g/${slug}/me/chat`);
+  revalidatePath(`/en/g/${slug}/me/chat`);
   return { ok: true };
 }

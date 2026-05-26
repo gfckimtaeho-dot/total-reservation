@@ -62,6 +62,7 @@ export default async function MemberDetailPage({
             },
           },
           packages: {
+            where: { refundedAt: null },
             orderBy: { createdAt: "desc" },
             select: {
               id: true,

@@ -129,6 +129,16 @@ export function RefundFlow({
         </div>
       </section>
 
+      {/* 정가 기준 50% 안내 — 회원 분쟁 방지용 명시 강조 박스(rose tone). */}
+      <section className="rounded-3xl border-2 border-rose-300 bg-rose-50/80 p-5 shadow-[0_15px_40px_-20px_rgba(244,63,94,0.35)] backdrop-blur">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-700">
+          {t("refundPriceBaseTitle")}
+        </div>
+        <p className="mt-2 text-[13px] leading-relaxed text-rose-900">
+          {t("refundPriceBaseBody")}
+        </p>
+      </section>
+
       {nothing ? (
         <section className="rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-800">
           {t("refundNothing")}

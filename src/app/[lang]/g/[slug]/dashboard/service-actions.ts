@@ -108,7 +108,7 @@ export async function listRecentCustomers(input: {
       name: true,
       phone: true,
       packages: {
-        where: { remainingCount: { gt: 0 } },
+        where: { remainingCount: { gt: 0 }, refundedAt: null },
         select: {
           remainingCount: true,
           service: { select: { name: true, capacity: true } },
@@ -155,7 +155,11 @@ export async function listMyAssignedCustomers(input: {
       gymId,
       role: "CUSTOMER",
       packages: {
-        some: { assignedStaffId: staff.id, remainingCount: { gt: 0 } },
+        some: {
+          assignedStaffId: staff.id,
+          remainingCount: { gt: 0 },
+          refundedAt: null,
+        },
       },
     },
     select: {
@@ -163,7 +167,11 @@ export async function listMyAssignedCustomers(input: {
       name: true,
       phone: true,
       packages: {
-        where: { assignedStaffId: staff.id, remainingCount: { gt: 0 } },
+        where: {
+          assignedStaffId: staff.id,
+          remainingCount: { gt: 0 },
+          refundedAt: null,
+        },
         select: {
           remainingCount: true,
           serviceId: true,
@@ -330,7 +338,7 @@ export async function customerRemaining(input: {
 
   const [pkgs, reservations] = await Promise.all([
     prisma.package.findMany({
-      where: { gymId, userId: input.customerUserId },
+      where: { gymId, userId: input.customerUserId, refundedAt: null },
       select: {
         totalCount: true,
         remainingCount: true,
@@ -454,9 +462,10 @@ async function pickPromotion(
 // 한 곳에만 있어 매출 스냅샷이 절대 갈라지지 않음([[feedback-money-audit-log]]).
 // 잘못된 plan 이면 throw → 호출부 트랜잭션 전체 롤백.
 // 신규 Package 의 담당 트레이너 결정 — Phase 1 정책: 발급 자체로는 담당 X.
-// 같은 고객+같은 서비스에 이미 담당이 잡힌 기존 권이 있으면 그 트레이너를
-// 인계받아 일관성 유지. 없으면 null 로 시작해, 첫 예약 시점에 addReservation
-// 이 자동 매핑한다(서비스 단위 1명 담당이라는 사용자 정책의 구현 근거).
+// 같은 고객+같은 서비스에 이미 담당이 잡힌 살아있는 권이 있으면 그 트레이너를
+// 인계받아 일관성 유지. 환불된 권(refundedAt 박힘)은 후보 제외 — 환불 = 그
+// 트레이너 관계 종료로 보고 새 권은 미지정으로 시작, 첫 예약 시점에
+// addReservation 이 자동 매핑한다(서비스 단위 1명 담당이라는 사용자 정책의 구현 근거).
 async function inheritAssignedStaff(
   tx: TxClient,
   gymId: string,
@@ -469,6 +478,7 @@ async function inheritAssignedStaff(
       userId: customerId,
       serviceId,
       assignedStaffId: { not: null },
+      refundedAt: null,
     },
     orderBy: { createdAt: "asc" },
     select: { assignedStaffId: true },

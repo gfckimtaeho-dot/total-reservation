@@ -84,8 +84,8 @@ export default async function GymMembersPage({
           select: { endDate: true },
         },
         packages: {
-          // 잔여 0 권은 회원관리 그리드에서 표시 제외.
-          where: { remainingCount: { gt: 0 } },
+          // 잔여 0 / 환불된 권은 회원관리 그리드에서 표시 제외.
+          where: { remainingCount: { gt: 0 }, refundedAt: null },
           select: {
             remainingCount: true,
             service: { select: { name: true, capacity: true } },

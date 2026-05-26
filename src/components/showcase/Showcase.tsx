@@ -15,13 +15,20 @@ import type {
 
 export type ShowcaseConcept = "dark" | "light";
 
-type Cat = "membership" | "service" | "package" | "combo" | "promotion";
+type Cat =
+  | "membership"
+  | "service"
+  | "package"
+  | "combo"
+  | "promotion"
+  | "refund";
 const CATS: Cat[] = [
   "membership",
   "service",
   "package",
   "combo",
   "promotion",
+  "refund",
 ];
 
 // 컨셉별 스타일 토큰. content는 동일, 색·타이포만 분기.
@@ -44,7 +51,7 @@ const TK = {
     dotOn: "bg-lime-300",
     gym: "text-zinc-500",
     hint: "text-zinc-600",
-    accent: (_c: Cat) => "text-lime-300",
+    accent: (c: Cat) => (c === "refund" ? "text-rose-300" : "text-lime-300"),
   },
   light: {
     root: "bg-[#faf8f3] text-ink",
@@ -71,6 +78,7 @@ const TK = {
         package: "text-sky-600",
         combo: "text-violet-600",
         promotion: "text-lime-600",
+        refund: "text-rose-600",
       })[c],
   },
 } as const;
@@ -206,6 +214,7 @@ export function Showcase({
                     t={t}
                   />
                 )}
+                {cat === "refund" && <RefundPanel tk={tk} t={t} />}
               </div>
             </div>
 
@@ -495,6 +504,53 @@ function ComboPanel({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// 환불 안내 패널 — 트레이너가 발표 마지막에 고객에게 환불 정책을 짚어줄 수
+// 있도록 6개 항목 카드 grid. 색은 rose 통일(환불 정체성 강조 = 튀게).
+function RefundPanel({ tk, t }: { tk: PanelStyle; t: T }) {
+  const concept: ShowcaseConcept = tk === TK.dark ? "dark" : "light";
+  const items: { key: string; title: string; body: string }[] = [
+    "memberRequest",
+    "storeLiability",
+    "today",
+    "freeze",
+    "payout",
+    "rounding",
+  ].map((k) => ({
+    key: k,
+    title: t(`refundDetails.${k}`),
+    body: t(`refundDetails.${k}Body`),
+  }));
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {items.map((it) => (
+        <div
+          key={it.key}
+          className={`rounded-2xl border-2 p-5 ${
+            concept === "dark"
+              ? "border-rose-400/40 bg-rose-500/[0.07]"
+              : "border-rose-300 bg-rose-50"
+          }`}
+        >
+          <div
+            className={`text-xs font-semibold uppercase tracking-[0.18em] ${
+              concept === "dark" ? "text-rose-300" : "text-rose-700"
+            }`}
+          >
+            {it.title}
+          </div>
+          <p
+            className={`mt-2 text-base leading-relaxed ${
+              concept === "dark" ? "text-zinc-200" : "text-rose-950"
+            }`}
+          >
+            {it.body}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

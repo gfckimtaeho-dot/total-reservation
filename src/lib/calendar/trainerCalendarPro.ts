@@ -520,7 +520,7 @@ export async function loadTrainerCalendar(
   const remainingByCustomer: Record<string, CustomerRemaining[]> = {};
   if (custIds.length > 0) {
     const pkgs = await prisma.package.findMany({
-      where: { gymId, userId: { in: custIds } },
+      where: { gymId, userId: { in: custIds }, refundedAt: null },
       select: {
         userId: true,
         totalCount: true,

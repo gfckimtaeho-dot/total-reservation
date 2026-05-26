@@ -181,6 +181,11 @@ export function RefundsTable({
       if (r.ok) {
         setConfirmId(null);
         router.refresh();
+        // 사이드바 환불 뱃지 즉시 갱신 신호. router.refresh 만으로는 client
+        // SidebarNav 의 useState 가 invalidate 안 됨.
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("pending-refund-changed"));
+        }
       } else {
         setError(r.error);
       }

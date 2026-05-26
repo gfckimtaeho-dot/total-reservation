@@ -5,9 +5,9 @@
 //
 // 폴링 5초(탭 visible) / 30초(hidden). 마지막 messageId 이후만 incremental fetch.
 
-import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import { sendMessage, markRead, softDeleteMessage } from "@/lib/chat/actions";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import { sendMessage, markRead } from "@/lib/chat/actions";
 
 type Tone = "dark" | "light";
 
@@ -31,7 +31,6 @@ type Props = {
   channelLabel: string;
 };
 
-const SOFT_DELETE_WINDOW_MS = 5 * 60 * 1000;
 const MAX_BODY = 1000;
 
 export function ChatWindow({
@@ -45,6 +44,7 @@ export function ChatWindow({
   channelLabel,
 }: Props) {
   const t = useTranslations("chat");
+  const locale = useLocale();
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -140,16 +140,6 @@ export function ChatWindow({
     }
   }
 
-  async function onDelete(id: string) {
-    const res = await softDeleteMessage({ slug, messageId: id });
-    if ("error" in res && res.error) {
-      setError(res.error);
-      return;
-    }
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, deletedAt: new Date() } : m)),
-    );
-  }
 
   const palette = TONE[tone];
   const isReadOnly = !canSend && !closedAt;
@@ -166,17 +156,37 @@ export function ChatWindow({
           </p>
         ) : (
           <ul className="mx-auto flex max-w-2xl flex-col gap-2">
-            {messages.map((m) => (
-              <MessageRow
-                key={m.id}
-                msg={m}
-                mine={m.senderId === myUserId}
-                palette={palette}
-                onDelete={onDelete}
-                tDeleted={t("deleted")}
-                tDelete={t("delete")}
-              />
-            ))}
+            {messages.flatMap((m, i) => {
+              const sent =
+                m.sentAt instanceof Date ? m.sentAt : new Date(m.sentAt);
+              const prev = i > 0 ? messages[i - 1]! : null;
+              const prevSent = prev
+                ? prev.sentAt instanceof Date
+                  ? prev.sentAt
+                  : new Date(prev.sentAt)
+                : null;
+              const showDate = !prevSent || !sameDay(prevSent, sent);
+              const nodes: ReactNode[] = [];
+              if (showDate) {
+                nodes.push(
+                  <DateDivider
+                    key={`d-${m.id}`}
+                    date={sent}
+                    locale={locale}
+                    palette={palette}
+                  />,
+                );
+              }
+              nodes.push(
+                <MessageRow
+                  key={m.id}
+                  msg={m}
+                  mine={m.senderId === myUserId}
+                  palette={palette}
+                />,
+              );
+              return nodes;
+            })}
           </ul>
         )}
       </div>
@@ -236,56 +246,50 @@ function MessageRow({
   msg,
   mine,
   palette,
-  onDelete,
-  tDeleted,
-  tDelete,
 }: {
   msg: Msg;
   mine: boolean;
   palette: (typeof TONE)[Tone];
-  onDelete: (id: string) => void;
-  tDeleted: string;
-  tDelete: string;
 }) {
   const sent = msg.sentAt instanceof Date ? msg.sentAt : new Date(msg.sentAt);
-  const deleted = msg.deletedAt
-    ? msg.deletedAt instanceof Date
-      ? msg.deletedAt
-      : new Date(msg.deletedAt)
-    : null;
-  const canSoftDelete =
-    mine && !deleted && !msg.system && Date.now() - sent.getTime() < SOFT_DELETE_WINDOW_MS;
 
   if (msg.system) {
+    // front desk 발 메시지 — 받은 메시지로 분류. 시간은 알약 우측 아래.
+    // flex 자식의 self-end 가 text-right 보다 안정적인 정렬 수단.
     return (
-      <li className="my-2 self-center">
-        <span className={`rounded-full px-3 py-1 text-[11px] ${palette.system}`}>
-          {msg.body}
-        </span>
+      <li className="flex justify-start">
+        <div className="flex flex-col">
+          <span className={`rounded-full px-3 py-1 text-[11px] ${palette.system}`}>
+            {msg.body}
+          </span>
+          <time className={`mt-0.5 self-end text-[10px] ${palette.time}`}>
+            {formatTime(sent)}
+          </time>
+        </div>
       </li>
     );
   }
 
+  // 시간은 말풍선 아래(발신자 반대 방향 정렬):
+  //   - 받은(왼쪽 말풍선)  → 시간 우측 아래 (self-end)
+  //   - 보낸(오른쪽 말풍선) → 시간 좌측 아래 (self-start)
   return (
-    <li className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
-      <div
-        className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
-          mine ? palette.bubbleMine : palette.bubbleOther
-        } ${deleted ? "italic opacity-60" : ""}`}
-      >
-        {deleted ? tDeleted : msg.body}
-      </div>
-      <div className={`mt-0.5 flex items-center gap-2 text-[10px] ${palette.time}`}>
-        <time>{formatTime(sent)}</time>
-        {canSoftDelete && (
-          <button
-            type="button"
-            onClick={() => onDelete(msg.id)}
-            className={`underline ${palette.deleteBtn}`}
-          >
-            {tDelete}
-          </button>
-        )}
+    <li className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+      <div className="flex max-w-[85%] flex-col">
+        <div
+          className={`rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+            mine ? palette.bubbleMine : palette.bubbleOther
+          }`}
+        >
+          {msg.body}
+        </div>
+        <time
+          className={`mt-0.5 text-[10px] ${palette.time} ${
+            mine ? "self-start" : "self-end"
+          }`}
+        >
+          {formatTime(sent)}
+        </time>
       </div>
     </li>
   );
@@ -295,6 +299,37 @@ function formatTime(d: Date): string {
   const hh = d.getHours().toString().padStart(2, "0");
   const mm = d.getMinutes().toString().padStart(2, "0");
   return `${hh}:${mm}`;
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+// 카카오톡 패턴 — 메시지 위에 날짜 구분자. 같은 날 메시지는 헤더 1개 공유.
+// 풀 날짜만 표시 (today/yesterday 상대 라벨 없음) — 회원이 명확히 인지.
+function DateDivider({
+  date,
+  locale,
+  palette,
+}: {
+  date: Date;
+  locale: string;
+  palette: (typeof TONE)[Tone];
+}) {
+  const label = new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+  return (
+    <li className="my-3 flex justify-center">
+      <span className={`text-[11px] ${palette.time}`}>{label}</span>
+    </li>
+  );
 }
 
 function mergeMessages(prev: Msg[], incoming: Msg[]): Msg[] {
@@ -323,7 +358,6 @@ const TONE: Record<
     bubbleMine: string;
     bubbleOther: string;
     time: string;
-    deleteBtn: string;
   }
 > = {
   dark: {
@@ -342,7 +376,6 @@ const TONE: Record<
     bubbleMine: "bg-gradient-to-br from-orange-500 to-pink-500 text-white",
     bubbleOther: "bg-zinc-800 text-zinc-100 ring-1 ring-white/5",
     time: "text-zinc-500",
-    deleteBtn: "text-zinc-400 hover:text-zinc-200",
   },
   light: {
     shell: "bg-white text-zinc-900",
@@ -360,6 +393,5 @@ const TONE: Record<
     bubbleMine: "bg-gradient-to-br from-orange-500 to-rose-500 text-white",
     bubbleOther: "bg-white text-zinc-900 ring-1 ring-orange-200",
     time: "text-zinc-400",
-    deleteBtn: "text-zinc-500 hover:text-zinc-700",
   },
 };

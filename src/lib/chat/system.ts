@@ -35,6 +35,18 @@ export const SystemMessages = {
     `${toName} 트레이너로 담당이 변경되었습니다.`,
   trainerInactive: () =>
     "담당 트레이너가 변경 예정입니다. 매장에 문의해주세요.",
-  refundCompleted: () =>
-    "본 권은 환불 완료되어 채팅이 종료되었습니다.",
+  // 사장이 환불을 완료 처리한 직후 STORE thread 에 발송. 회원 분쟁 방지를
+  // 위해 어떤 권을 얼마 환불했는지, 수령 방법까지 명시.
+  refundCompleted: (args: {
+    serviceName: string;
+    amountPhp: number;
+    payoutMethod: "IN_PERSON" | "BANK_TRANSFER";
+  }) => {
+    const money = `₱${args.amountPhp.toLocaleString()}`;
+    const pickup =
+      args.payoutMethod === "IN_PERSON"
+        ? "매장 카운터에서 직접 받아 주세요."
+        : "신청 시 입력하신 계좌로 송금됩니다.";
+    return `[환불 완료] ${args.serviceName} 권 ${money} 환불 처리되었습니다. ${pickup}`;
+  },
 };
