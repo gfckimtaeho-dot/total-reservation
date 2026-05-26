@@ -35,7 +35,7 @@ const TAB_ACTIVE = "bg-violet-600 text-white";
 const TAB_INACTIVE = "text-zinc-600 hover:bg-zinc-100";
 
 // 탭별 목록 카드 색 — dashboard 멀티 파스텔 패턴. 각 카탈로그가 자기 정체성을 가짐.
-// 회원권=violet-100, 수업=amber-50, 횟수권=sky-50, 콤보=violet-50, 이벤트=lime-50.
+// 회원권=violet-100, 수업=amber-50, 수업권=sky-50, 콤보=violet-50, 이벤트=lime-50.
 const LIST_CARD = {
   membership: "bg-sky-50 border-sky-200/60",
   service: "bg-amber-50 border-amber-200/60",
@@ -511,7 +511,7 @@ export default async function GymProductsPage({
             </>
           )}
 
-          {/* === 횟수권 탭 === */}
+          {/* === 수업권 탭 === */}
           {activeTab === "package" && (
             <>
               <PackagePlanForm

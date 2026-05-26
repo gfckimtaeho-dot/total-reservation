@@ -18,7 +18,7 @@ export type PromoLike = {
 
 export type PromoLineKind = "MEMBERSHIP" | "PACKAGE";
 
-// 이 프로모션이 해당 라인(회원권/횟수권 + plan)에 적용 대상인가.
+// 이 프로모션이 해당 라인(회원권/수업권 + plan)에 적용 대상인가.
 export function promoMatches(
   p: PromoLike,
   kind: PromoLineKind,

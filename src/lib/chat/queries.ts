@@ -155,16 +155,21 @@ export async function unreadForViewer(viewer: ChatViewer) {
   let total = 0;
   for (const t of threads) {
     const myReadId = t.reads[0]?.lastReadMessageId ?? null;
-    // unread = (본인이 보낸 게 아니고) AND (lastReadMessageId 보다 새 메시지)
+    // unread = (본인이 보낸 게 아니고) AND (시스템 메시지 아니고) AND
+    //         (lastReadMessageId 보다 새 메시지). 시스템 메시지(양도 알림 등)는
+    //         정보성이라 자동 read 취급 — 옛 담당 thread 처럼 사용자가 열어볼
+    //         이유 없는 thread 에서 unread 뱃지가 영구로 남는 것 방지.
     const where: {
       threadId: string;
       senderId: { not: string };
       deletedAt: null;
+      system: false;
       id?: { gt: string };
     } = {
       threadId: t.id,
       senderId: { not: viewer.id },
       deletedAt: null,
+      system: false,
     };
     if (myReadId) where.id = { gt: myReadId };
     const count = await prisma.chatMessage.count({ where });

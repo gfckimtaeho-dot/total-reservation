@@ -141,7 +141,7 @@ model StaffLeave {
 ### 고객 선택 흐름 (3단계)
 1. **내 담당 고객** — 본인 staff.id가 Package.assignedStaffId인 user distinct, 최근순 10명/페이지. `listMyAssignedCustomers` 액션.
 2. **전체 고객 조회** — 검색 input + 빈 q이면 최근 등록 순 자동 list + "더 보기 (10명씩)" 페이징. `listRecentCustomers` 액션.
-3. **서비스 발급** — 선택된 고객(picked banner) → 카탈로그 3탭(회원권/횟수권/콤보) + 장바구니 + 발급 버튼
+3. **회원권 발급** — 선택된 고객(picked banner) → 카탈로그 3탭(회원권/수업권/콤보) + 장바구니 + 발급 버튼
 
 ### 고객 row 디자인
 - 이름 + 연락처 (위)

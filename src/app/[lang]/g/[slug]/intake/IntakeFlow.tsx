@@ -84,7 +84,7 @@ export function IntakeFlow({
   const [done, setDone] = useState(false);
   const [issuedN, setIssuedN] = useState(0);
 
-  // 즉석 장바구니 — 회원권/횟수권/콤보를 여러 건 담아 한 번에 발급.
+  // 즉석 장바구니 — 회원권/수업권/콤보를 여러 건 담아 한 번에 발급.
   // 라인마다 독립 Sale 1행으로 서버에서 한 트랜잭션 처리(issueCart).
   type CartLine = {
     uid: string;

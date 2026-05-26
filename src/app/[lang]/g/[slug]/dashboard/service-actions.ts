@@ -12,9 +12,15 @@ import { pickBookablePackage } from "@/lib/packages/availability";
 
 type R = { ok: true; data?: unknown } | { ok: false; error: string };
 
-function rev(slug: string) {
+function rev(slug: string, customerUserId?: string) {
   revalidatePath(`/ko/g/${slug}/dashboard`);
   revalidatePath(`/en/g/${slug}/dashboard`);
+  revalidatePath(`/ko/g/${slug}/members`);
+  revalidatePath(`/en/g/${slug}/members`);
+  if (customerUserId) {
+    revalidatePath(`/ko/g/${slug}/members/${customerUserId}`);
+    revalidatePath(`/en/g/${slug}/members/${customerUserId}`);
+  }
 }
 
 export async function registerCustomer(input: {
@@ -414,7 +420,7 @@ async function nextMembershipStart(
 }
 
 // 발급 시 자동적용할 프로모션 1건 선택. 기간(startsAt~endsAt) 안 + active +
-// scope 가 이 라인(회원권/횟수권·plan)에 해당하는 것 중 **할인액 최대 1건**.
+// scope 가 이 라인(회원권/수업권·plan)에 해당하는 것 중 **할인액 최대 1건**.
 // 중첩 없음. 할인은 owner 수익에서만 차감(트레이너 payout 불변 — 보호 룰).
 // 콤보는 scope enum 에 없어 대상 아님(번들가 그대로).
 async function pickPromotion(
@@ -486,7 +492,7 @@ async function createSaleLine(
       where: { id: item.planId, gymId },
       include: { service: { select: { payoutPhp: true } } },
     });
-    if (!plan) throw new Error("횟수권 상품을 찾을 수 없습니다");
+    if (!plan) throw new Error("수업권 상품을 찾을 수 없습니다");
     const perPayout = plan.service.payoutPhp;
     const payoutLiab = perPayout * plan.sessionCount;
     const promo = await pickPromotion(
@@ -664,7 +670,7 @@ async function createSaleLine(
   });
 }
 
-// 단건 발급 — PackagePlan(횟수권)/MembershipPlan(기간권)/ComboPlan(콤보).
+// 단건 발급 — PackagePlan(수업권)/MembershipPlan(기간권)/ComboPlan(콤보).
 export async function issueService(input: {
   slug: string;
   customerUserId: string;
@@ -703,11 +709,11 @@ export async function issueService(input: {
   } catch (e) {
     return { ok: false, error: (e as Error).message || "발급 실패" };
   }
-  rev(input.slug);
+  rev(input.slug, cust.id);
   return { ok: true };
 }
 
-// 장바구니 발급 — 회원권/횟수권/콤보를 즉석으로 여러 건 담아 한 번에.
+// 장바구니 발급 — 회원권/수업권/콤보를 즉석으로 여러 건 담아 한 번에.
 // 라인마다 독립 Sale 1행(saleType 별)으로 한 트랜잭션 동시 생성 →
 // 항목별 plan·payout 스냅샷 보존(환불·만료·정산 추적 단위). 하나라도
 // 실패하면 전체 롤백(부분 발급 금지).
@@ -753,12 +759,14 @@ export async function issueCart(input: {
   } catch (e) {
     return { ok: false, error: (e as Error).message || "발급 실패" };
   }
-  rev(input.slug);
+  rev(input.slug, cust.id);
   return { ok: true, data: { count: input.items.length } };
 }
 
-// 빈 슬롯 등록용 — 그 고객이 보유한 1:1 서비스(capacity 1) 중 잔여>0 인
-// 것 목록. 트레이너가 어떤 서비스로 예약할지 직접 고르게 한다(FIFO 고정 금지).
+// 빈 슬롯 등록용 — 그 고객이 보유한 1:1 서비스(capacity 1) 권의 디테일.
+// total = 발급된 총 회수, done = 완료 예약, upcoming = 미래 예약,
+// free = total - done - upcoming = 아직 예약 안 잡은 자유 슬롯.
+// free>0 인 서비스만 반환(예약 잡을 자리 있는 것).
 export async function listBookableServices(input: {
   slug: string;
   customerUserId: string;
@@ -769,32 +777,69 @@ export async function listBookableServices(input: {
     where: {
       gymId,
       userId: input.customerUserId,
-      remainingCount: { gt: 0 },
       service: { capacity: 1 },
+      refundedAt: null,
     },
     select: {
+      id: true,
       serviceId: true,
-      remainingCount: true,
+      totalCount: true,
       service: { select: { name: true } },
     },
   });
-  // 같은 서비스 권 여러 장이면 잔여 합산.
-  const m = new Map<
-    string,
-    { serviceId: string; name: string; remaining: number }
-  >();
+  if (pkgs.length === 0) {
+    return { ok: true, data: [] };
+  }
+
+  const pkgIds = pkgs.map((p) => p.id);
+  const rcounts = await prisma.reservation.groupBy({
+    by: ["packageId", "status"],
+    where: { packageId: { in: pkgIds } },
+    _count: true,
+  });
+  const byPkg = new Map<string, { done: number; upcoming: number }>();
+  for (const r of rcounts) {
+    if (r.packageId == null) continue;
+    const cur = byPkg.get(r.packageId) ?? { done: 0, upcoming: 0 };
+    if (r.status === "COMPLETED") cur.done += r._count;
+    else if (r.status === "PENDING_PAYMENT" || r.status === "CONFIRMED")
+      cur.upcoming += r._count;
+    byPkg.set(r.packageId, cur);
+  }
+
+  type Agg = {
+    serviceId: string;
+    name: string;
+    total: number;
+    done: number;
+    upcoming: number;
+    free: number;
+  };
+  const m = new Map<string, Agg>();
   for (const p of pkgs) {
     const cur = m.get(p.serviceId) ?? {
       serviceId: p.serviceId,
       name: p.service?.name ?? "-",
-      remaining: 0,
+      total: 0,
+      done: 0,
+      upcoming: 0,
+      free: 0,
     };
-    cur.remaining += p.remainingCount;
+    cur.total += p.totalCount;
+    const rc = byPkg.get(p.id) ?? { done: 0, upcoming: 0 };
+    cur.done += rc.done;
+    cur.upcoming += rc.upcoming;
     m.set(p.serviceId, cur);
   }
+  for (const v of m.values()) {
+    v.free = v.total - v.done - v.upcoming;
+  }
+
   return {
     ok: true,
-    data: [...m.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    data: [...m.values()]
+      .filter((v) => v.free > 0)
+      .sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 

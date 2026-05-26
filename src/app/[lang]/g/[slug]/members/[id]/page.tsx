@@ -146,7 +146,7 @@ export default async function MemberDetailPage({
   const statusPill =
     u.status === "ACTIVE" ? TK.pillActive : TK.pillPending;
 
-  // 회원권 + 횟수권을 한 표("보유 상품") 안에 보여줌. 구분 컬럼으로 종류 표시.
+  // 회원권 + 수업권을 한 표("보유 상품") 안에 보여줌. 구분 컬럼으로 종류 표시.
   type Holding = {
     id: string;
     kind: "MEMBERSHIP" | "PACKAGE_PERSONAL" | "PACKAGE_GROUP";
@@ -355,7 +355,7 @@ export default async function MemberDetailPage({
             </div>
           </section>
 
-          {/* 보유 상품 — 회원권 + 1:1 횟수권 + 단체 횟수권 통합 */}
+          {/* 보유 상품 — 회원권 + 1:1 수업권 + 단체 수업권 통합 */}
           <section className={TK.section}>
             <h2
               className={`font-heading text-2xl tracking-tight ${TK.title}`}
@@ -463,7 +463,7 @@ export default async function MemberDetailPage({
             )}
           </section>
 
-          {/* 서비스 발급 — 회원관리 → 회원 row → 상세 → 그 자리에서 발급 완결 */}
+          {/* 회원권 발급 — 회원관리 → 회원 row → 상세 → 그 자리에서 발급 완결 */}
           <section className={TK.section}>
             <h2
               className={`font-heading text-2xl tracking-tight ${TK.title}`}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { issueCart } from "../../dashboard/service-actions";
@@ -94,9 +94,14 @@ export function OwnerIssuePanel({
   );
   const [cart, setCart] = useState<CartLine[]>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-  const [issuedN, setIssuedN] = useState(0);
+  const [success, setSuccess] = useState<{ count: number } | null>(null);
   const uidRef = useRef(0);
+
+  useEffect(() => {
+    if (!success) return;
+    const tm = setTimeout(() => setSuccess(null), 4000);
+    return () => clearTimeout(tm);
+  }, [success]);
 
   function lineDiscount(l: CartLine): number {
     if (l.kind === "COMBO") return 0;
@@ -130,9 +135,9 @@ export function OwnerIssuePanel({
         items: cart.map(({ kind, planId }) => ({ kind, planId })),
       });
       if (r.ok) {
-        setIssuedN(cart.length);
+        const count = cart.length;
         setCart([]);
-        setDone(true);
+        setSuccess({ count });
         router.refresh();
       } else {
         setErr(r.error || t("actionFailed"));
@@ -142,29 +147,21 @@ export function OwnerIssuePanel({
 
   const peso = (n: number) => `₱${n.toLocaleString()}`;
 
-  if (done) {
-    return (
-      <div className={TK.doneCard}>
-        <p className={`text-lg font-semibold ${TK.doneText}`}>
-          ✓ {t("issuedCount", { count: issuedN })}
-        </p>
-        <p className={`mt-1 text-sm ${TK.subtle}`}>{customer.name}</p>
-        <div className="mt-4 flex justify-center">
-          <button
-            type="button"
-            onClick={() => setDone(false)}
-            className={TK.againBtn}
-          >
-            {t("issueAnother")}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="lg:grid lg:grid-cols-[1fr_320px] lg:items-start lg:gap-4">
-      {/* 카탈로그 — 헤딩은 외부 섹션 "서비스 발급" 이 이미 표시 */}
+    <div>
+      {success && (
+        <div
+          role="status"
+          className="mb-3 rounded-lg bg-emerald-50 px-4 py-3 text-sm ring-1 ring-emerald-200"
+        >
+          <span className="font-semibold text-emerald-700">
+            ✓ {t("issuedCount", { count: success.count })}
+          </span>
+          <span className={`ml-2 ${TK.subtle}`}>· {customer.name}</span>
+        </div>
+      )}
+      <div className="lg:grid lg:grid-cols-[1fr_320px] lg:items-start lg:gap-4">
+      {/* 카탈로그 — 헤딩은 외부 섹션 "회원권 발급" 이 이미 표시 */}
       <div className={TK.subCard}>
         <div className="flex gap-2">
           <button
@@ -427,6 +424,7 @@ export function OwnerIssuePanel({
           </div>
         )}
       </aside>
+      </div>
     </div>
   );
 }

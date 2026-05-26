@@ -124,7 +124,14 @@ export function TrainerCalendarPro({
     null,
   );
   const [addServices, setAddServices] = useState<
-    { serviceId: string; name: string; remaining: number }[] | null
+    {
+      serviceId: string;
+      name: string;
+      total: number;
+      done: number;
+      upcoming: number;
+      free: number;
+    }[] | null
   >(null);
   // 본인 담당 단체수업 셀 탭 → 회차 관리 모달.
   const [groupPick, setGroupPick] = useState<GroupOccurrence | null>(null);
@@ -372,7 +379,10 @@ export function TrainerCalendarPro({
           ? ((r.data as {
               serviceId: string;
               name: string;
-              remaining: number;
+              total: number;
+              done: number;
+              upcoming: number;
+              free: number;
             }[]) ?? [])
           : [],
       );
@@ -1469,7 +1479,11 @@ export function TrainerCalendarPro({
                             >
                               <span className="font-medium">{s.name}</span>
                               <span className="text-xs text-orange-300">
-                                {t("remainLeft", { n: s.remaining })}
+                                {t("bookableBreakdown", {
+                                  done: s.done,
+                                  upcoming: s.upcoming,
+                                  free: s.free,
+                                })}
                               </span>
                             </button>
                           </li>

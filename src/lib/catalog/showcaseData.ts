@@ -26,7 +26,7 @@ export type ShowcasePackage = {
   serviceName: string;
   sessionCount: number;
   pricePhp: number;
-  // 정가(서비스 1회가 × 회수). 할인 횟수권이면 pricePhp < listPhp.
+  // 정가(서비스 1회가 × 회수). 할인 수업권이면 pricePhp < listPhp.
   listPhp: number;
 };
 
@@ -105,8 +105,8 @@ export async function loadShowcaseData(
       }),
     ]);
 
-  // 1:1(capacity=1) 서비스/횟수권을 단체(capacity>1)보다 먼저 표시.
-  // 횟수권은 같은 서비스끼리 묶이고, 그 안에서 횟수 낮은 것부터 (PT 5→10→20).
+  // 1:1(capacity=1) 서비스/수업권을 단체(capacity>1)보다 먼저 표시.
+  // 수업권은 같은 서비스끼리 묶이고, 그 안에서 횟수 낮은 것부터 (PT 5→10→20).
   services.sort((a, b) => a.capacity - b.capacity);
   packagePlans.sort((a, b) => {
     if (a.service.capacity !== b.service.capacity) {

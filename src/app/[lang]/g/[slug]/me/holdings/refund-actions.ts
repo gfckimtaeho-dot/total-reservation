@@ -12,7 +12,7 @@ import { OPEN_STATUSES } from "@/lib/packages/availability";
 // 환불 (T17) — 고객 셀프 환불 신청.
 //
 // 산식: 환불 = 올림( 환불대상 × 단위가 × 0.5 )
-//   횟수권: 단위=회. 환불대상 = 잔여 − 당일예약(완료 취급). 단위가 = 판매가/총회.
+//   수업권: 단위=회. 환불대상 = 잔여 − 당일예약(완료 취급). 단위가 = 판매가/총회.
 //   회원권: 단위=일. 환불대상 = 잔여일. 단위가 = 판매가/총일.
 // 당일 예약은 환불 신청 시 취소하지 않는다 — 그날 트레이너가 완료 처리하므로
 // "사용"으로 친다. 미래(내일 이후) 예약만 신청 시 취소된다.
@@ -29,7 +29,7 @@ export type RefundPreview =
       serviceName: string;
       trainerName: string | null;
       paidPhp: number;
-      // 횟수권은 회 단위, 회원권은 일 단위.
+      // 수업권은 회 단위, 회원권은 일 단위.
       totalUnits: number;
       completedUnits: number;
       todayUnits: number;

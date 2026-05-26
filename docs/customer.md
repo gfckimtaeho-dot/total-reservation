@@ -43,8 +43,8 @@
 - 휴무 배너 (당일이 CLOSED일 때만)
 - 오늘의 일정 히어로 — 한 줄 "18:00 PT Kevin 트레이너", 끝시간 미표시
 - 출입 QR 큰 버튼 — 흰 배경 + zinc-950 진한 글자 + rose ring + sunset glow (가시성 최우선)
-- 회원권 / 횟수권 카드 2열, 만료 D-7 amber 강조
-- 1:1 횟수권 카드에 "예약" 버튼 → /me/reservations/new?pkg=<id>
+- 회원권 / 수업권 카드 2열, 만료 D-7 amber 강조
+- 1:1 수업권 카드에 "예약" 버튼 → /me/reservations/new?pkg=<id>
 - 5주 미니 캘린더
 - 단체 수업 일정 섹션 (단체 권 보유 시만): 14일 occurrence + "등록" 버튼 + 정원/등록됨/마감 pill
 - 다가오는 예약 리스트 (1:1만 변경/취소)
