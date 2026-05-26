@@ -214,7 +214,7 @@
     "trainers": "Trainers",
     "hours": "Hours",
     "products": "Products",
-    "programs": "Programs",
+    "services": "Programs",
     "revenue": "Revenue",
     "refunds": "Refunds",
     "chat": "Chat",
@@ -354,7 +354,7 @@
     "back": "← Home",
     "tabs": {
       "membership": "Membership",
-      "program": "Programs",
+      "service": "Programs",
       "package": "Sessions",
       "combo": "Combo",
       "promotion": "Promotion"
@@ -401,9 +401,9 @@
       "heading": "Add session",
       "name": "Name",
       "namePlaceholder": "e.g. PT 5 sessions",
-      "program": "Program",
-      "programPlaceholder": "Select a program",
-      "noPrograms": "Register a program in 'Programs' tab first",
+      "service": "Program",
+      "servicePlaceholder": "Select a program",
+      "noServices": "Register a program in 'Programs' tab first",
       "sessions": "Sessions",
       "sessionUnit": "x",
       "sessionBasic": "(basic)",
@@ -417,7 +417,7 @@
       "listHeading": "Sessions",
       "empty": "No sessions registered.",
       "colName": "Name",
-      "colProgram": "Program",
+      "colService": "Program",
       "colSessions": "Sessions",
       "colPerSession": "Per session",
       "colPrice": "Total",
@@ -443,7 +443,7 @@
       "priceResetHint": "Changing the program resets the price to list price",
       "errors": {
         "name": "Name is required",
-        "program": "Select a program",
+        "service": "Select a program",
         "sessions": "Sessions must be 1 or more",
         "price": "Price must be 0 or higher",
         "permission": "Permission denied",
@@ -608,9 +608,9 @@
     "myClientsSearchPlaceholder": "Search by name",
     "myClientsEmpty": "No clients assigned yet",
     "myClientsBack": "← Home",
-    "myClientsIssueProgram": "Issue membership",
-    "myClientsPrograms": "Packages",
-    "myClientsNoPrograms": "—",
+    "myClientsIssueService": "Issue membership",
+    "myClientsServices": "Packages",
+    "myClientsNoServices": "—",
     "myClientsHistory": "PT History",
     "myClientsHistoryRecent": "Recent {n}",
     "myClientsHistoryEmpty": "No completed PT yet",
@@ -1155,7 +1155,7 @@
     "refundSubmitting": "Submitting...",
     "refundError": "Could not submit the refund request. Please try again."
   },
-  "programs": {
+  "services": {
     "pageTitle": "Programs",
     "back": "← Home",
     "eyebrow": "SERVICES",
@@ -1289,7 +1289,7 @@
         "applying": "Processing..."
       }
     },
-    "programDelete": {
+    "serviceDelete": {
       "eyebrow": "Discontinue program",
       "close": "Close",
       "loading": "Checking impact...",
@@ -1322,21 +1322,21 @@
     "swipeHint": "Swipe to explore",
     "cat": {
       "membership": "Membership",
-      "program": "Classes",
+      "service": "Classes",
       "package": "Sessions",
       "combo": "Combo",
       "promotion": "Events"
     },
     "title": {
       "membership": "Membership Plans",
-      "program": "Programs",
+      "service": "Programs",
       "package": "Sessions",
       "combo": "Combo Packages",
       "promotion": "Active Events"
     },
     "lead": {
       "membership": "Choose the period that fits you",
-      "program": "Train with our specialists",
+      "service": "Train with our specialists",
       "package": "Pay only for what you need",
       "combo": "Bundle for bigger value",
       "promotion": "Limited-time offers, right now"
@@ -1435,8 +1435,8 @@
     "myCustomersLoading": "Loading…",
     "noMyCustomers": "No assigned customers yet",
     "addResBack": "Change customer",
-    "addResPickProgram": "Program to book",
-    "addResNoProgram": "This customer has no 1:1 sessions available",
+    "addResPickService": "Program to book",
+    "addResNoService": "This customer has no 1:1 sessions available",
     "goIntake": "Customer / Issue",
     "intakeTitle": "Register customer / Issue membership",
     "stepCustomer": "All customers",
@@ -1475,7 +1475,7 @@
     "comboIncludes": "Includes",
     "noPlansHere": "No products registered",
     "addCustomer": "Add customer",
-    "addProgram": "Add program",
+    "addService": "Add program",
     "regTitle": "Register new customer",
     "regName": "Customer name",
     "regPhone": "Phone (optional)",
@@ -1502,7 +1502,7 @@
     "net": "Net",
     "colDate": "Date",
     "colCustomer": "Customer",
-    "colProgram": "Program",
+    "colService": "Program",
     "colPayout": "Payout",
     "prevMonth": "Prev",
     "nextMonth": "Next",
