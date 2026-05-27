@@ -3,12 +3,6 @@ import { prisma } from "@/lib/db/client";
 import type { BusinessStatus } from "@/generated/prisma/client";
 import { applyExpiryTransitions } from "@/lib/subscription/lifecycle";
 
-const dateFmt = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium" });
-function fmt(d: Date | null | undefined): string {
-  if (!d) return "-";
-  return dateFmt.format(d);
-}
-
 const STATUS_LABEL: Record<BusinessStatus, string> = {
   TRIAL: "체험중",
   ACTIVE: "정상",
@@ -33,8 +27,15 @@ const ALL_STATUSES: BusinessStatus[] = [
   "BLOCKED",
 ];
 
-const GRID_COLS =
-  "grid-cols-[minmax(160px,2fr)_minmax(120px,1.3fr)_minmax(80px,0.8fr)_minmax(80px,0.8fr)_minmax(140px,1.4fr)]";
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+function parseYear(raw: string | undefined, fallback: number): number {
+  if (!raw) return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return fallback;
+  if (n < 1970 || n > 9999) return fallback;
+  return n;
+}
 
 function monthStart(): Date {
   const now = new Date();
@@ -43,34 +44,44 @@ function monthStart(): Date {
 
 export default async function AdminStatsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ lang: string }>;
+  searchParams: Promise<{ yearFrom?: string; yearTo?: string }>;
 }) {
   const { lang } = await params;
+  const sp = await searchParams;
 
   await applyExpiryTransitions();
+
+  const currentYear = new Date().getFullYear();
+  let yearFrom = parseYear(sp.yearFrom, currentYear);
+  let yearTo = parseYear(sp.yearTo, currentYear);
+  if (yearFrom > yearTo) [yearFrom, yearTo] = [yearTo, yearFrom];
+
+  const rangeStart = new Date(yearFrom, 0, 1);
+  const rangeEnd = new Date(yearTo + 1, 0, 1);
+
+  const years: number[] = [];
+  for (let y = yearFrom; y <= yearTo; y++) years.push(y);
 
   const mStart = monthStart();
 
   const [
-    totalBusinesses,
+    rangePayments,
     statusGroups,
-    totalRevenueAgg,
-    monthRevenueAgg,
     businesses,
     paymentByGym,
     monthPaymentByGym,
     newCustomerByGym,
   ] = await Promise.all([
-    prisma.business.count(),
+    prisma.payment.findMany({
+      where: { paidAt: { gte: rangeStart, lt: rangeEnd } },
+      select: { amountPhp: true, paidAt: true },
+    }),
     prisma.business.groupBy({
       by: ["status"],
       _count: { _all: true },
-    }),
-    prisma.payment.aggregate({ _sum: { amountPhp: true } }),
-    prisma.payment.aggregate({
-      where: { paidAt: { gte: mStart } },
-      _sum: { amountPhp: true },
     }),
     prisma.business.findMany({
       include: {
@@ -87,10 +98,7 @@ export default async function AdminStatsPage({
       },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.payment.groupBy({
-      by: ["gymId"],
-      _sum: { amountPhp: true },
-    }),
+    prisma.payment.groupBy({ by: ["gymId"], _sum: { amountPhp: true } }),
     prisma.payment.groupBy({
       by: ["gymId"],
       where: { paidAt: { gte: mStart } },
@@ -107,6 +115,24 @@ export default async function AdminStatsPage({
     }),
   ]);
 
+  // year -> month -> sum
+  const grid: Record<number, Record<number, number>> = {};
+  const yearTotals: Record<number, number> = {};
+  for (const y of years) {
+    grid[y] = {};
+    yearTotals[y] = 0;
+    for (const m of MONTHS) grid[y][m] = 0;
+  }
+  for (const p of rangePayments) {
+    const y = p.paidAt.getFullYear();
+    const m = p.paidAt.getMonth() + 1;
+    if (grid[y]) {
+      grid[y][m] = (grid[y][m] ?? 0) + p.amountPhp;
+      yearTotals[y] = (yearTotals[y] ?? 0) + p.amountPhp;
+    }
+  }
+  const grandTotal = years.reduce((s, y) => s + (yearTotals[y] ?? 0), 0);
+
   const statusCount: Record<BusinessStatus, number> = {
     TRIAL: 0,
     ACTIVE: 0,
@@ -117,11 +143,6 @@ export default async function AdminStatsPage({
   for (const g of statusGroups) {
     statusCount[g.status] = g._count._all;
   }
-  const operatingCount =
-    statusCount.TRIAL + statusCount.ACTIVE + statusCount.GRACE;
-
-  const totalRevenue = totalRevenueAgg._sum.amountPhp ?? 0;
-  const monthRevenue = monthRevenueAgg._sum.amountPhp ?? 0;
 
   const paymentMap = new Map<string, number>();
   for (const r of paymentByGym) {
@@ -136,6 +157,10 @@ export default async function AdminStatsPage({
     if (r.gymId) newCustomerMap.set(r.gymId, r._count._all);
   }
 
+  // 가맹점 그리드 컬럼 (CSS grid)
+  const gymGridCols =
+    "grid-cols-[minmax(160px,2fr)_minmax(120px,1.3fr)_minmax(80px,0.8fr)_minmax(80px,0.8fr)_minmax(140px,1.4fr)]";
+
   return (
     <div className="space-y-10">
       <header className="space-y-2">
@@ -146,26 +171,124 @@ export default async function AdminStatsPage({
           플랫폼 통계
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-ink/70">
-          가맹점 수와 구독 매출 (KRW). 매출은 환불(음수 결제) 포함한 net.
-          이번 달 기준 = {fmt(mStart)} 부터.
+          구독 매출은 KRW, 환불(음수 결제) 포함한 net.
         </p>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiCard label="총 매장" value={totalBusinesses.toLocaleString()} />
-        <KpiCard
-          label="운영중"
-          value={operatingCount.toLocaleString()}
-          hint={`총 ${totalBusinesses} 중`}
-        />
-        <KpiCard
-          label="이번 달 매출"
-          value={`${monthRevenue.toLocaleString()}₩`}
-        />
-        <KpiCard
-          label="누적 매출"
-          value={`${totalRevenue.toLocaleString()}₩`}
-        />
+      <section className="space-y-4">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-heading text-xl tracking-tight text-ink">
+            매출 (월별 · 년도별)
+          </h2>
+        </div>
+
+        <form
+          method="GET"
+          className="flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+        >
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-zinc-700">시작 년도</span>
+            <input
+              type="number"
+              name="yearFrom"
+              min={1970}
+              max={9999}
+              step={1}
+              defaultValue={yearFrom}
+              className="h-9 w-28 rounded-md border border-zinc-300 bg-white px-3 text-right text-sm text-zinc-900 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-zinc-700">종료 년도</span>
+            <input
+              type="number"
+              name="yearTo"
+              min={1970}
+              max={9999}
+              step={1}
+              defaultValue={yearTo}
+              className="h-9 w-28 rounded-md border border-zinc-300 bg-white px-3 text-right text-sm text-zinc-900 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex h-9 items-center rounded-md bg-ink px-4 text-xs font-medium text-white transition hover:bg-ink/90"
+          >
+            적용
+          </button>
+          <span className="text-[11px] text-zinc-500">
+            기본값 = 현재 년도 ({currentYear}). Enter 로도 조회.
+          </span>
+        </form>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full table-fixed border-separate border-spacing-0 rounded-xl border border-zinc-200 bg-white text-sm">
+            <thead>
+              <tr className="bg-zinc-50 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+                <th className="w-20 border-b border-zinc-200 px-3 py-2 text-center">
+                  월
+                </th>
+                {years.map((y) => (
+                  <th
+                    key={y}
+                    className="border-b border-l border-zinc-200 px-3 py-2 text-center"
+                  >
+                    {y}년
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {MONTHS.map((m) => (
+                <tr key={m}>
+                  <td className="border-b border-zinc-100 bg-zinc-50/50 px-3 py-2 text-center text-zinc-700">
+                    {m}월
+                  </td>
+                  {years.map((y) => {
+                    const v = grid[y]?.[m] ?? 0;
+                    return (
+                      <td
+                        key={y}
+                        className="border-b border-l border-zinc-100 px-3 py-2 text-right tabular-nums text-zinc-900"
+                      >
+                        {v > 0 ? `${v.toLocaleString()}₩` : "-"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              <tr className="bg-amber-50/60 font-semibold">
+                <td className="border-t border-amber-200 px-3 py-2 text-center text-amber-900">
+                  년 합계
+                </td>
+                {years.map((y) => (
+                  <td
+                    key={y}
+                    className="border-l border-t border-amber-200 px-3 py-2 text-right tabular-nums text-amber-900"
+                  >
+                    {yearTotals[y]?.toLocaleString() ?? 0}₩
+                  </td>
+                ))}
+              </tr>
+              {years.length > 1 && (
+                <tr className="bg-amber-100/60 font-semibold">
+                  <td
+                    className="border-t border-amber-300 px-3 py-2 text-center text-amber-900"
+                    colSpan={1}
+                  >
+                    전체 합계
+                  </td>
+                  <td
+                    className="border-l border-t border-amber-300 px-3 py-2 text-right tabular-nums text-amber-900"
+                    colSpan={years.length}
+                  >
+                    {grandTotal.toLocaleString()}₩
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section>
@@ -206,7 +329,7 @@ export default async function AdminStatsPage({
           <div className="overflow-x-auto">
             <div className="min-w-[820px] divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
               <div
-                className={`grid ${GRID_COLS} gap-3 bg-zinc-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-600`}
+                className={`grid ${gymGridCols} gap-3 bg-zinc-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-600`}
               >
                 <div className="text-center">매장이름</div>
                 <div className="text-center">사장님이름</div>
@@ -223,7 +346,7 @@ export default async function AdminStatsPage({
                   <Link
                     key={b.id}
                     href={`/${lang}/admin/businesses/${b.id}`}
-                    className="grid grid-cols-[minmax(160px,2fr)_minmax(120px,1.3fr)_minmax(80px,0.8fr)_minmax(80px,0.8fr)_minmax(140px,1.4fr)] gap-3 bg-white px-4 py-3 text-sm transition hover:bg-zinc-50"
+                    className={`grid ${gymGridCols} gap-3 bg-white px-4 py-3 text-sm transition hover:bg-zinc-50`}
                   >
                     <div className="min-w-0 truncate text-left text-zinc-900">
                       <div className="flex items-center gap-2">
@@ -264,28 +387,6 @@ export default async function AdminStatsPage({
           </div>
         )}
       </section>
-    </div>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
-      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/60">
-        {label}
-      </div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-        {value}
-      </div>
-      {hint && <div className="mt-1 text-[11px] text-zinc-500">{hint}</div>}
     </div>
   );
 }
