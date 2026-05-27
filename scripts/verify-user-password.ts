@@ -8,11 +8,11 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const slug = process.argv[2];
-  const email = process.argv[3]?.toLowerCase().trim();
+  const loginId = process.argv[3]?.toLowerCase().trim();
   const password = process.argv[4];
 
-  if (!slug || !email || !password) {
-    console.error("usage: tsx scripts/verify-user-password.ts <slug> <email> <password>");
+  if (!slug || !loginId || !password) {
+    console.error("usage: tsx scripts/verify-user-password.ts <slug> <loginId> <password>");
     process.exit(1);
   }
 
@@ -23,21 +23,21 @@ async function main() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { email_gymId: { email, gymId: business.id } },
+    where: { loginId_gymId: { loginId, gymId: business.id } },
   });
   if (!user) {
-    console.error(`user not found: ${email} @ ${slug}`);
+    console.error(`user not found: ${loginId} @ ${slug}`);
     process.exit(1);
   }
   if (!user.passwordHash) {
-    console.error(`no passwordHash for ${email}`);
+    console.error(`no passwordHash for ${loginId}`);
     process.exit(1);
   }
 
   const ok = await verifyPassword(password, user.passwordHash);
   console.log(`role=${user.role} status=${user.status}`);
   console.log(`hash prefix: ${user.passwordHash.slice(0, 7)}...`);
-  console.log(`verify result: ${ok ? "MATCH ✅" : "MISMATCH ❌"}`);
+  console.log(`verify result: ${ok ? "MATCH" : "MISMATCH"}`);
 }
 
 main()

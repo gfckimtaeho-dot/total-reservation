@@ -27,8 +27,8 @@ async function main() {
 
   const lookup = await prisma.user.findUnique({
     where: {
-      email_gymId: {
-        email: "etcrrrtt@gmail.com",
+      loginId_gymId: {
+        loginId: "etcrrrtt",
         gymId: business!.id,
       },
     },

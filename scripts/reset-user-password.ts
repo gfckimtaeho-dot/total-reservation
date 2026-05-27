@@ -8,11 +8,11 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const slug = process.argv[2];
-  const email = process.argv[3]?.toLowerCase().trim();
+  const loginId = process.argv[3]?.toLowerCase().trim();
   const newPassword = process.argv[4];
 
-  if (!slug || !email || !newPassword) {
-    console.error("usage: tsx scripts/reset-user-password.ts <slug> <email> <newPassword>");
+  if (!slug || !loginId || !newPassword) {
+    console.error("usage: tsx scripts/reset-user-password.ts <slug> <loginId> <newPassword>");
     process.exit(1);
   }
 
@@ -23,10 +23,10 @@ async function main() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { email_gymId: { email, gymId: business.id } },
+    where: { loginId_gymId: { loginId, gymId: business.id } },
   });
   if (!user) {
-    console.error(`user not found: ${email} @ ${slug}`);
+    console.error(`user not found: ${loginId} @ ${slug}`);
     process.exit(1);
   }
 
@@ -36,7 +36,7 @@ async function main() {
     data: { passwordHash, status: "ACTIVE" },
   });
 
-  console.log(`password reset OK: ${email} (role=${user.role}, status=ACTIVE)`);
+  console.log(`password reset OK: ${loginId} (role=${user.role}, status=ACTIVE)`);
   console.log(`new password: ${newPassword}`);
 }
 
