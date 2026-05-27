@@ -69,9 +69,9 @@ const TONE = {
 } as const;
 
 // 현장 운영 노하우: 60분 슬롯은 다음 손님과의 전환 시간이 없어 강사가
-// 정리할 틈도 없이 들어가야 함. 50/80/110 — 1시간/1.5시간/2시간에서
-// 10분씩 빼서 자연스러운 쉬는 시간을 확보.
-const DURATION_PRESETS = [50, 80, 110];
+// 정리할 틈도 없이 들어가야 함. 50분 단일 — 10분씩 빼서 자연스러운 쉬는
+// 시간을 확보. 헬스장 PT/단체 공통 표준.
+const DURATION_PRESETS = [50];
 
 const INITIAL: CreateServiceState | UpdateServiceState = {};
 
