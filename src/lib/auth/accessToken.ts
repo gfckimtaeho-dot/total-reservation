@@ -13,9 +13,12 @@ export function generateAccessToken(): string {
 export async function ensureAccessToken(userId: string): Promise<string> {
   const existing = await prisma.user.findUnique({
     where: { id: userId },
-    select: { accessToken: true },
+    select: { accessToken: true, active: true },
   });
-  if (existing?.accessToken) return existing.accessToken;
+  // 비활성 계정엔 lazy-create 금지 — 사장이 비활성화하며 null 로 만든 토큰을
+  // dashboard 진입 한 번에 부활시키지 않도록.
+  if (!existing?.active) return "";
+  if (existing.accessToken) return existing.accessToken;
 
   const token = generateAccessToken();
   await prisma.user.update({

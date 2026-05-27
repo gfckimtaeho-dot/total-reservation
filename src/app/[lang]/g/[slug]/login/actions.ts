@@ -36,7 +36,8 @@ export type GymLoginState = {
     | "noUser"
     | "notActivated"
     | "pending"
-    | "withdrawn";
+    | "withdrawn"
+    | "inactive";
   // 임시 디버그: noUser 분기 진단용. 안정화되면 제거.
   debug?: {
     rawLoginIdBytes: number;
@@ -141,6 +142,7 @@ export async function gymLogin(
   if (user.status === "WITHDRAWN" || user.status === "ANONYMIZED") {
     return { message: "withdrawn" };
   }
+  if (!user.active) return { message: "inactive" };
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) {

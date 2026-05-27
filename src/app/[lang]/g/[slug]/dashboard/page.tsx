@@ -1,6 +1,7 @@
 import { requireGymStaff } from "@/lib/auth/dal";
 import { ensureAccessToken } from "@/lib/auth/accessToken";
 import { prisma } from "@/lib/db/client";
+import { ActiveSessionGuard } from "@/components/ActiveSessionGuard";
 import { DashboardWhite } from "./DashboardWhite";
 import { DashboardTrainer } from "./DashboardTrainer";
 
@@ -26,29 +27,41 @@ export default async function GymDashboardPage({
       select: { id: true, weeklyOffDays: true },
     });
     return (
-      <DashboardTrainer
-        lang={lang}
-        slug={slug}
-        gymId={business.id}
-        userId={user.id}
-        staffId={staff?.id ?? null}
-        businessName={business.name}
-        trainerName={user.name}
-        accessToken={accessToken}
-        timeZone={business.timeZone}
-        selectedDay={selectedDay}
-        weeklyOffDays={staff?.weeklyOffDays ?? []}
-      />
+      <>
+        <ActiveSessionGuard
+          pingUrl="/api/auth/ping-active"
+          logoutUrl={`/${lang}/g/${slug}/login`}
+        />
+        <DashboardTrainer
+          lang={lang}
+          slug={slug}
+          gymId={business.id}
+          userId={user.id}
+          staffId={staff?.id ?? null}
+          businessName={business.name}
+          trainerName={user.name}
+          accessToken={accessToken}
+          timeZone={business.timeZone}
+          selectedDay={selectedDay}
+          weeklyOffDays={staff?.weeklyOffDays ?? []}
+        />
+      </>
     );
   }
 
   return (
-    <DashboardWhite
-      lang={lang}
-      slug={slug}
-      gymId={business.id}
-      businessName={business.name}
-      timeZone={business.timeZone}
-    />
+    <>
+      <ActiveSessionGuard
+        pingUrl="/api/auth/ping-active"
+        logoutUrl={`/${lang}/g/${slug}/login`}
+      />
+      <DashboardWhite
+        lang={lang}
+        slug={slug}
+        gymId={business.id}
+        businessName={business.name}
+        timeZone={business.timeZone}
+      />
+    </>
   );
 }

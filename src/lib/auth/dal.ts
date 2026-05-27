@@ -16,10 +16,14 @@ export const verifySession = cache(async () => {
   const payload = await decryptSession(token);
   if (!payload) return null;
 
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     include: { business: true },
   });
+  // 사장이 비활성화한 계정은 세션이 살아있어도 모든 보호 페이지 차단.
+  // (require* 가 null 을 받아 login 으로 redirect)
+  if (user && !user.active) return null;
+  return user;
 });
 
 export async function requireAdmin() {
