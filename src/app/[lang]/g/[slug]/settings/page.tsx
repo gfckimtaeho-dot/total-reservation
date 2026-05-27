@@ -66,20 +66,9 @@ export default async function GymSettingsPage({
           <SettingCard
             heading={t("account.heading")}
             body={t("account.body")}
-            soon={t("account.soon")}
+            href={`/${lang}/g/${slug}/settings/account`}
+            cta={t("account.cta")}
           />
-          <SettingCard
-            heading={t("notification.heading")}
-            body={t("notification.body")}
-            soon={t("notification.soon")}
-          />
-          {user.role === "OWNER" && (
-            <SettingCard
-              heading={t("store.heading")}
-              body={t("store.body")}
-              soon={t("store.soon")}
-            />
-          )}
         </div>
       </main>
 
@@ -93,12 +82,14 @@ export default async function GymSettingsPage({
 function SettingCard({
   heading,
   body,
-  soon,
+  href,
+  cta,
   children,
 }: {
   heading: string;
   body: string;
-  soon?: string;
+  href?: string;
+  cta?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -110,10 +101,13 @@ function SettingCard({
           </h3>
           <p className="mt-1 text-sm text-zinc-600">{body}</p>
         </div>
-        {soon && (
-          <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-zinc-600">
-            {soon}
-          </span>
+        {href && cta && (
+          <Link
+            href={href}
+            className="shrink-0 rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ink/90"
+          >
+            {cta}
+          </Link>
         )}
       </div>
       {children}

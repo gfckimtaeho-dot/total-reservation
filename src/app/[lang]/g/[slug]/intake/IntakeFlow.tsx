@@ -7,8 +7,10 @@ import {
   createMember,
   sendActivationEmail,
   getIntakePendingActivationUrl,
+  copyPasswordResetUrl,
 } from "../members/actions";
 import { copyText } from "@/lib/clipboard";
+import { PasswordResetButton } from "@/components/PasswordResetButton";
 import {
   listRecentCustomers,
   listMyAssignedCustomers,
@@ -890,6 +892,32 @@ export function IntakeFlow({
                       : t("activationUrlCopy")}
                   </button>
                 </div>
+              </section>
+            )}
+
+            {/* 비번 재설정 URL — 활성화 박스 없는 cust (= ACTIVE 회원 등) 만.
+                회원이 비번 잊었을 때 트레이너가 사장 거치지 않고 즉시 처리. */}
+            {cust && !activationUrl && (
+              <section className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-900 p-4">
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold uppercase tracking-[0.14em] text-zinc-300">
+                    {t("passwordResetBtn")}
+                  </h2>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {t("passwordResetHint")}
+                  </p>
+                </div>
+                <PasswordResetButton
+                  slug={slug}
+                  id={cust.id}
+                  idField="memberId"
+                  action={copyPasswordResetUrl}
+                  label={t("passwordResetBtn")}
+                  copyLabel={t("passwordResetCopy")}
+                  copiedLabel={t("passwordResetCopied")}
+                  hint={t("passwordResetHint")}
+                  sentLabel={t("passwordResetSent")}
+                />
               </section>
             )}
             </div>

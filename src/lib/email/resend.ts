@@ -176,6 +176,52 @@ export async function sendStaffActivationEmail(opts: {
   }
 }
 
+// 회원/트레이너 공용 비번 재설정 메일. 사장이 발급 화면에서 "메일 발송" 클릭
+// 시 호출. 링크는 PASSWORD_RESET magic link 토큰 (7일). 활성화와 다른 본문 —
+// 이미 ACTIVE 계정의 비번만 바뀌는 흐름임을 명시.
+export async function sendPasswordResetEmail(opts: {
+  to: string;
+  recipientName: string;
+  storeName: string;
+  resetUrl: string;
+}): Promise<SendResult> {
+  const subject = `${opts.storeName} — 비밀번호 재설정 안내`;
+  const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px">
+    <p style="font-size:16px">${opts.recipientName} 님, 안녕하세요.</p>
+    <p style="font-size:16px"><strong>${opts.storeName}</strong>에서 비밀번호 재설정 링크가 발급됐습니다. 아래 버튼을 눌러 새 비밀번호를 설정하시면 즉시 로그인됩니다.</p>
+    <p style="margin:24px 0">
+      <a href="${opts.resetUrl}" style="display:inline-block;background:#1A1A1A;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">비밀번호 재설정 →</a>
+    </p>
+    <p style="font-size:12px;color:#666">버튼이 작동하지 않으면 이 URL을 복사해 주세요:<br/><a href="${opts.resetUrl}">${opts.resetUrl}</a></p>
+    <p style="font-size:12px;color:#666;margin-top:24px">📌 본인이 요청하지 않았다면 이 메일을 무시해 주세요. 링크는 7일간 유효합니다.</p>
+  </div>`;
+  const text = `${opts.recipientName} 님,\n\n${opts.storeName}에서 비밀번호 재설정 링크가 발급됐습니다.\n재설정: ${opts.resetUrl}\n(7일 유효)`;
+
+  const transport = makeTransport();
+  if (!transport) {
+    console.log(
+      `[email/fallback] password reset email skipped (GMAIL creds missing) to ${opts.to}`,
+    );
+    console.log(`[email/fallback] reset: ${opts.resetUrl}`);
+    return { ok: false, fallback: true };
+  }
+
+  try {
+    const info = await transport.sendMail({
+      from: `${FROM_NAME} <${user}>`,
+      to: opts.to,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, id: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[email] SMTP error (password reset):", message);
+    return { ok: false, fallback: false, error: message };
+  }
+}
+
 export async function sendInviteEmail(opts: {
   to: string;
   inviteUrl: string;

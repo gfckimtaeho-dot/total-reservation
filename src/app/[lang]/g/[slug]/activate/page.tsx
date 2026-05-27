@@ -24,11 +24,20 @@ export default async function ActivatePage({
   const link = token
     ? await prisma.magicLinkToken.findUnique({
         where: { token },
-        include: { targetUser: { select: { name: true, email: true } } },
+        select: {
+          purpose: true,
+          usedAt: true,
+          expiresAt: true,
+          targetUser: {
+            select: { name: true, email: true, loginId: true },
+          },
+        },
       })
     : null;
 
   const tokenInvalid = !link || link.usedAt || link.expiresAt < new Date();
+  const isReset = !tokenInvalid && link!.purpose === "PASSWORD_RESET";
+  const currentLoginId = link?.targetUser.loginId ?? "";
   const reason = !link
     ? t("invalidNotFound")
     : link.usedAt
@@ -61,6 +70,12 @@ export default async function ActivatePage({
           <h1 className="font-heading text-3xl leading-tight tracking-tight text-ink sm:text-4xl">
             {tokenInvalid ? (
               t("invalidTitle")
+            ) : isReset ? (
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: t("resetTitle", { name: link!.targetUser.name }),
+                }}
+              />
             ) : (
               <span
                 dangerouslySetInnerHTML={{
@@ -71,7 +86,7 @@ export default async function ActivatePage({
           </h1>
           {!tokenInvalid && (
             <p className="text-sm leading-relaxed text-ink/70">
-              {t("welcomeBody")}
+              {isReset ? t("resetBody") : t("welcomeBody")}
             </p>
           )}
         </div>
@@ -99,7 +114,12 @@ export default async function ActivatePage({
               </Link>
             </div>
           ) : (
-            <ActivateForm slug={slug} token={token!} />
+            <ActivateForm
+              slug={slug}
+              token={token!}
+              mode={isReset ? "reset" : "activate"}
+              currentLoginId={currentLoginId}
+            />
           )}
         </div>
       </main>

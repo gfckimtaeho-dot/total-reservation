@@ -564,6 +564,9 @@ export default async function GymProductsPage({
                             {t("package.colPerSession")}
                           </th>
                           <th className="px-4 py-3 text-center font-medium">
+                            {t("package.colListPrice")}
+                          </th>
+                          <th className="px-4 py-3 text-center font-medium">
                             {t("package.colPrice")}
                           </th>
                           <th className="px-4 py-3 text-center font-medium">
@@ -588,6 +591,8 @@ export default async function GymProductsPage({
                           const perSession = Math.round(
                             p.pricePhp / p.sessionCount,
                           );
+                          const listPrice =
+                            p.service.pricePhp * p.sessionCount;
                           return (
                             <tr
                               key={p.id}
@@ -605,6 +610,9 @@ export default async function GymProductsPage({
                               </td>
                               <td className="px-4 py-3 text-right tabular-nums">
                                 {peso(perSession)}
+                              </td>
+                              <td className="px-4 py-3 text-right tabular-nums text-ink/60">
+                                {peso(listPrice)}
                               </td>
                               <td className="px-4 py-3 text-right tabular-nums font-medium">
                                 {peso(p.pricePhp)}

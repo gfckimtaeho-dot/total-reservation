@@ -7,7 +7,10 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { sendStaffActivationEmail } from "@/lib/email/resend";
+import {
+  sendStaffActivationEmail,
+  sendPasswordResetEmail,
+} from "@/lib/email/resend";
 import { uploadStaffImage, deleteStaffImageUrl } from "@/lib/storage/blob";
 import { generateAccessToken } from "@/lib/auth/accessToken";
 
@@ -392,7 +395,7 @@ async function buildActivationUrl(
 }
 
 export type SendActivationResult =
-  | { ok: true; url: string }
+  | { ok: true; url: string; emailedTo?: string }
   | { ok: false; message: string };
 
 export async function sendTrainerActivationEmail(
@@ -460,6 +463,71 @@ export async function copyTrainerActivationUrl(
 
   const url = await buildActivationUrl(slug, staff.user.id, gymId);
   return { ok: true, url };
+}
+
+// 트레이너 비번 재설정 URL — 사장이 트레이너 상세에서 발급해 카톡/문자로 전달.
+// 멱등성 위해 같은 트레이너의 이전 PASSWORD_RESET 토큰 일괄 무효화 후 새 발급.
+// OWNER/MANAGER 만 발급 가능 (트레이너 본인이 본인에게 발급은 의미 X).
+export async function copyTrainerPasswordResetUrl(
+  formData: FormData,
+): Promise<SendActivationResult> {
+  const slug = String(formData.get("slug") ?? "");
+  const staffId = String(formData.get("staffId") ?? "");
+  const auth = await requireGymStaff(slug);
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { ok: false, message: "권한이 없습니다" };
+  }
+  const gymId = auth.business!.id;
+
+  const staff = await prisma.staff.findFirst({
+    where: { id: staffId, gymId },
+    include: {
+      user: { select: { id: true, name: true, email: true, locale: true } },
+      business: { select: { name: true } },
+    },
+  });
+  if (!staff) return { ok: false, message: "트레이너를 찾을 수 없습니다" };
+
+  const token = crypto.randomBytes(32).toString("base64url");
+  await prisma.$transaction([
+    prisma.magicLinkToken.updateMany({
+      where: {
+        targetUserId: staff.user.id,
+        purpose: "PASSWORD_RESET",
+        usedAt: null,
+      },
+      data: { usedAt: new Date() },
+    }),
+    prisma.magicLinkToken.create({
+      data: {
+        token,
+        targetUserId: staff.user.id,
+        gymId,
+        purpose: "PASSWORD_RESET",
+        expiresAt: new Date(Date.now() + SEVEN_DAYS_MS),
+      },
+    }),
+  ]);
+  const lang = staff.user.locale === "ko" ? "ko" : "en";
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const url = `${proto}://${host}/${lang}/g/${slug}/activate?token=${token}`;
+
+  // 이메일 있으면 자동 발송. 발송 실패해도 URL 은 항상 반환 — UI 가 fallback
+  // 으로 URL 복사 모드 표시.
+  let emailedTo: string | undefined;
+  if (staff.user.email) {
+    const r = await sendPasswordResetEmail({
+      to: staff.user.email,
+      recipientName: staff.user.name,
+      storeName: staff.business?.name ?? "",
+      resetUrl: url,
+    });
+    if (r.ok) emailedTo = staff.user.email;
+  }
+
+  return { ok: true, url, emailedTo };
 }
 
 // 하드 삭제 폐기 — 예약/실적 이력 보존 위해 활성/비활성 토글로 대체.

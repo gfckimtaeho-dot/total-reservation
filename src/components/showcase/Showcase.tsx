@@ -323,25 +323,16 @@ function MembershipPanel({
   const concept: ShowcaseConcept = tk === TK.dark ? "dark" : "light";
   return (
     <div>
-      {items.map((m) => {
-        const months =
-          m.durationDays >= 28 ? Math.round(m.durationDays / 30) : 0;
-        return (
-          <Row
-            key={m.id}
-            tk={tk}
-            cat={cat}
-            concept={concept}
-            name={m.name}
-            sub={
-              months > 0
-                ? t("perMonth", { v: peso(m.pricePhp / months) })
-                : undefined
-            }
-            right={peso(m.pricePhp)}
-          />
-        );
-      })}
+      {items.map((m) => (
+        <Row
+          key={m.id}
+          tk={tk}
+          cat={cat}
+          concept={concept}
+          name={m.name}
+          right={peso(m.pricePhp)}
+        />
+      ))}
     </div>
   );
 }
@@ -408,28 +399,18 @@ function PackagePanel({
             cat={cat}
             concept={concept}
             name={p.name}
-            sub={
-              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span>
-                  {p.serviceName} · {t("sessions", { n: p.sessionCount })}
-                </span>
-                <span aria-hidden>·</span>
-                <span>
-                  {t("perSession", {
-                    v: peso(p.pricePhp / p.sessionCount),
-                  })}
-                </span>
-              </span>
-            }
             right={
-              <span className="flex flex-col items-end">
-                {discounted && (
+              discounted ? (
+                <span className="flex items-center gap-2 whitespace-nowrap">
                   <span className={`text-sm ${tk.strike}`}>
                     {peso(p.listPhp)}
                   </span>
-                )}
+                  <span aria-hidden>→</span>
+                  <span>{peso(p.pricePhp)}</span>
+                </span>
+              ) : (
                 <span>{peso(p.pricePhp)}</span>
-              </span>
+              )
             }
           />
         );

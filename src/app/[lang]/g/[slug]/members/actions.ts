@@ -7,7 +7,10 @@ import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { sendCustomerActivationEmail } from "@/lib/email/resend";
+import {
+  sendCustomerActivationEmail,
+  sendPasswordResetEmail,
+} from "@/lib/email/resend";
 
 const ROLE_KEY = {
   OWNER: "roleOwner",
@@ -252,7 +255,7 @@ async function buildActivationUrl(
 }
 
 export type SendActivationResult =
-  | { ok: true; url: string }
+  | { ok: true; url: string; emailedTo?: string }
   | { ok: false; message: string };
 
 export async function sendActivationEmail(
@@ -357,9 +360,23 @@ export async function copyPasswordResetUrl(
 
   const member = await prisma.user.findFirst({
     where: { id: memberId, gymId, role: "CUSTOMER" },
-    select: { id: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      locale: true,
+      status: true,
+      business: { select: { name: true } },
+    },
   });
   if (!member) return { ok: false, message: "회원을 찾을 수 없습니다" };
+  // PENDING 회원은 비번 자체가 없음 — 비번 재설정 의미 X. 활성화 URL 사용.
+  if (member.status !== "ACTIVE") {
+    return {
+      ok: false,
+      message: "활성화된 회원에게만 비번 재설정 URL 발급 가능합니다",
+    };
+  }
 
   const token = crypto.randomBytes(32).toString("base64url");
   await prisma.$transaction([
@@ -381,11 +398,26 @@ export async function copyPasswordResetUrl(
       },
     }),
   ]);
+  // 재설정 페이지도 발급 대상의 모국어 prefix — 회원이 영문 화면을 보게.
+  const lang = member.locale === "ko" ? "ko" : "en";
   const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "http";
-  const url = `${proto}://${host}/ko/g/${slug}/activate?token=${token}`;
-  return { ok: true, url };
+  const url = `${proto}://${host}/${lang}/g/${slug}/activate?token=${token}`;
+
+  // 이메일 있으면 자동 발송. 실패해도 URL fallback.
+  let emailedTo: string | undefined;
+  if (member.email) {
+    const r = await sendPasswordResetEmail({
+      to: member.email,
+      recipientName: member.name,
+      storeName: member.business?.name ?? "",
+      resetUrl: url,
+    });
+    if (r.ok) emailedTo = member.email;
+  }
+
+  return { ok: true, url, emailedTo };
 }
 
 // 하드 삭제 폐기 — 매출/예약 이력 보존 위해 활성/비활성 토글로 대체.

@@ -7,6 +7,8 @@ import { logout } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { ensureAccessToken } from "@/lib/auth/accessToken";
+import { PasswordResetButton } from "@/components/PasswordResetButton";
+import { copyTrainerPasswordResetUrl } from "../actions";
 import { SidebarNav } from "../../dashboard/SidebarNav";
 import { RegenerateQrButton } from "./RegenerateQrButton";
 import { LeaveManager } from "./LeaveManager";
@@ -41,6 +43,7 @@ export default async function TrainerDetailPage({
   const business = auth.business!;
   const t = await getTranslations("trainers");
   const tn = await getTranslations("nav");
+  const tc = await getTranslations("trainerCal");
 
   const staff = await prisma.staff.findFirst({
     where: { id, gymId: business.id },
@@ -122,12 +125,27 @@ export default async function TrainerDetailPage({
               </span>
             </h1>
           </div>
-          <Link
-            href={`/${lang}/g/${slug}/trainers`}
-            className="text-sm transition text-zinc-600 hover:text-ink"
-          >
-            {t("detailBack")}
-          </Link>
+          <div className="flex items-center gap-4">
+            {u.status === "ACTIVE" && (
+              <PasswordResetButton
+                slug={slug}
+                id={staff.id}
+                idField="staffId"
+                action={copyTrainerPasswordResetUrl}
+                label={tc("passwordResetBtn")}
+                copyLabel={tc("passwordResetCopy")}
+                copiedLabel={tc("passwordResetCopied")}
+                hint={tc("passwordResetHint")}
+                sentLabel={tc("passwordResetSent")}
+              />
+            )}
+            <Link
+              href={`/${lang}/g/${slug}/trainers`}
+              className="text-sm transition text-zinc-600 hover:text-ink"
+            >
+              {t("detailBack")}
+            </Link>
+          </div>
         </header>
 
         <div className="mx-auto w-full max-w-5xl space-y-5 p-6">

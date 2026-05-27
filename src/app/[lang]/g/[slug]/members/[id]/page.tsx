@@ -9,6 +9,8 @@ import { SidebarNav } from "../../dashboard/SidebarNav";
 import { MemberAddDialog } from "../MemberAddDialog";
 import { OwnerIssuePanel } from "./OwnerIssuePanel";
 import { HandoverDialog } from "../../handover/HandoverDialog";
+import { PasswordResetButton } from "@/components/PasswordResetButton";
+import { copyPasswordResetUrl } from "../actions";
 
 const TK = {
   page: "bg-violet-50/40",
@@ -35,6 +37,7 @@ export default async function MemberDetailPage({
   const business = auth.business!;
   const t = await getTranslations("memberDetail");
   const tn = await getTranslations("nav");
+  const tc = await getTranslations("trainerCal");
 
   const [u, membershipPlans, packagePlans, comboPlans, promotionsRaw] =
     await Promise.all([
@@ -278,6 +281,19 @@ export default async function MemberDetailPage({
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            {u.status === "ACTIVE" && (
+              <PasswordResetButton
+                slug={slug}
+                id={u.id}
+                idField="memberId"
+                action={copyPasswordResetUrl}
+                label={tc("passwordResetBtn")}
+                copyLabel={tc("passwordResetCopy")}
+                copiedLabel={tc("passwordResetCopied")}
+                hint={tc("passwordResetHint")}
+                sentLabel={tc("passwordResetSent")}
+              />
+            )}
             <MemberAddDialog
               slug={slug}
               lang={lang}
