@@ -32,11 +32,19 @@ export async function requireAdmin() {
   return user;
 }
 
+// 차단·만료 매장의 모든 라우트는 안내 페이지로. GRACE 는 spec 상 정상 운영 유지(통과).
+function isBusinessBlocked(status: string): boolean {
+  return status === "BLOCKED" || status === "EXPIRED";
+}
+
 export async function requireGymStaff(slug: string) {
   const user = await verifySession();
   if (!user) redirect(`/g/${slug}/login`);
   if (!user.business || user.business.slug !== slug) {
     redirect(`/g/${slug}/login`);
+  }
+  if (isBusinessBlocked(user.business.status)) {
+    redirect(`/g/${slug}/blocked`);
   }
   if (!["OWNER", "MANAGER", "TRAINER"].includes(user.role)) {
     redirect(`/g/${slug}/me`);
@@ -49,6 +57,9 @@ export async function requireGymCustomer(slug: string) {
   if (!user) redirect(`/g/${slug}/login`);
   if (!user.business || user.business.slug !== slug) {
     redirect(`/g/${slug}/login`);
+  }
+  if (isBusinessBlocked(user.business.status)) {
+    redirect(`/g/${slug}/blocked`);
   }
   // 스태프는 고객 페이지(/me 등)에 들어올 일이 없다 — 대시보드로 보낸다.
   // (requireGymStaff 가 고객을 /me 로 보내는 것과 대칭) 트레이너가 /me 의
@@ -63,5 +74,6 @@ export async function requireGymCustomer(slug: string) {
 export async function isGymStaff(slug: string): Promise<boolean> {
   const user = await verifySession();
   if (!user || !user.business || user.business.slug !== slug) return false;
+  if (isBusinessBlocked(user.business.status)) return false;
   return ["OWNER", "MANAGER", "TRAINER"].includes(user.role);
 }
