@@ -20,6 +20,7 @@ export function PasswordResetButton({
   copiedLabel,
   hint,
   sentLabel,
+  alwaysShowUrl = false,
 }: {
   slug: string;
   id: string;
@@ -29,8 +30,11 @@ export function PasswordResetButton({
   copyLabel: string;
   copiedLabel: string;
   hint: string;
-  /** "메일 발송됨 → {to}" — {to} 가 실제 주소로 치환 */
+  /** "메일 발송됨" — emailedTo 가 뒤에 concat */
   sentLabel: string;
+  /** true 면 메일 발송 성공해도 URL 도 같이 노출. 트레이너 db /intake 처럼
+   *  본인 폰으로 카톡 전달도 동시에 가능해야 하는 흐름에 사용. */
+  alwaysShowUrl?: boolean;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [emailedTo, setEmailedTo] = useState<string | null>(null);
@@ -80,36 +84,36 @@ export function PasswordResetButton({
     );
   }
 
-  // 메일 발송 성공: URL 노출 안 함, "발송됨 → {to}" 표시. (URL 은 본인 메일함에서 확인)
-  if (emailedTo) {
-    return (
-      <div className="flex flex-col items-end gap-1 sm:min-w-[280px]">
-        <span className="rounded-md bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
-          {sentLabel} → {emailedTo}
-        </span>
-      </div>
-    );
-  }
-
-  // 이메일 없거나 발송 실패 — URL 복사 fallback.
+  // alwaysShowUrl=false (기본, 사장 db) + 메일 발송 성공 → URL 숨김, "발송됨" 만.
+  // alwaysShowUrl=true (트레이너 db /intake) → 메일 발송 결과 + URL 둘 다.
+  // 이메일 없거나 발송 실패 → URL 만 (둘 다 공통).
   return (
     <div className="flex flex-col items-stretch gap-1.5 sm:min-w-[360px]">
-      <div className="flex items-stretch gap-2">
-        <input
-          readOnly
-          value={url}
-          onFocus={(e) => e.currentTarget.select()}
-          className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-800"
-        />
-        <button
-          type="button"
-          onClick={onCopy}
-          className="shrink-0 rounded-md bg-ink px-3 text-xs font-medium text-white transition hover:bg-ink/90"
-        >
-          {copied ? copiedLabel : copyLabel}
-        </button>
-      </div>
-      <span className="text-[11px] text-zinc-500">{hint}</span>
+      {emailedTo && (
+        <span className="self-end rounded-md bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+          {sentLabel} → {emailedTo}
+        </span>
+      )}
+      {(alwaysShowUrl || !emailedTo) && (
+        <>
+          <div className="flex items-stretch gap-2">
+            <input
+              readOnly
+              value={url}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-800"
+            />
+            <button
+              type="button"
+              onClick={onCopy}
+              className="shrink-0 rounded-md bg-ink px-3 text-xs font-medium text-white transition hover:bg-ink/90"
+            >
+              {copied ? copiedLabel : copyLabel}
+            </button>
+          </div>
+          <span className="text-[11px] text-zinc-500">{hint}</span>
+        </>
+      )}
     </div>
   );
 }

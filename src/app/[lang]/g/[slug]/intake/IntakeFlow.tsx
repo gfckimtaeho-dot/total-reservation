@@ -917,6 +917,7 @@ export function IntakeFlow({
                   copiedLabel={t("passwordResetCopied")}
                   hint={t("passwordResetHint")}
                   sentLabel={t("passwordResetSent")}
+                  alwaysShowUrl
                 />
               </section>
             )}
