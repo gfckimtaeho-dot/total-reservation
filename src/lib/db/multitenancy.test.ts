@@ -1,8 +1,11 @@
-// M1 multi-tenancy schema verification — runs against the real Neon dev DB.
-// Covers the spec's three load-bearing rules:
-//   1. (email, gymId) composite unique allows the same email on different gyms.
-//   2. (email, gymId) composite unique blocks duplicates within the same gym.
-//   3. Partial unique on email WHERE gymId IS NULL blocks two admins sharing email.
+// Multi-tenancy schema verification — runs against the real Neon dev DB.
+// Covers the spec's load-bearing rules after M2 (loginId 통일):
+//   1. email is a contact channel, NOT an identifier — duplicate emails are
+//      allowed both across gyms and within a single gym.
+//   2. (loginId, gymId) composite unique blocks duplicate loginIds within a gym
+//      (loginId is the real identifier post-M2).
+//   3. Partial unique on email WHERE gymId IS NULL blocks two admins sharing
+//      an email (ADMIN account model still treats email as identifier).
 //   4. Cross-gym data is invisible to a per-gym scoped query.
 //
 // Skipped if DATABASE_URL is missing or still the placeholder (CI safety).
@@ -52,7 +55,7 @@ async function makeBusiness(slug: string, cityId: string, barangayId: string) {
   return b;
 }
 
-describe.skipIf(!dbAvailable)("M1 multi-tenancy isolation", () => {
+describe.skipIf(!dbAvailable)("multi-tenancy isolation", () => {
   let cityId: string;
   let barangayId: string;
 
@@ -97,18 +100,87 @@ describe.skipIf(!dbAvailable)("M1 multi-tenancy isolation", () => {
     expect(userB.gymId).toBe(b.id);
   });
 
-  it("blocks duplicate (email, gymId)", async () => {
-    const email = `${RUN}-dup@example.invalid`;
+  it("allows duplicate email within the same gym (M2: email is a channel, not identifier)", async () => {
+    const email = `${RUN}-shared@example.invalid`;
     const a = await makeBusiness(`${RUN}-c`, cityId, barangayId);
 
+    const first = await prisma.user.create({
+      data: {
+        email,
+        name: "First",
+        gymId: a.id,
+        role: "CUSTOMER",
+        status: "ACTIVE",
+      },
+    });
+    const second = await prisma.user.create({
+      data: {
+        email,
+        name: "Second",
+        gymId: a.id,
+        role: "CUSTOMER",
+        status: "ACTIVE",
+      },
+    });
+
+    expect(first.id).not.toBe(second.id);
+    expect(first.email).toBe(email);
+    expect(second.email).toBe(email);
+  });
+
+  it("blocks duplicate (loginId, gymId)", async () => {
+    const loginId = `${RUN}-loginid`;
+    const a = await makeBusiness(`${RUN}-c2`, cityId, barangayId);
+
     await prisma.user.create({
-      data: { email, name: "First", gymId: a.id, role: "CUSTOMER", status: "ACTIVE" },
+      data: {
+        loginId,
+        name: "First",
+        gymId: a.id,
+        role: "CUSTOMER",
+        status: "ACTIVE",
+      },
     });
     await expect(
       prisma.user.create({
-        data: { email, name: "Second", gymId: a.id, role: "CUSTOMER", status: "ACTIVE" },
+        data: {
+          loginId,
+          name: "Second",
+          gymId: a.id,
+          role: "CUSTOMER",
+          status: "ACTIVE",
+        },
       }),
     ).rejects.toThrow();
+  });
+
+  it("allows the same loginId on two different gyms", async () => {
+    const loginId = `${RUN}-cross-loginid`;
+    const a = await makeBusiness(`${RUN}-c3`, cityId, barangayId);
+    const b = await makeBusiness(`${RUN}-c4`, cityId, barangayId);
+
+    const userA = await prisma.user.create({
+      data: {
+        loginId,
+        name: "User on A",
+        gymId: a.id,
+        role: "CUSTOMER",
+        status: "ACTIVE",
+      },
+    });
+    const userB = await prisma.user.create({
+      data: {
+        loginId,
+        name: "User on B",
+        gymId: b.id,
+        role: "CUSTOMER",
+        status: "ACTIVE",
+      },
+    });
+
+    expect(userA.id).not.toBe(userB.id);
+    expect(userA.gymId).toBe(a.id);
+    expect(userB.gymId).toBe(b.id);
   });
 
   it("blocks two admins (gymId NULL) sharing an email — partial unique", async () => {
