@@ -143,25 +143,6 @@ export async function createTrainer(
     };
   }
 
-  if (d.email) {
-    const existingEmail = await prisma.user.findFirst({
-      where: { gymId, email: d.email },
-      select: { id: true, role: true, name: true },
-    });
-    if (existingEmail) {
-      return {
-        errors: {
-          email: [
-            te("emailTakenBy", {
-              role: te(ROLE_KEY[existingEmail.role]),
-              name: existingEmail.name,
-            }),
-          ],
-        },
-      };
-    }
-  }
-
   let result: { staffId: string };
   try {
     result = await prisma.$transaction(async (tx) => {
@@ -305,25 +286,6 @@ export async function updateTrainer(
     };
   }
 
-  if (d.email) {
-    const emailConflict = await prisma.user.findFirst({
-      where: { gymId, email: d.email, NOT: { id: existing.user.id } },
-      select: { id: true, role: true, name: true },
-    });
-    if (emailConflict) {
-      return {
-        errors: {
-          email: [
-            te("emailTakenBy", {
-              role: te(ROLE_KEY[emailConflict.role]),
-              name: emailConflict.name,
-            }),
-          ],
-        },
-      };
-    }
-  }
-
   const removedUrls = existing.images
     .filter((img) => !d.imageUrls.includes(img.url))
     .map((img) => img.url);
@@ -416,10 +378,17 @@ async function buildActivationUrl(
       expiresAt: new Date(Date.now() + SEVEN_DAYS_MS),
     },
   });
+  // 활성화 URL prefix 는 발급 대상의 모국어로. 트레이너가 영어로 등록됐다면
+  // 활성화 페이지부터 영어 UI 로 보여야 자연스러움.
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { locale: true },
+  });
+  const lang = target?.locale === "ko" ? "ko" : "en";
   const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}/ko/g/${slug}/activate?token=${token}`;
+  return `${proto}://${host}/${lang}/g/${slug}/activate?token=${token}`;
 }
 
 export type SendActivationResult =

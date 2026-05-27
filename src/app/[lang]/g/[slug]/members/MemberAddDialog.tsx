@@ -138,7 +138,7 @@ export function MemberAddDialog({
                   {t("language")} <span className="text-rose-500">*</span>
                 </span>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(["en", "ko"] as const).map((lc, i) => (
+                  {(["en", "ko"] as const).map((lc) => (
                     <label
                       key={lc}
                       className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition has-[:checked]:${TK.radioActive} ${TK.radioInactive}`}
@@ -147,9 +147,8 @@ export function MemberAddDialog({
                         type="radio"
                         name="locale"
                         value={lc}
-                        defaultChecked={
-                          member?.locale ? member.locale === lc : i === 0
-                        }
+                        defaultChecked={member?.locale === lc}
+                        required
                         className="h-4 w-4 accent-ink"
                       />
                       {lc === "en" ? t("langEnglish") : t("langKorean")}

@@ -70,7 +70,7 @@ export function InviteForm() {
             errors={state.errors?.expectedBusinessName}
           />
           <Field
-            label="사장 이메일 (메모용)"
+            label="사장 이메일"
             name="expectedOwnerEmail"
             type="email"
             placeholder="owner@example.com"

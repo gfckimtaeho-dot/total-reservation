@@ -3,7 +3,12 @@
 import { useState, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { createMember } from "../members/actions";
+import {
+  createMember,
+  sendActivationEmail,
+  getIntakePendingActivationUrl,
+} from "../members/actions";
+import { copyText } from "@/lib/clipboard";
 import {
   listRecentCustomers,
   listMyAssignedCustomers,
@@ -83,6 +88,10 @@ export function IntakeFlow({
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [issuedN, setIssuedN] = useState(0);
+  // 이메일 없는 PENDING 회원에게 트레이너가 직접 SMS/카톡으로 보낼 활성화 URL.
+  // cust 가 바뀔 때마다 서버에서 조건(PENDING+email=null) 체크 후 발급.
+  const [activationUrl, setActivationUrl] = useState<string | null>(null);
+  const [activationCopied, setActivationCopied] = useState(false);
 
   // 즉석 장바구니 — 회원권/수업권/콤보를 여러 건 담아 한 번에 발급.
   // 라인마다 독립 Sale 1행으로 서버에서 한 트랜잭션 처리(issueCart).
@@ -137,7 +146,18 @@ export function IntakeFlow({
   }
 
   // 신규 등록 폼 (사장님 createMember 와 동일 필드)
-  const [f, setF] = useState({
+  // locale = 회원 모국어. UI 언어 결정 — 등록자가 명시 선택해야 등록 가능
+  // (default 자동 선택 금지: 외국인/한국인 구분 불가).
+  const [f, setF] = useState<{
+    name: string;
+    phone: string;
+    email: string;
+    gender: string;
+    dob: string;
+    emergencyContactPhone: string;
+    note: string;
+    locale: "" | "en" | "ko";
+  }>({
     name: "",
     phone: "",
     email: "",
@@ -145,6 +165,7 @@ export function IntakeFlow({
     dob: "",
     emergencyContactPhone: "",
     note: "",
+    locale: "",
   });
 
   const peso = (n: number) => `₱${n.toLocaleString()}`;
@@ -230,6 +251,30 @@ export function IntakeFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [embedded, slug]);
 
+  // cust 변경 시 활성화 URL 조회 — 서버에서 PENDING+email=null 조건 체크 후
+  // 만족하면 URL 반환, 그 외엔 null (이메일 있는 회원, ACTIVE 회원 등은 UI 숨김).
+  useEffect(() => {
+    if (!cust) {
+      setActivationUrl(null);
+      setActivationCopied(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const fd = new FormData();
+      fd.set("slug", slug);
+      fd.set("memberId", cust.id);
+      const url = await getIntakePendingActivationUrl(fd);
+      if (!cancelled) {
+        setActivationUrl(url);
+        setActivationCopied(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cust, slug]);
+
   // q 변경 시 자동 로드 — 빈 q 도 첫 페이지(최근 등록 순) 표시.
   // 빈 입력은 즉시(=초기 list 노출), 검색어는 300ms 디바운스.
   useEffect(() => {
@@ -261,6 +306,10 @@ export function IntakeFlow({
 
   function doCreate() {
     setErr(null);
+    if (!f.locale) {
+      setErr(t("languageRequired"));
+      return;
+    }
     start(async () => {
       const fd = new FormData();
       fd.set("slug", slug);
@@ -271,9 +320,21 @@ export function IntakeFlow({
       fd.set("dob", f.dob);
       fd.set("emergencyContactPhone", f.emergencyContactPhone);
       fd.set("note", f.note);
+      fd.set("locale", f.locale);
       const r = await createMember({}, fd);
       if (r.success) {
         setCust({ id: r.success.id, name: f.name });
+        // 이메일 입력했으면 활성화 링크 자동 발송 (라벨 "이메일 시 앱링크
+        // 자동 발송"의 실현). 발송 실패해도 등록 자체는 성공으로 유지.
+        if (f.email.trim()) {
+          const ed = new FormData();
+          ed.set("slug", slug);
+          ed.set("memberId", r.success.id);
+          const er = await sendActivationEmail(ed);
+          if (!er.ok) {
+            console.warn("[intake] activation mail failed:", er.message);
+          }
+        }
       } else {
         const e = r.errors
           ? Object.values(r.errors).flat().filter(Boolean)[0]
@@ -597,9 +658,27 @@ export function IntakeFlow({
                         }
                         className={`${field} col-span-2`}
                       />
+                      <select
+                        value={f.locale}
+                        onChange={(e) =>
+                          setF({
+                            ...f,
+                            locale: e.target.value as "" | "en" | "ko",
+                          })
+                        }
+                        className={`${field} col-span-2`}
+                      >
+                        <option value="" disabled>
+                          {t("fLanguage")}
+                        </option>
+                        <option value="en">{t("langEnglish")}</option>
+                        <option value="ko">{t("langKorean")}</option>
+                      </select>
                       <button
                         type="button"
-                        disabled={pending || !f.name || !f.phone}
+                        disabled={
+                          pending || !f.name || !f.phone || !f.locale
+                        }
                         onClick={doCreate}
                         className="col-span-2 rounded-md border border-emerald-400/40 bg-emerald-400/15 py-3 text-lg font-semibold text-emerald-300 transition hover:bg-emerald-400/25 disabled:opacity-40"
                       >
@@ -772,6 +851,45 @@ export function IntakeFlow({
                       ))
                     ))}
                 </ul>
+              </section>
+            )}
+
+            {cust && activationUrl && (
+              <section className="rounded-2xl border border-amber-400/30 bg-zinc-900 p-4">
+                <h2 className="text-base font-semibold uppercase tracking-[0.14em] text-amber-300/90">
+                  {t("activationUrlTitle")}
+                </h2>
+                <p className="mt-1.5 text-sm text-zinc-400">
+                  {t("activationUrlHint")}
+                </p>
+                <div className="mt-3 flex items-stretch gap-2">
+                  <input
+                    readOnly
+                    value={activationUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="min-w-0 flex-1 rounded-md bg-zinc-950 px-3 py-2 text-sm text-zinc-200 ring-1 ring-white/10"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const ok = await copyText(activationUrl);
+                      setActivationCopied(ok);
+                      if (!ok) {
+                        // clipboard 도 fallback 도 안 됨 — 사용자가 input 직접
+                        // 선택해서 Ctrl+C 하도록 select 만 해주고 종료.
+                        const input = document.activeElement;
+                        if (input instanceof HTMLInputElement) input.select();
+                      } else {
+                        setTimeout(() => setActivationCopied(false), 2000);
+                      }
+                    }}
+                    className="shrink-0 rounded-md bg-amber-400 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-amber-300"
+                  >
+                    {activationCopied
+                      ? t("activationUrlCopied")
+                      : t("activationUrlCopy")}
+                  </button>
+                </div>
               </section>
             )}
             </div>

@@ -107,25 +107,6 @@ export async function createMember(
     };
   }
 
-  if (email) {
-    const existingEmail = await prisma.user.findFirst({
-      where: { gymId, email },
-      select: { id: true, role: true, name: true },
-    });
-    if (existingEmail) {
-      return {
-        errors: {
-          email: [
-            te("emailTakenBy", {
-              role: te(ROLE_KEY[existingEmail.role]),
-              name: existingEmail.name,
-            }),
-          ],
-        },
-      };
-    }
-  }
-
   const created = await prisma.user.create({
     data: {
       gymId,
@@ -221,25 +202,6 @@ export async function updateMember(
     }
   }
 
-  if (email) {
-    const emailClash = await prisma.user.findFirst({
-      where: { gymId, email, NOT: { id: memberId } },
-      select: { id: true, role: true, name: true },
-    });
-    if (emailClash) {
-      return {
-        errors: {
-          email: [
-            te("emailTakenBy", {
-              role: te(ROLE_KEY[emailClash.role]),
-              name: emailClash.name,
-            }),
-          ],
-        },
-      };
-    }
-  }
-
   await prisma.user.update({
     where: { id: memberId },
     data: {
@@ -276,10 +238,17 @@ async function buildActivationUrl(
       expiresAt: new Date(Date.now() + SEVEN_DAYS_MS),
     },
   });
+  // 활성화 URL prefix 는 발급 대상의 모국어로. 회원이 영어로 등록됐다면
+  // 활성화 페이지부터 영어 UI 로 보여야 자연스러움.
+  const target = await prisma.user.findUnique({
+    where: { id: memberId },
+    select: { locale: true },
+  });
+  const lang = target?.locale === "ko" ? "ko" : "en";
   const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "http";
-  return `${proto}://${host}/ko/g/${slug}/activate?token=${token}`;
+  return `${proto}://${host}/${lang}/g/${slug}/activate?token=${token}`;
 }
 
 export type SendActivationResult =
@@ -328,6 +297,32 @@ export async function sendActivationEmail(
   }
   revalidatePath(`/ko/g/${slug}/members`);
   return { ok: true, url };
+}
+
+// 트레이너 intake 화면에서 이메일 없는 PENDING 회원 전용 — 트레이너가 본인
+// 폰으로 회원에게 SMS/카톡 전달하려는 흐름. PENDING + email=null 조건 만족
+// 시에만 URL 반환, 그 외 (ACTIVE, 이메일 있음) 면 null 로 화면 숨김.
+export async function getIntakePendingActivationUrl(
+  formData: FormData,
+): Promise<string | null> {
+  const slug = String(formData.get("slug") ?? "");
+  const memberId = String(formData.get("memberId") ?? "");
+  const auth = await requireGymStaff(slug);
+  const gymId = auth.business!.id;
+
+  const member = await prisma.user.findFirst({
+    where: {
+      id: memberId,
+      gymId,
+      role: "CUSTOMER",
+      status: "PENDING",
+      email: null,
+    },
+    select: { id: true },
+  });
+  if (!member) return null;
+
+  return await buildActivationUrl(slug, member.id, gymId);
 }
 
 export async function copyActivationUrl(

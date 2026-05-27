@@ -162,22 +162,6 @@ export function RegisterForm({
             errors={state.errors?.ownerLoginId}
           />
           <Field
-            label={t("ownerEmail")}
-            name="ownerEmail"
-            type="email"
-            hint={t("ownerEmailHint")}
-            errorMessage={t("errors.ownerEmail")}
-            errors={state.errors?.ownerEmail}
-          />
-          <Field
-            label={t("ownerPhone")}
-            name="ownerPhone"
-            placeholder={t("phonePlaceholder")}
-            required
-            errorMessage={t("errors.ownerPhone")}
-            errors={state.errors?.ownerPhone}
-          />
-          <Field
             label={t("ownerPassword")}
             name="ownerPassword"
             type="password"
@@ -194,6 +178,22 @@ export function RegisterForm({
             required
             errorMessage={t("errors.ownerPasswordConfirm")}
             errors={state.errors?.ownerPasswordConfirm}
+          />
+          <Field
+            label={t("ownerEmail")}
+            name="ownerEmail"
+            type="email"
+            hint={t("ownerEmailHint")}
+            errorMessage={t("errors.ownerEmail")}
+            errors={state.errors?.ownerEmail}
+          />
+          <Field
+            label={t("ownerPhone")}
+            name="ownerPhone"
+            placeholder={t("phonePlaceholder")}
+            required
+            errorMessage={t("errors.ownerPhone")}
+            errors={state.errors?.ownerPhone}
           />
         </div>
       </section>

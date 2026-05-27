@@ -162,8 +162,9 @@ export function TrainerForm({
   );
   const [role, setRole] = useState<"TRAINER" | "MANAGER">(iv?.role ?? "TRAINER");
   const [gender, setGender] = useState<"MALE" | "FEMALE">(iv?.gender ?? "MALE");
-  // 등록 시 모국어 선택 → User.locale. 기본 영어(스펙: default English).
-  const [locale, setLocale] = useState<"en" | "ko">(iv?.locale ?? "en");
+  // 등록 시 모국어 선택 → User.locale. UI 언어 결정 — 등록자가 명시
+  // 선택해야 등록 가능 (default 자동 선택 금지: 외국인/한국인 구분 불가).
+  const [locale, setLocale] = useState<"en" | "ko" | "">(iv?.locale ?? "");
   // Controlled text fields — auto-reset 방지 (등록 실패 시 입력값 보존).
   const [fields, setFields] = useState({
     name: iv?.name ?? "",
@@ -449,6 +450,7 @@ export function TrainerForm({
               type="time"
               name="workStart"
               lang={lang}
+              step={3600}
               value={workStart}
               onChange={(e) => setWorkStart(e.target.value)}
               className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
@@ -458,6 +460,7 @@ export function TrainerForm({
               type="time"
               name="workEnd"
               lang={lang}
+              step={3600}
               value={workEnd}
               onChange={(e) => setWorkEnd(e.target.value)}
               className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
@@ -475,6 +478,7 @@ export function TrainerForm({
               type="time"
               name="breakStart"
               lang={lang}
+              step={3600}
               value={breakStart}
               onChange={(e) => setBreakStart(e.target.value)}
               className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
@@ -484,6 +488,7 @@ export function TrainerForm({
               type="time"
               name="breakEnd"
               lang={lang}
+              step={3600}
               value={breakEnd}
               onChange={(e) => setBreakEnd(e.target.value)}
               className={`h-9 rounded-md border px-3 text-sm transition focus:outline-none focus:ring-2 ${tk.field}`}
@@ -507,14 +512,23 @@ export function TrainerForm({
               {t("monthlyBaseSalary")}
             </span>
             <input
-              type="number"
+              type="hidden"
               name="monthlyBaseSalaryPhp"
-              min={0}
-              step={100}
+              value={fields.monthlyBaseSalaryPhp}
+            />
+            <input
+              type="text"
               inputMode="numeric"
               placeholder={t("monthlyBaseSalaryPlaceholder")}
-              value={fields.monthlyBaseSalaryPhp}
-              onChange={(e) => set("monthlyBaseSalaryPhp", e.target.value)}
+              value={
+                fields.monthlyBaseSalaryPhp
+                  ? Number(fields.monthlyBaseSalaryPhp).toLocaleString("en-US")
+                  : ""
+              }
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^\d]/g, "");
+                set("monthlyBaseSalaryPhp", raw);
+              }}
               className={`h-11 rounded-md border px-3 text-sm tabular-nums transition focus:outline-none focus:ring-2 ${tk.field}`}
             />
           </label>
@@ -569,7 +583,7 @@ export function TrainerForm({
         </button>
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || !locale}
           className={`h-11 rounded-md px-6 text-sm font-medium transition disabled:opacity-60 ${tk.submit}`}
         >
           {mode === "edit"
