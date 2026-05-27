@@ -18,8 +18,7 @@ export function AdminSidebar({ lang }: { lang: string }) {
     {
       href: `/${lang}/admin/businesses`,
       label: "가맹점",
-      enabled: false,
-      hint: "준비중",
+      enabled: true,
     },
     {
       href: `/${lang}/admin/subscriptions`,

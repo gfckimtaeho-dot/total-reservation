@@ -261,6 +261,8 @@ model Business {
   hasDeposit   Boolean          @default(false)
   gcashQrUrl   String?
   status       BusinessStatus   @default(TRIAL)
+  // 관리자가 status=BLOCKED 로 차단 시 사유 메모. 재활성화 후에도 남겨 audit.
+  blockedReason String?
   // IANA 타임존 — 매장 현지 시간 기준(오늘/영업/예약 판정). 기존 매장은
   // 모두 필리핀이라 default Asia/Manila. 등록 시 선택받는다.
   timeZone     String           @default("Asia/Manila")
