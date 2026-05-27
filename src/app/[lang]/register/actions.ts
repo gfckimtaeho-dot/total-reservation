@@ -10,6 +10,7 @@ import { issueSession } from "@/lib/auth/session";
 import { sendWelcomeEmail } from "@/lib/email/resend";
 import { isSupportedTimeZone } from "@/lib/calendar/timezones";
 import { normalizeLoginId, LOGIN_ID_PATTERN } from "@/lib/auth/normalize";
+import { assertSingleOwner } from "@/lib/policies/owner-policy";
 
 const RESERVED_SLUGS = new Set([
   "admin",
@@ -163,6 +164,10 @@ export async function registerBusiness(
           status: "TRIAL",
         },
       });
+
+      // 신규 매장이라 항상 no-op 통과. OWNER 정책 강제 위치를 한 곳에 모아두는
+      // 의미만 — 향후 role 승격 흐름 추가 시 같은 헬퍼를 재사용.
+      await assertSingleOwner(business.id);
 
       const owner = await tx.user.create({
         data: {

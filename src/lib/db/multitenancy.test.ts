@@ -13,6 +13,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/client";
+import { assertSingleOwner } from "@/lib/policies/owner-policy";
 
 const url = process.env.DATABASE_URL ?? "";
 const dbAvailable =
@@ -195,6 +196,41 @@ describe.skipIf(!dbAvailable)("multi-tenancy isolation", () => {
         data: { email, name: "Admin 2", gymId: null, role: "ADMIN", status: "ACTIVE" },
       }),
     ).rejects.toThrow();
+  });
+
+  it("OWNER policy: rejects when a 2nd OWNER would be created in the same business", async () => {
+    const a = await makeBusiness(`${RUN}-owner1`, cityId, barangayId);
+
+    await prisma.user.create({
+      data: {
+        loginId: `${RUN}-owner-a`,
+        name: "First Owner",
+        gymId: a.id,
+        role: "OWNER",
+        status: "ACTIVE",
+      },
+    });
+
+    await expect(assertSingleOwner(a.id)).rejects.toThrow(/OWNER policy/);
+  });
+
+  it("OWNER policy: passes when no OWNER exists yet (no-op for fresh business)", async () => {
+    const a = await makeBusiness(`${RUN}-owner2`, cityId, barangayId);
+
+    await assertSingleOwner(a.id);
+
+    const owner = await prisma.user.create({
+      data: {
+        loginId: `${RUN}-owner-c`,
+        name: "Sole Owner",
+        gymId: a.id,
+        role: "OWNER",
+        status: "ACTIVE",
+      },
+    });
+
+    expect(owner.role).toBe("OWNER");
+    expect(owner.gymId).toBe(a.id);
   });
 
   it("scoped query hides other gyms' data", async () => {
