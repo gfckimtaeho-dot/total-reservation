@@ -1,13 +1,11 @@
 "use server";
 
 import crypto from "node:crypto";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requireAdmin } from "@/lib/auth/dal";
-import { clearSession } from "@/lib/auth/session";
 import { sendInviteEmail } from "@/lib/email/resend";
 
 const SEVEN_DAYS_MS = 1000 * 60 * 60 * 24 * 7;
@@ -28,7 +26,7 @@ export type CreateInviteState = {
   };
 };
 
-async function baseUrl(): Promise<string> {
+export async function baseUrl(): Promise<string> {
   const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "http";
@@ -127,7 +125,14 @@ export async function revokeInvite(formData: FormData) {
   revalidatePath("/admin/invites");
 }
 
-export async function adminLogout() {
-  await clearSession();
-  redirect("/admin/login");
+// docs/admin.md: expired (만료 + 미사용 + 미회수) 만 lazy 삭제. used/revoked 는 영구 audit.
+export async function cleanupExpiredInvites(): Promise<number> {
+  const res = await prisma.inviteToken.deleteMany({
+    where: {
+      expiresAt: { lt: new Date() },
+      usedAt: null,
+      revokedAt: null,
+    },
+  });
+  return res.count;
 }
