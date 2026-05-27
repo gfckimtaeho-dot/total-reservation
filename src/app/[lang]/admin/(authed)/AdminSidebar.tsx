@@ -23,8 +23,7 @@ export function AdminSidebar({ lang }: { lang: string }) {
     {
       href: `/${lang}/admin/subscriptions`,
       label: "구독",
-      enabled: false,
-      hint: "준비중",
+      enabled: true,
     },
     {
       href: `/${lang}/admin/stats`,
