@@ -24,7 +24,7 @@ export default async function IntakePage({
     redirect(`/${lang}/g/${slug}/members`);
   }
 
-  const [memberships, packages, combos, preset] = await Promise.all([
+  const [memberships, packages, combos, services, preset] = await Promise.all([
     prisma.membershipPlan.findMany({
       where: { gymId, active: true },
       select: { id: true, name: true, pricePhp: true, durationDays: true },
@@ -59,6 +59,19 @@ export default async function IntakePage({
         },
       },
       orderBy: { createdAt: "asc" },
+    }),
+    // 1회 단가 직접 발급용 — Service 자체(active=true) 카탈로그.
+    // PackagePlan(묶음 할인)에 등록 안 된 임의 회차(예: PT 3회) 발급 가능하게.
+    prisma.service.findMany({
+      where: { gymId, active: true },
+      select: {
+        id: true,
+        name: true,
+        capacity: true,
+        pricePhp: true,
+      },
+      // 1:1(capacity=1) 먼저 → 이름 순. PackagePlan 정렬 룰과 동일.
+      orderBy: [{ capacity: "asc" }, { name: "asc" }],
     }),
     sp.customer
       ? prisma.user.findFirst({
@@ -107,6 +120,7 @@ export default async function IntakePage({
           ...c.packageItems.map((it) => it.packagePlan.name),
         ],
       }))}
+      services={services}
       promotions={promotions}
     />
   );

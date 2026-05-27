@@ -398,10 +398,9 @@ export async function customerRemaining(input: {
   return { ok: true, data: result };
 }
 
-type IssueItem = {
-  kind: "PACKAGE" | "MEMBERSHIP" | "COMBO";
-  planId: string;
-};
+type IssueItem =
+  | { kind: "PACKAGE" | "MEMBERSHIP" | "COMBO"; planId: string }
+  | { kind: "SERVICE"; serviceId: string; count: number };
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
@@ -547,6 +546,59 @@ async function createSaleLine(
         pricePhp: plan.pricePhp,
         payoutPhp: perPayout,
         planId: plan.id,
+        saleId: s.id,
+        assignedStaffId: inheritedStaffId,
+      },
+    });
+    return;
+  }
+
+  // SERVICE 직접 발급 — PackagePlan 없이 Service.pricePhp(1회 단가) X 회차.
+  // 트레이너가 임의 회차(예: PT 3회)를 발급할 때 사용. 프로모션 대상 외(묶음
+  // 카탈로그가 아니므로 promo scope 매칭이 의미 없음). saleType=PACKAGE 재사용,
+  // sourcePlanId=null 로 plan 없는 sale 임을 명시.
+  if (item.kind === "SERVICE") {
+    if (!Number.isInteger(item.count) || item.count < 1) {
+      throw new Error("회차는 1 이상 정수여야 합니다");
+    }
+    const service = await tx.service.findFirst({
+      where: { id: item.serviceId, gymId, active: true },
+      select: { id: true, pricePhp: true, payoutPhp: true },
+    });
+    if (!service) throw new Error("프로그램을 찾을 수 없습니다");
+    const totalPrice = service.pricePhp * item.count;
+    const payoutLiab = service.payoutPhp * item.count;
+    const s = await tx.sale.create({
+      data: {
+        gymId,
+        userId: customerId,
+        saleType: "PACKAGE",
+        sourcePlanId: null,
+        listPricePhp: totalPrice,
+        promotionDiscountPhp: 0,
+        totalPaidPhp: totalPrice,
+        payoutLiabilityPhp: payoutLiab,
+        ownerRevenuePhp: totalPrice - payoutLiab,
+        soldById,
+      },
+      select: { id: true },
+    });
+    const inheritedStaffId = await inheritAssignedStaff(
+      tx,
+      gymId,
+      customerId,
+      service.id,
+    );
+    await tx.package.create({
+      data: {
+        gymId,
+        userId: customerId,
+        serviceId: service.id,
+        totalCount: item.count,
+        remainingCount: item.count,
+        pricePhp: totalPrice,
+        payoutPhp: service.payoutPhp,
+        planId: null,
         saleId: s.id,
         assignedStaffId: inheritedStaffId,
       },

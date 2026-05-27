@@ -912,7 +912,8 @@ model Sale {
   user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   saleType             SaleType
   // 판매 원천 plan (soft ref — PriceChangeLog와 동일 패턴).
-  sourcePlanId         String
+  // SERVICE 직접 발급(plan 없이 회차 X 1회단가)인 경우 null.
+  sourcePlanId         String?
   // 금액 산식 스냅샷(전부 결제 시점 박제)
   listPricePhp         Int // 정상가 합계
   promotionId          String?

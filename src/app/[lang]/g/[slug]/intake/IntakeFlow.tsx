@@ -40,6 +40,13 @@ type Combo = {
   pricePhp: number;
   parts: string[];
 };
+// 프로그램 카탈로그 — PackagePlan 없이 회차 X 1회 단가로 발급할 때의 단위.
+type Svc = {
+  id: string;
+  name: string;
+  capacity: number;
+  pricePhp: number;
+};
 type Cust = {
   id: string;
   name: string;
@@ -54,6 +61,7 @@ export function IntakeFlow({
   memberships,
   packages,
   combos,
+  services,
   promotions,
   embedded = false,
 }: {
@@ -63,6 +71,7 @@ export function IntakeFlow({
   memberships: Membership[];
   packages: Pkg[];
   combos: Combo[];
+  services: Svc[];
   promotions: PromoLike[];
   // embedded=true: 사장 dashboard chrome 안에 임베드(헤더/back link/outer bg 제거).
   // 트레이너는 dashboard 자체가 풀스크린이라 embedded=false로 outer 자체 chrome.
@@ -73,9 +82,12 @@ export function IntakeFlow({
   const [pending, start] = useTransition();
   const [cust, setCust] = useState<Cust | null>(preset);
   const [tab, setTab] = useState<"existing" | "new">("existing");
-  const [cat, setCat] = useState<"membership" | "package" | "combo">(
-    "membership",
-  );
+  const [cat, setCat] = useState<
+    "membership" | "package" | "service" | "combo"
+  >("membership");
+  // SERVICE 탭에서 선택 중인 service + 회차 (장바구니 담기 전 임시 상태)
+  const [svcId, setSvcId] = useState<string | null>(null);
+  const [svcCount, setSvcCount] = useState<number>(1);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Cust[]>([]);
   const [searched, setSearched] = useState(false);
@@ -95,12 +107,17 @@ export function IntakeFlow({
   const [activationUrl, setActivationUrl] = useState<string | null>(null);
   const [activationCopied, setActivationCopied] = useState(false);
 
-  // 즉석 장바구니 — 회원권/수업권/콤보를 여러 건 담아 한 번에 발급.
+  // 즉석 장바구니 — 회원권/수업권/콤보/프로그램(1회 단가)을 여러 건 담아 한 번에.
   // 라인마다 독립 Sale 1행으로 서버에서 한 트랜잭션 처리(issueCart).
+  // type 은 평탄화 (kind 별 optional). discriminated union spread 의 TS excess
+  // prop check 한계 회피용. 강한 union 은 server 측 IssueItem 에 있고 issueCart
+  // 호출 시 분기로 변환.
   type CartLine = {
     uid: string;
-    kind: "MEMBERSHIP" | "PACKAGE" | "COMBO";
-    planId: string;
+    kind: "MEMBERSHIP" | "PACKAGE" | "COMBO" | "SERVICE";
+    planId?: string;
+    serviceId?: string;
+    count?: number;
     name: string;
     pricePhp: number;
   };
@@ -109,9 +126,10 @@ export function IntakeFlow({
   // secure context 가 아니라 crypto.randomUUID 가 없어 throw → 단순 카운터.
   const uidRef = useRef(0);
   // 라인 할인(미리보기) — 서버 발급과 동일한 @/lib/catalog/promo 산식.
-  // 콤보는 프로모션 대상 아님(번들가 그대로).
+  // 콤보·프로그램(1회 단가)는 프로모션 대상 아님.
   function lineDiscount(l: CartLine): number {
-    if (l.kind === "COMBO") return 0;
+    if (l.kind === "COMBO" || l.kind === "SERVICE") return 0;
+    if (!l.planId) return 0;
     const b = pickBestPromo(promotions, l.kind, l.planId, l.pricePhp);
     return b?.discountPhp ?? 0;
   }
@@ -125,7 +143,8 @@ export function IntakeFlow({
     setErr(null);
     uidRef.current += 1;
     const uid = `c${uidRef.current}`;
-    setCart((c) => [...c, { ...line, uid }]);
+    // discriminated union spread 의 TS narrowing 한계 — cast 로 해결.
+    setCart((c) => [...c, { ...line, uid } as CartLine]);
   }
   function removeFromCart(uid: string) {
     setCart((c) => c.filter((x) => x.uid !== uid));
@@ -137,7 +156,18 @@ export function IntakeFlow({
       const r = await issueCart({
         slug,
         customerUserId: cust.id,
-        items: cart.map(({ kind, planId }) => ({ kind, planId })),
+        items: cart.map((l) =>
+          l.kind === "SERVICE"
+            ? {
+                kind: "SERVICE" as const,
+                serviceId: l.serviceId!,
+                count: l.count!,
+              }
+            : {
+                kind: l.kind as "MEMBERSHIP" | "PACKAGE" | "COMBO",
+                planId: l.planId!,
+              },
+        ),
       });
       if (r.ok) {
         setIssuedN(cart.length);
@@ -709,6 +739,13 @@ export function IntakeFlow({
                   </button>
                   <button
                     type="button"
+                    onClick={() => setCat("service")}
+                    className={tabBtn(cat === "service")}
+                  >
+                    {t("tabService")}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setCat("package")}
                     className={tabBtn(cat === "package")}
                   >
@@ -765,6 +802,132 @@ export function IntakeFlow({
                           </span>
                         </li>
                       ))
+                    ))}
+
+                  {cat === "service" &&
+                    (services.length === 0 ? (
+                      <li className="text-base text-zinc-500">
+                        {t("noPlansHere")}
+                      </li>
+                    ) : (
+                      services.map((s) => {
+                        const selected = svcId === s.id;
+                        const total =
+                          s.pricePhp * (selected ? svcCount : 1);
+                        return (
+                          <li
+                            key={s.id}
+                            className="rounded-lg border border-white/15 p-4"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span>
+                                <span className="text-lg font-semibold text-white">
+                                  {s.name}
+                                </span>
+                                <span className="ml-2 text-sm text-zinc-400">
+                                  {s.capacity > 1 ? t("svcGroup") : "1:1"}
+                                </span>
+                              </span>
+                              <span className="flex items-center gap-3">
+                                <span className="text-base text-zinc-300 tabular-nums">
+                                  {peso(s.pricePhp)} / {t("perSession")}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (selected) {
+                                      setSvcId(null);
+                                    } else {
+                                      setSvcId(s.id);
+                                      setSvcCount(1);
+                                    }
+                                  }}
+                                  className="rounded-md border border-amber-400/40 bg-amber-400/15 px-3 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-400/25"
+                                >
+                                  {selected
+                                    ? t("svcCancel")
+                                    : t("svcChoose")}
+                                </button>
+                              </span>
+                            </div>
+                            {selected && (
+                              <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-white/10 pt-3">
+                                <label className="flex items-center gap-2 text-sm text-zinc-300">
+                                  {t("svcCountLabel")}
+                                  <span className="inline-flex items-center rounded-md border border-white/20 bg-zinc-800">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSvcCount((c) => Math.max(1, c - 1))
+                                      }
+                                      disabled={svcCount <= 1}
+                                      aria-label="decrement"
+                                      className="px-3 py-1 text-lg text-white hover:bg-white/10 disabled:opacity-30"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      step={1}
+                                      value={svcCount}
+                                      onChange={(e) =>
+                                        setSvcCount(
+                                          Math.max(
+                                            1,
+                                            parseInt(
+                                              e.target.value || "1",
+                                              10,
+                                            ) || 1,
+                                          ),
+                                        )
+                                      }
+                                      className="w-12 bg-transparent py-1 text-center text-base text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSvcCount((c) => c + 1)
+                                      }
+                                      aria-label="increment"
+                                      className="px-3 py-1 text-lg text-white hover:bg-white/10"
+                                    >
+                                      +
+                                    </button>
+                                  </span>
+                                </label>
+                                <span className="text-base text-zinc-300">
+                                  {t("svcTotalLabel")}:{" "}
+                                  <span className="text-lg font-semibold tabular-nums text-amber-300">
+                                    {peso(total)}
+                                  </span>
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={pending || svcCount < 1}
+                                  onClick={() => {
+                                    addToCart({
+                                      kind: "SERVICE",
+                                      serviceId: s.id,
+                                      count: svcCount,
+                                      name: t("svcLineName", {
+                                        name: s.name,
+                                        count: svcCount,
+                                      }),
+                                      pricePhp: total,
+                                    });
+                                    setSvcId(null);
+                                    setSvcCount(1);
+                                  }}
+                                  className="ml-auto rounded-md border border-emerald-400/40 bg-emerald-400/15 px-4 py-2 text-base font-semibold text-emerald-300 transition hover:bg-emerald-400/25 disabled:opacity-40"
+                                >
+                                  {t("addToCart")}
+                                </button>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })
                     ))}
 
                   {cat === "package" &&
