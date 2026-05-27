@@ -21,6 +21,10 @@ export function CustomerChatCard({ href }: { href: string }) {
     async function tick() {
       try {
         const res = await fetch("/api/chat/unread", { cache: "no-store" });
+        // 401 = 세션 끊김 (logout 직후). 무한 polling 도배 방지 위해 즉시 중단.
+        // 브라우저가 새 페이지로 navigate 하면 자연 unmount 되지만 그 사이
+        // 401 도배가 RSC transition 을 압박. 명시적 stop 으로 race 해소.
+        if (res.status === 401) return;
         if (res.ok) {
           const j = (await res.json()) as { total: number };
           if (!cancelled) setUnread(j.total);

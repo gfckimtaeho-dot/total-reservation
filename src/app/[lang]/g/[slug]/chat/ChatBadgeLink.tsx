@@ -32,6 +32,9 @@ export function ChatBadgeLink({
     async function tick() {
       try {
         const res = await fetch("/api/chat/unread", { cache: "no-store" });
+        // 401 = 세션 끊김 (logout 직후). 무한 polling 도배 방지 위해 즉시 중단.
+        // 자세한 이유는 CustomerChatCard 의 같은 분기 코멘트 참고.
+        if (res.status === 401) return;
         if (res.ok) {
           const j = (await res.json()) as { total: number };
           if (!cancelled) setUnread(j.total);
