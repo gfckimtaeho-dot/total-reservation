@@ -103,7 +103,7 @@
 | 인증 | [auth.md](./auth.md) | invite link · magic link · 로그인 · 세션 · 트레이너 초대 |
 | 매장 | [business.md](./business.md) | 매장 등록 · 직원 · 서비스 · 멤버십 · 권한 모델 |
 | 예약 | [booking.md](./booking.md) | 빈 시간 계산 · 정원 · 승인 분기 · 변경 · 취소 |
-| 고객 | [customer.md](./customer.md) | 신뢰도 · 블랙 · 멤버십 · 패키지 |
+| 고객 | [customer.md](./customer.md) | 신뢰도 · 블랙 · 멤버십 · 패키지 (묶음 + 임의 회차) |
 | 알림 | [notification.md](./notification.md) | 푸시 · 이메일 · 발송 조건 |
 | 출입 | [access.md](./access.md) | QR 발급 · 검증 · access log |
 | 관리자 | [admin.md](./admin.md) | 가맹점 invite · 구독 · 통계 |
