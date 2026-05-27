@@ -9,6 +9,7 @@ import {
   setTrainerActive,
   sendTrainerActivationEmail,
 } from "./actions";
+import { copyText } from "@/lib/clipboard";
 
 type Tone = "normal" | "black" | "white";
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
@@ -147,7 +148,7 @@ export function TrainerRow({
       fd.append("staffId", trainer.staffId);
       const res = await copyTrainerActivationUrl(fd);
       if (res.ok) {
-        await navigator.clipboard.writeText(res.url);
+        await copyText(res.url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         showFeedback("ok", t("rowCopyOk"));

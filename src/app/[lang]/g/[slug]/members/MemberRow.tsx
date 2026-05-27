@@ -9,6 +9,7 @@ import {
   sendActivationEmail,
 } from "./actions";
 import { MemberAddDialog } from "./MemberAddDialog";
+import { copyText } from "@/lib/clipboard";
 
 const TK = {
   rowBorder: "border-violet-100",
@@ -92,7 +93,7 @@ export function MemberRow({
       fd.append("memberId", member.id);
       const res = await copyActivationUrl(fd);
       if (res.ok) {
-        await navigator.clipboard.writeText(res.url);
+        await copyText(res.url);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         showFeedback("ok", t("rowCopyOk"));

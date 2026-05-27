@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { createInvite, emailInvite, type CreateInviteState } from "./actions";
+import { copyText } from "@/lib/clipboard";
 
 const initialState: CreateInviteState = {};
 
@@ -29,7 +30,7 @@ export function InviteForm() {
   const [sendPending, startSend] = useTransition();
 
   async function copy(key: string, text: string) {
-    await navigator.clipboard.writeText(text);
+    await copyText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
   }
