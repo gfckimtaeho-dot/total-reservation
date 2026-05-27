@@ -28,8 +28,7 @@ export function AdminSidebar({ lang }: { lang: string }) {
     {
       href: `/${lang}/admin/stats`,
       label: "통계",
-      enabled: false,
-      hint: "준비중",
+      enabled: true,
     },
   ];
 
