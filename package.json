@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma migrate deploy && next build",
+    "build": "prisma migrate deploy && prisma generate --schema=prisma/schema-hotel.prisma && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "postinstall": "prisma generate"
+    "prisma:generate-hotel": "prisma generate --schema=prisma/schema-hotel.prisma",
+    "postinstall": "prisma generate && prisma generate --schema=prisma/schema-hotel.prisma"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

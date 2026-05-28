@@ -63,6 +63,7 @@ export function PendingInviteRow(props: Props) {
     startSend(async () => {
       const fd = new FormData();
       fd.append("tokenId", id);
+      fd.append("vertical", vertical);
       const res = await emailInvite(fd);
       if (res.ok) {
         setSendStatus("ok");
@@ -78,6 +79,7 @@ export function PendingInviteRow(props: Props) {
     startRevoke(async () => {
       const fd = new FormData();
       fd.append("id", id);
+      fd.append("vertical", vertical);
       await revokeInvite(fd);
     });
   }

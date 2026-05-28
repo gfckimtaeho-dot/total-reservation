@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/client";
+import { hotelDb } from "@/lib/hotel-db";
 import { baseUrl, cleanupExpiredInvites } from "./actions";
 import { InviteForm } from "./InviteForm";
 import { PendingInviteRow, VerticalLabel } from "./PendingInviteRow";
@@ -40,8 +41,16 @@ export default async function AdminInvitesPage({
 
   await cleanupExpiredInvites();
 
-  const [all, urlBase] = await Promise.all([
+  // 두 DB (헬스장 + 호텔) 의 InviteToken 을 병렬 read 후 vertical 합성 + createdAt desc merge.
+  // 호텔 row 는 schema 에 vertical 컬럼 없으므로 "HOTEL" 로 고정 합성.
+  const [gymRows, hotelRows, urlBase] = await Promise.all([
     prisma.inviteToken.findMany({
+      include: {
+        createdBusiness: { select: { name: true, slug: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    hotelDb.inviteToken.findMany({
       include: {
         createdBusiness: { select: { name: true, slug: true } },
       },
@@ -50,6 +59,11 @@ export default async function AdminInvitesPage({
     baseUrl(),
   ]);
   const hotelBase = process.env.HOTEL_PUBLIC_BASE_URL?.trim() ?? "";
+
+  const all = [
+    ...gymRows,
+    ...hotelRows.map((r) => ({ ...r, vertical: "HOTEL" as const })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const pending = all.filter((t) => !t.usedAt && !t.revokedAt);
   const used = all.filter((t) => !!t.usedAt);

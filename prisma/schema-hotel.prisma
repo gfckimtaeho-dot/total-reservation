@@ -1,0 +1,384 @@
+// 호텔 repo (C:\projects\hotelreservation) 의 prisma/schema.prisma 의 복제본.
+// 헬스장 admin 이 호텔 DB 의 InviteToken/Business/Subscription 등을 read/write 하기 위한 prisma client generate 용.
+// 호텔 repo 의 schema 는 절대 수정 X (사용자 명시 룰). 변경은 호텔 측이 master.
+// 호텔 schema 변경 시 사람 책임 sync = 호텔 측 변경 받아 이 파일에 복사 후 `npm run prisma:generate-hotel`.
+// 마지막 sync: 2026-05-29.
+//
+// 헬스장 측 변경 항목 (호텔 원본과 다른 부분):
+//   - generator output: `../src/generated/prisma` → `../src/generated/prisma-hotel`
+//
+// 호텔 DB connection 은 src/lib/hotel-db.ts 에서 PrismaPg adapter 로 HOTEL_DATABASE_URL 주입.
+// Prisma 7 부터 schema 안 datasource.url 박기 금지 (config / adapter 만 허용).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma-hotel"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ─────────────────────────────────────────────────
+
+// 호텔 db 안의 User 의 role. 헬스장의 ADMIN/TRAINER/CUSTOMER 는 호텔에 없음.
+// CLEANER 는 로그인 안 함 (offline 보고) - role enum 에 없음.
+enum Role {
+  OWNER
+  MANAGER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  WITHDRAWN
+  ANONYMIZED
+}
+
+enum BusinessStatus {
+  TRIAL
+  ACTIVE
+  GRACE
+  EXPIRED
+  BLOCKED
+}
+
+enum SubscriptionPlan {
+  TRIAL
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
+
+enum MagicLinkPurpose {
+  SIGNUP_ACTIVATION
+  PASSWORD_RESET
+  STAFF_INVITE
+}
+
+enum Locale {
+  ko
+  en
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+// 호텔 객실 상태. DIRTY = 체크아웃 후 자동 (청소 대기). READY = 청소 완료 후 매니저가
+// 수동 토글. OUT_OF_ORDER = 수리/장기 미사용.
+enum RoomState {
+  READY
+  IN_USE
+  DIRTY
+  OUT_OF_ORDER
+}
+
+enum CheckInState {
+  NOT_CONFIRMED
+  CONFIRMED
+}
+
+enum CheckOutState {
+  NOT_CONFIRMED
+  CONFIRMED
+}
+
+// ─── Business (호텔 가맹점) ────────────────────────────────
+
+model Business {
+  id            String         @id @default(cuid())
+  slug          String         @unique
+  name          String
+  phone         String?
+  contactEmail  String?
+  address       String?
+  // 세금계산서 발행용. 한국 사업자만 채움, 필리핀 사장이면 NULL.
+  // V1 = 단순 string 4 필드 + 정형화 X. V2 검색/통계 필요 시 분리.
+  taxRegistrationNumber String?
+  taxLegalName          String?
+  taxAddress            String?
+  taxBusinessType       String?
+  status        BusinessStatus @default(TRIAL)
+  blockedReason String?
+  // IANA 타임존 - 매장 현지 시간 기준. 필리핀 호텔 default Asia/Manila.
+  timeZone      String         @default("Asia/Manila")
+  // 체크인/체크아웃 기본 시간 (자정 기준 분, Manila). 15:00 / 11:00.
+  defaultCheckInMin  Int @default(900)
+  defaultCheckOutMin Int @default(660)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  createdById   String?
+  updatedById   String?
+
+  users           User[]
+  staff           Staff[]
+  rooms           Room[]
+  stays           Stay[]
+  customers       Customer[]
+  subscription    Subscription?
+  payments        Payment[]
+  magicLinkTokens MagicLinkToken[]
+  inviteToken     InviteToken?
+
+  @@index([status])
+}
+
+// ─── User (가맹점 스코프) ─────────────────────────────────
+
+model User {
+  id           String     @id @default(cuid())
+  hotelId      String
+  business     Business   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  // 로그인 식별자. 매장별 unique. PENDING(활성화 전) row 는 NULL. Postgres NULL
+  // distinct 라 NULL row 들끼리는 충돌 안 함.
+  loginId      String?
+  email        String?
+  passwordHash String?
+  name         String
+  phone        String?
+  gender       Gender?
+  dob          DateTime?  @db.Date
+  note         String?
+  role         Role       @default(MANAGER)
+  status       UserStatus @default(PENDING)
+  active       Boolean    @default(true)
+  locale       Locale     @default(ko)
+  // 약관 동의. register 시점에 한꺼번에 채워짐. 분쟁 증빙.
+  termsAgreedAt   DateTime? @db.Timestamptz(3)
+  privacyAgreedAt DateTime? @db.Timestamptz(3)
+  billingAgreedAt DateTime? @db.Timestamptz(3)
+  termsVersion    String?
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+  createdById  String?
+  updatedById  String?
+
+  staff           Staff?
+  sessions        Session[]
+  accounts        Account[]
+  magicLinkTokens MagicLinkToken[]
+
+  @@unique([loginId, hotelId])
+  @@index([hotelId, role])
+  @@index([hotelId, status])
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String   @unique
+  expiresAt   DateTime @db.Timestamptz(3)
+  ipAddress   String?
+  userAgent   String?
+  rememberMe  Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Account {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId  String
+  accountId   String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+// ─── Tokens ────────────────────────────────────────────────
+
+model MagicLinkToken {
+  id           String           @id @default(cuid())
+  token        String           @unique
+  targetUserId String
+  targetUser   User             @relation(fields: [targetUserId], references: [id], onDelete: Cascade)
+  hotelId      String?
+  business     Business?        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  purpose      MagicLinkPurpose
+  expiresAt    DateTime         @db.Timestamptz(3)
+  usedAt       DateTime?        @db.Timestamptz(3)
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById  String?
+  updatedById  String?
+
+  @@index([targetUserId, purpose])
+  @@index([expiresAt])
+}
+
+// 헬스장 admin 이 호텔 가맹점 등록 invite 발급 시 호텔 db 에 직접 write 하는 row.
+// cross-DB write = 헬스장 admin 의 prisma client 가 HOTEL_DATABASE_URL 로 연결.
+// 호텔 측 register 페이지 (`/[locale]/register?token=XXX`) 가 이 row 읽고 검증.
+model InviteToken {
+  id                   String    @id @default(cuid())
+  token                String    @unique
+  expectedBusinessName String?
+  expectedOwnerEmail   String?
+  expectedOwnerPhone   String?
+  expiresAt            DateTime  @db.Timestamptz(3)
+  usedAt               DateTime? @db.Timestamptz(3)
+  revokedAt            DateTime? @db.Timestamptz(3)
+  createdBusinessId    String?   @unique
+  createdBusiness      Business? @relation(fields: [createdBusinessId], references: [id])
+  createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById          String?
+  updatedById          String?
+
+  @@index([expiresAt])
+}
+
+// ─── Staff (사장/매니저 = User 와 1:1 link) ─────────────────
+
+model Staff {
+  id          String   @id @default(cuid())
+  hotelId     String
+  business    Business @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        Role
+  photoUrl    String?
+  // 매장 출근 시간 (자정 기준 분, Manila). 호텔은 24시간 운영이 일반적이나 매니저
+  // 시프트 표시용. default null = 24시간.
+  workStartMin Int?
+  workEndMin   Int?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@index([hotelId, role])
+}
+
+// ─── 호텔 도메인: Room / Stay / Customer ───────────────────
+
+model Room {
+  id          String    @id @default(cuid())
+  hotelId     String
+  business    Business  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  // 방번호 (101, 102, ..., 901, 902...). 호텔별 unique.
+  roomNumber  String
+  // 층 번호. 9F 의 901 호 = floor 9.
+  floor       Int?
+  // 등급 (Single/Double/Suite 등). V1 = 단순 string. V2 에서 RoomType 모델 분리 가능.
+  roomType    String?
+  // 기본 1박 가격 (PHP). 시즌 가격은 V2 (별 모델).
+  basePricePhp Int
+  state       RoomState @default(READY)
+  isActive    Boolean   @default(true)
+  note        String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  stays Stay[]
+
+  @@unique([hotelId, roomNumber])
+  @@index([hotelId, state])
+}
+
+// 게스트 (호텔 손님). 재방문 가능성 위해 별 모델. Stay 와 1:N.
+model Customer {
+  id              String   @id @default(cuid())
+  hotelId         String
+  business        Business @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  name            String
+  phone           String?
+  email           String?
+  passportNumber  String?
+  passportImageUrl String?
+  note            String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  createdById     String?
+  updatedById     String?
+
+  stays Stay[]
+
+  @@index([hotelId, name])
+  @@index([hotelId, phone])
+}
+
+// 예약 (1박 단위). makeReservation.png 의 필드 그대로.
+model Stay {
+  id                    String        @id @default(cuid())
+  hotelId               String
+  business              Business      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  // 호텔 자체 예약 번호 (자동 발급). 호텔별 unique.
+  reservationNumber     String
+  // OTA (Agoda/Trip.com/Naver) 예약 번호 메모. V1 = 자동 연동 X, 매니저 수동 입력.
+  otaReservationNumber  String?
+  roomId                String
+  room                  Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  customerId            String
+  customer              Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  // 1박 단위. checkOutDate 는 exclusive (예: 10/02 ~ 10/03 = 10/02 밤만).
+  checkInDate           DateTime      @db.Date
+  checkOutDate          DateTime      @db.Date
+  // 예약 시점 가격 snapshot (Room.basePricePhp 변경 영향 안 받음).
+  roomPricePhp          Int
+  totalPerson           Int           @default(1)
+  checkInState          CheckInState  @default(NOT_CONFIRMED)
+  checkOutState         CheckOutState @default(NOT_CONFIRMED)
+  // 실제 체크인/체크아웃 timestamp (matched 또는 별 분리 - 일단 timestamp 만).
+  checkedInAt           DateTime?     @db.Timestamptz(3)
+  checkedOutAt          DateTime?     @db.Timestamptz(3)
+  etc                   String?
+  createdAt             DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime      @updatedAt @db.Timestamptz(3)
+  createdById           String?
+  updatedById           String?
+
+  @@unique([hotelId, reservationNumber])
+  @@index([hotelId, checkInDate])
+  @@index([hotelId, checkOutDate])
+  @@index([roomId, checkInDate])
+}
+
+// ─── 구독 / 결제 ───────────────────────────────────────────
+
+model Subscription {
+  id          String           @id @default(cuid())
+  hotelId     String           @unique
+  business    Business         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  plan        SubscriptionPlan @default(TRIAL)
+  startDate   DateTime         @db.Timestamptz(3)
+  endDate     DateTime         @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@index([endDate])
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  hotelId     String
+  business    Business  @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  amountPhp   Int
+  paidAt      DateTime  @db.Timestamptz(3)
+  confirmedAt DateTime? @db.Timestamptz(3)
+  memo        String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@index([hotelId, paidAt])
+}

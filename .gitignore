@@ -48,6 +48,7 @@ next-env.d.ts
 errorcapture/
 
 /src/generated/prisma
+/src/generated/prisma-hotel
 
 # dev/build 로그 + 로컬 계정 메모 (커밋 금지 - 시크릿/노이즈)
 .next-*.log

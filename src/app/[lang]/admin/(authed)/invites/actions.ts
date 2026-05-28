@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
+import { hotelDb } from "@/lib/hotel-db";
 import { requireAdmin } from "@/lib/auth/dal";
 import { sendInviteEmail } from "@/lib/email/resend";
 
@@ -17,9 +18,11 @@ const createSchema = z.object({
   expectedOwnerPhone: z.string().min(1, "사장 전화번호를 입력해 주세요"),
 });
 
+type Vertical = "GYM" | "HOTEL";
+
 // HOTEL 발급은 admin/.env 의 HOTEL_PUBLIC_BASE_URL 을 사용. 미설정이면 invite 발급 차단.
 async function resolveInviteBaseUrl(
-  vertical: "GYM" | "HOTEL",
+  vertical: Vertical,
 ): Promise<string | null> {
   if (vertical === "HOTEL") {
     return process.env.HOTEL_PUBLIC_BASE_URL?.trim() || null;
@@ -76,27 +79,57 @@ export async function createInvite(
   }
 
   const token = crypto.randomBytes(32).toString("base64url");
-  const created = await prisma.inviteToken.create({
-    data: {
-      token,
-      vertical: parsed.data.vertical,
-      expectedBusinessName: parsed.data.expectedBusinessName,
-      expectedOwnerEmail: parsed.data.expectedOwnerEmail,
-      expectedOwnerPhone: parsed.data.expectedOwnerPhone,
-      expiresAt: new Date(Date.now() + SEVEN_DAYS_MS),
-    },
-  });
+  const expiresAt = new Date(Date.now() + SEVEN_DAYS_MS);
 
-  const url = `${inviteBase}/ko/register?token=${created.token}`;
+  // HOTEL invite 는 호텔 DB 의 InviteToken 에 write (호텔 register 페이지가 호텔 DB lookup).
+  // GYM invite 는 헬스장 DB 의 InviteToken 에 vertical 포함해 write.
+  let createdId: string;
+  let createdBusinessName: string;
+  let createdOwnerEmail: string | null;
+
+  if (parsed.data.vertical === "HOTEL") {
+    const created = await hotelDb.inviteToken.create({
+      data: {
+        token,
+        expectedBusinessName: parsed.data.expectedBusinessName,
+        expectedOwnerEmail: parsed.data.expectedOwnerEmail,
+        expectedOwnerPhone: parsed.data.expectedOwnerPhone,
+        expiresAt,
+      },
+    });
+    createdId = created.id;
+    createdBusinessName = created.expectedBusinessName ?? "";
+    createdOwnerEmail = created.expectedOwnerEmail;
+  } else {
+    const created = await prisma.inviteToken.create({
+      data: {
+        token,
+        vertical: parsed.data.vertical,
+        expectedBusinessName: parsed.data.expectedBusinessName,
+        expectedOwnerEmail: parsed.data.expectedOwnerEmail,
+        expectedOwnerPhone: parsed.data.expectedOwnerPhone,
+        expiresAt,
+      },
+    });
+    createdId = created.id;
+    createdBusinessName = created.expectedBusinessName ?? "";
+    createdOwnerEmail = created.expectedOwnerEmail;
+  }
+
+  const url = `${inviteBase}/ko/register?token=${token}`;
   revalidatePath("/admin/invites");
   return {
     created: {
-      id: created.id,
+      id: createdId,
       url,
-      ownerEmail: created.expectedOwnerEmail,
-      businessName: created.expectedBusinessName ?? "",
+      ownerEmail: createdOwnerEmail,
+      businessName: createdBusinessName,
     },
   };
+}
+
+function parseVertical(value: FormDataEntryValue | null): Vertical {
+  return value === "HOTEL" ? "HOTEL" : "GYM";
 }
 
 export async function emailInvite(
@@ -104,9 +137,13 @@ export async function emailInvite(
 ): Promise<{ ok?: boolean; message?: string }> {
   await requireAdmin();
   const tokenId = String(formData.get("tokenId") ?? "");
-  const invite = await prisma.inviteToken.findUnique({
-    where: { id: tokenId },
-  });
+  const vertical = parseVertical(formData.get("vertical"));
+
+  const invite =
+    vertical === "HOTEL"
+      ? await hotelDb.inviteToken.findUnique({ where: { id: tokenId } })
+      : await prisma.inviteToken.findUnique({ where: { id: tokenId } });
+
   if (!invite) return { message: "Invite를 찾을 수 없습니다." };
   if (!invite.expectedOwnerEmail) {
     return {
@@ -118,7 +155,7 @@ export async function emailInvite(
     return { message: "이미 사용·회수된 invite입니다." };
   }
 
-  const inviteBase = await resolveInviteBaseUrl(invite.vertical);
+  const inviteBase = await resolveInviteBaseUrl(vertical);
   if (!inviteBase) {
     return {
       message:
@@ -149,21 +186,33 @@ export async function emailInvite(
 export async function revokeInvite(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  await prisma.inviteToken.update({
-    where: { id },
-    data: { revokedAt: new Date() },
-  });
+  const vertical = parseVertical(formData.get("vertical"));
+
+  if (vertical === "HOTEL") {
+    await hotelDb.inviteToken.update({
+      where: { id },
+      data: { revokedAt: new Date() },
+    });
+  } else {
+    await prisma.inviteToken.update({
+      where: { id },
+      data: { revokedAt: new Date() },
+    });
+  }
   revalidatePath("/admin/invites");
 }
 
 // docs/admin.md: expired (만료 + 미사용 + 미회수) 만 lazy 삭제. used/revoked 는 영구 audit.
+// 두 DB (헬스장 + 호텔) 모두 정리.
 export async function cleanupExpiredInvites(): Promise<number> {
-  const res = await prisma.inviteToken.deleteMany({
-    where: {
-      expiresAt: { lt: new Date() },
-      usedAt: null,
-      revokedAt: null,
-    },
-  });
-  return res.count;
+  const where = {
+    expiresAt: { lt: new Date() },
+    usedAt: null,
+    revokedAt: null,
+  };
+  const [gym, hotel] = await Promise.all([
+    prisma.inviteToken.deleteMany({ where }),
+    hotelDb.inviteToken.deleteMany({ where }),
+  ]);
+  return gym.count + hotel.count;
 }
