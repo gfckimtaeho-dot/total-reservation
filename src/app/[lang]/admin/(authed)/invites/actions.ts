@@ -34,6 +34,7 @@ export type CreateInviteState = {
   errors?: Record<string, string[] | undefined>;
   created?: {
     id: string;
+    vertical: Vertical;
     url: string;
     ownerEmail: string | null;
     businessName: string;
@@ -121,6 +122,7 @@ export async function createInvite(
   return {
     created: {
       id: createdId,
+      vertical: parsed.data.vertical,
       url,
       ownerEmail: createdOwnerEmail,
       businessName: createdBusinessName,

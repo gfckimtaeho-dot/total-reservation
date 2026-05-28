@@ -43,6 +43,7 @@ export function InviteForm() {
     startSend(async () => {
       const fd = new FormData();
       fd.append("tokenId", state.created!.id);
+      fd.append("vertical", state.created!.vertical);
       const res = await emailInvite(fd);
       if (res.ok) {
         setSendStatus("ok");
