@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/client";
+import { hotelDb } from "@/lib/hotel-db";
 import type { BusinessStatus } from "@/generated/prisma/client";
 import { applyExpiryTransitions } from "@/lib/subscription/lifecycle";
+import { VerticalLabel } from "../invites/PendingInviteRow";
 
 const STATUS_LABEL: Record<BusinessStatus, string> = {
   TRIAL: "체험중",
@@ -28,6 +30,22 @@ const ALL_STATUSES: BusinessStatus[] = [
 ];
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+type Vertical = "GYM" | "HOTEL";
+
+type GymGridRow = {
+  id: string;
+  vertical: Vertical;
+  name: string;
+  slug: string;
+  status: BusinessStatus;
+  ownerName: string | null;
+  activeMembers: number | null;
+  newCustomersThisMonth: number | null;
+  totalRevenue: number;
+  monthRevenue: number;
+  createdAt: Date;
+};
 
 function parseYear(raw: string | undefined, fallback: number): number {
   if (!raw) return fallback;
@@ -67,13 +85,20 @@ export default async function AdminStatsPage({
 
   const mStart = monthStart();
 
+  // 헬스장 + 호텔 두 DB 의 6 query 씩 병렬. 호텔 schema 는 회원/신규 회원 개념이 없으니
+  // 호텔 row 의 그 두 컬럼은 null 로 가공. 매출/매장수/상태분포는 KRW 통일 합산.
   const [
-    rangePayments,
-    statusGroups,
-    businesses,
-    paymentByGym,
-    monthPaymentByGym,
-    newCustomerByGym,
+    gymRangePayments,
+    gymStatusGroups,
+    gymBusinesses,
+    gymPaymentByGym,
+    gymMonthPaymentByGym,
+    gymNewCustomerByGym,
+    hotelRangePayments,
+    hotelStatusGroups,
+    hotelBusinesses,
+    hotelPaymentByHotel,
+    hotelMonthPaymentByHotel,
   ] = await Promise.all([
     prisma.payment.findMany({
       where: { paidAt: { gte: rangeStart, lt: rangeEnd } },
@@ -113,9 +138,33 @@ export default async function AdminStatsPage({
       },
       _count: { _all: true },
     }),
+    hotelDb.payment.findMany({
+      where: { paidAt: { gte: rangeStart, lt: rangeEnd } },
+      select: { amountPhp: true, paidAt: true },
+    }),
+    hotelDb.business.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }),
+    hotelDb.business.findMany({
+      include: {
+        users: {
+          where: { role: "OWNER" },
+          select: { name: true },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    hotelDb.payment.groupBy({ by: ["hotelId"], _sum: { amountPhp: true } }),
+    hotelDb.payment.groupBy({
+      by: ["hotelId"],
+      where: { paidAt: { gte: mStart } },
+      _sum: { amountPhp: true },
+    }),
   ]);
 
-  // year -> month -> sum
+  // year -> month -> sum (헬스장 + 호텔 합산)
   const grid: Record<number, Record<number, number>> = {};
   const yearTotals: Record<number, number> = {};
   for (const y of years) {
@@ -123,7 +172,7 @@ export default async function AdminStatsPage({
     yearTotals[y] = 0;
     for (const m of MONTHS) grid[y][m] = 0;
   }
-  for (const p of rangePayments) {
+  for (const p of [...gymRangePayments, ...hotelRangePayments]) {
     const y = p.paidAt.getFullYear();
     const m = p.paidAt.getMonth() + 1;
     if (grid[y]) {
@@ -133,6 +182,7 @@ export default async function AdminStatsPage({
   }
   const grandTotal = years.reduce((s, y) => s + (yearTotals[y] ?? 0), 0);
 
+  // status 분포 = 두 DB 합산
   const statusCount: Record<BusinessStatus, number> = {
     TRIAL: 0,
     ACTIVE: 0,
@@ -140,22 +190,68 @@ export default async function AdminStatsPage({
     EXPIRED: 0,
     BLOCKED: 0,
   };
-  for (const g of statusGroups) {
-    statusCount[g.status] = g._count._all;
+  for (const g of [...gymStatusGroups, ...hotelStatusGroups]) {
+    statusCount[g.status as BusinessStatus] += g._count._all;
   }
 
-  const paymentMap = new Map<string, number>();
-  for (const r of paymentByGym) {
-    paymentMap.set(r.gymId, r._sum.amountPhp ?? 0);
+  // 가맹점별 매출/신규 회원 map (헬스장)
+  const gymPaymentMap = new Map<string, number>();
+  for (const r of gymPaymentByGym) {
+    gymPaymentMap.set(r.gymId, r._sum.amountPhp ?? 0);
   }
-  const monthPaymentMap = new Map<string, number>();
-  for (const r of monthPaymentByGym) {
-    monthPaymentMap.set(r.gymId, r._sum.amountPhp ?? 0);
+  const gymMonthPaymentMap = new Map<string, number>();
+  for (const r of gymMonthPaymentByGym) {
+    gymMonthPaymentMap.set(r.gymId, r._sum.amountPhp ?? 0);
   }
-  const newCustomerMap = new Map<string, number>();
-  for (const r of newCustomerByGym) {
-    if (r.gymId) newCustomerMap.set(r.gymId, r._count._all);
+  const gymNewCustomerMap = new Map<string, number>();
+  for (const r of gymNewCustomerByGym) {
+    if (r.gymId) gymNewCustomerMap.set(r.gymId, r._count._all);
   }
+
+  // 호텔 매장별 매출 map (회원 개념 X)
+  const hotelPaymentMap = new Map<string, number>();
+  for (const r of hotelPaymentByHotel) {
+    hotelPaymentMap.set(r.hotelId, r._sum.amountPhp ?? 0);
+  }
+  const hotelMonthPaymentMap = new Map<string, number>();
+  for (const r of hotelMonthPaymentByHotel) {
+    hotelMonthPaymentMap.set(r.hotelId, r._sum.amountPhp ?? 0);
+  }
+
+  // 두 vertical row 합쳐 createdAt desc 정렬
+  const gymGridRows: GymGridRow[] = gymBusinesses.map((b) => ({
+    id: b.id,
+    vertical: "GYM",
+    name: b.name,
+    slug: b.slug,
+    status: b.status as BusinessStatus,
+    ownerName: b.users[0]?.name ?? null,
+    activeMembers: b._count.users,
+    newCustomersThisMonth: gymNewCustomerMap.get(b.id) ?? 0,
+    totalRevenue: gymPaymentMap.get(b.id) ?? 0,
+    monthRevenue: gymMonthPaymentMap.get(b.id) ?? 0,
+    createdAt: b.createdAt,
+  }));
+
+  const hotelGridRows: GymGridRow[] = hotelBusinesses.map((b) => ({
+    id: b.id,
+    vertical: "HOTEL",
+    name: b.name,
+    slug: b.slug,
+    status: b.status as BusinessStatus,
+    ownerName: b.users[0]?.name ?? null,
+    activeMembers: null,
+    newCustomersThisMonth: null,
+    totalRevenue: hotelPaymentMap.get(b.id) ?? 0,
+    monthRevenue: hotelMonthPaymentMap.get(b.id) ?? 0,
+    createdAt: b.createdAt,
+  }));
+
+  const businesses: GymGridRow[] = [...gymGridRows, ...hotelGridRows].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
+
+  const totalBusinesses = businesses.length;
 
   // 가맹점 그리드 컬럼 (CSS grid)
   const gymGridCols =
@@ -171,7 +267,7 @@ export default async function AdminStatsPage({
           플랫폼 통계
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-ink/70">
-          구독 매출은 KRW, 환불(음수 결제) 포함한 net.
+          헬스장 + 호텔 매출 합산 (KRW, 환불 음수 결제 포함 net). 총 {totalBusinesses}개 매장.
         </p>
       </header>
 
@@ -293,7 +389,7 @@ export default async function AdminStatsPage({
 
       <section>
         <h2 className="font-heading mb-4 text-xl tracking-tight text-ink">
-          상태별 분포
+          상태별 분포 (헬스장 + 호텔 합산)
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {ALL_STATUSES.map((s) => (
@@ -338,48 +434,69 @@ export default async function AdminStatsPage({
                 <div className="text-center">누적 매출</div>
               </div>
               {businesses.map((b) => {
-                const owner = b.users[0];
-                const totalSum = paymentMap.get(b.id) ?? 0;
-                const monthSum = monthPaymentMap.get(b.id) ?? 0;
-                const newCustomers = newCustomerMap.get(b.id) ?? 0;
-                return (
-                  <Link
-                    key={b.id}
-                    href={`/${lang}/admin/businesses/${b.id}`}
-                    className={`grid ${gymGridCols} gap-3 bg-white px-4 py-3 text-sm transition hover:bg-zinc-50`}
-                  >
+                const isHotel = b.vertical === "HOTEL";
+
+                const cells = (
+                  <>
                     <div className="min-w-0 truncate text-left text-zinc-900">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{b.name}</span>
+                        <VerticalLabel vertical={b.vertical} />
                         <span
                           className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[b.status]}`}
                         >
                           {STATUS_LABEL[b.status]}
                         </span>
                       </div>
-                      <div className="text-[11px] text-zinc-500">
-                        /{b.slug}
-                      </div>
+                      <div className="text-[11px] text-zinc-500">/{b.slug}</div>
                     </div>
 
                     <div className="min-w-0 truncate text-left text-zinc-800">
-                      {owner?.name ?? "-"}
+                      {b.ownerName ?? "-"}
                     </div>
 
                     <div className="text-right tabular-nums text-zinc-900">
-                      {b._count.users.toLocaleString()}
+                      {b.activeMembers === null
+                        ? "-"
+                        : b.activeMembers.toLocaleString()}
                     </div>
 
                     <div className="text-right tabular-nums text-zinc-900">
-                      {newCustomers.toLocaleString()}
+                      {b.newCustomersThisMonth === null
+                        ? "-"
+                        : b.newCustomersThisMonth.toLocaleString()}
                     </div>
 
                     <div className="text-right tabular-nums text-zinc-900">
-                      <div>{totalSum.toLocaleString()}₩</div>
+                      <div>{b.totalRevenue.toLocaleString()}₩</div>
                       <div className="text-[11px] text-zinc-500">
-                        이번 달 {monthSum.toLocaleString()}₩
+                        이번 달 {b.monthRevenue.toLocaleString()}₩
                       </div>
                     </div>
+                  </>
+                );
+
+                // 호텔 매장 상세는 #8 라운드 이후 활성화. 일단 호텔 row 클릭 비활성.
+                if (isHotel) {
+                  return (
+                    <div
+                      key={`HOTEL-${b.id}`}
+                      className={`grid ${gymGridCols} gap-3 bg-white px-4 py-3 text-sm opacity-90`}
+                      aria-disabled
+                      title="호텔 매장 상세는 다음 라운드에서 제공됩니다."
+                    >
+                      {cells}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={`GYM-${b.id}`}
+                    href={`/${lang}/admin/businesses/${b.id}`}
+                    className={`grid ${gymGridCols} gap-3 bg-white px-4 py-3 text-sm transition hover:bg-zinc-50`}
+                  >
+                    {cells}
                   </Link>
                 );
               })}
