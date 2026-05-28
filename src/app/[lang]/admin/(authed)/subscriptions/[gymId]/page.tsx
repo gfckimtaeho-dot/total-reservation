@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/client";
+import { hotelDb } from "@/lib/hotel-db";
 import type { BusinessStatus } from "@/generated/prisma/client";
 import { applyExpiryTransitions } from "@/lib/subscription/lifecycle";
+import { VerticalLabel } from "../../invites/PendingInviteRow";
 import { PaymentForm } from "./PaymentForm";
 import { RefundForm } from "./RefundForm";
 
@@ -40,6 +42,29 @@ function isoDateInput(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+type Vertical = "GYM" | "HOTEL";
+
+type BusinessView = {
+  id: string;
+  vertical: Vertical;
+  name: string;
+  slug: string;
+  status: BusinessStatus;
+  subscription: {
+    plan: string;
+    startDate: Date;
+    endDate: Date;
+  } | null;
+  payments: Array<{
+    id: string;
+    amountPhp: number;
+    paidAt: Date;
+    confirmedAt: Date | null;
+    memo: string | null;
+  }>;
+  owner: { loginId: string | null; email: string | null; name: string } | null;
+};
+
 export default async function AdminSubscriptionDetailPage({
   params,
 }: {
@@ -47,9 +72,11 @@ export default async function AdminSubscriptionDetailPage({
 }) {
   const { lang, gymId } = await params;
 
+  // 헬스장 측 transition 만 적용 (호텔 lifecycle 은 호텔 repo 책임).
   await applyExpiryTransitions();
 
-  const business = await prisma.business.findUnique({
+  // URL path 의 id 는 헬스장 또는 호텔. 헬스장 먼저 try 후 호텔 fallback.
+  const gymRow = await prisma.business.findUnique({
     where: { id: gymId },
     include: {
       subscription: true,
@@ -62,21 +89,95 @@ export default async function AdminSubscriptionDetailPage({
     },
   });
 
-  if (!business) notFound();
+  let view: BusinessView | null = null;
+  if (gymRow) {
+    view = {
+      id: gymRow.id,
+      vertical: "GYM",
+      name: gymRow.name,
+      slug: gymRow.slug,
+      status: gymRow.status as BusinessStatus,
+      subscription: gymRow.subscription
+        ? {
+            plan: gymRow.subscription.plan,
+            startDate: gymRow.subscription.startDate,
+            endDate: gymRow.subscription.endDate,
+          }
+        : null,
+      payments: gymRow.payments.map((p) => ({
+        id: p.id,
+        amountPhp: p.amountPhp,
+        paidAt: p.paidAt,
+        confirmedAt: p.confirmedAt,
+        memo: p.memo,
+      })),
+      owner: gymRow.users[0]
+        ? {
+            loginId: gymRow.users[0].loginId,
+            email: gymRow.users[0].email,
+            name: gymRow.users[0].name,
+          }
+        : null,
+    };
+  } else {
+    const hotelRow = await hotelDb.business.findUnique({
+      where: { id: gymId },
+      include: {
+        subscription: true,
+        payments: { orderBy: { paidAt: "desc" } },
+        users: {
+          where: { role: "OWNER" },
+          select: { loginId: true, email: true, name: true },
+          take: 1,
+        },
+      },
+    });
+    if (hotelRow) {
+      view = {
+        id: hotelRow.id,
+        vertical: "HOTEL",
+        name: hotelRow.name,
+        slug: hotelRow.slug,
+        status: hotelRow.status as BusinessStatus,
+        subscription: hotelRow.subscription
+          ? {
+              plan: hotelRow.subscription.plan,
+              startDate: hotelRow.subscription.startDate,
+              endDate: hotelRow.subscription.endDate,
+            }
+          : null,
+        payments: hotelRow.payments.map((p) => ({
+          id: p.id,
+          amountPhp: p.amountPhp,
+          paidAt: p.paidAt,
+          confirmedAt: p.confirmedAt,
+          memo: p.memo,
+        })),
+        owner: hotelRow.users[0]
+          ? {
+              loginId: hotelRow.users[0].loginId,
+              email: hotelRow.users[0].email,
+              name: hotelRow.users[0].name,
+            }
+          : null,
+      };
+    }
+  }
 
-  const owner = business.users[0];
-  const sub = business.subscription;
+  if (!view) notFound();
+
+  const owner = view.owner;
+  const sub = view.subscription;
   const now = new Date();
   const remainingDays =
     sub && sub.endDate
       ? Math.ceil((sub.endDate.getTime() - now.getTime()) / DAY_MS)
       : null;
 
-  // 환불 권장 금액 = (남은 기간 / 전체 구독 기간) * 마지막 결제 * 50%. spec: 남은 기간의 50%.
-  // 분모를 전체 구독 기간으로 두는 이유 = 다년 결제도 정확. plan enum 의 PLAN_DAYS 와 무관.
+  // 환불 권장 금액 = (남은 기간 / 전체 구독 기간) * 마지막 결제 * 50%.
   let suggestedRefund = 0;
   if (sub && remainingDays !== null && remainingDays > 0 && sub.plan !== "TRIAL") {
-    const lastPaid = business.payments.find((p) => p.amountPhp > 0);
+    const lastPaid = view.payments.find((p) => p.amountPhp > 0);
     if (lastPaid) {
       const totalDays = Math.ceil(
         (sub.endDate.getTime() - sub.startDate.getTime()) / DAY_MS,
@@ -102,16 +203,17 @@ export default async function AdminSubscriptionDetailPage({
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-3xl tracking-tight text-ink sm:text-4xl">
-            {business.name}
+            {view.name}
           </h1>
+          <VerticalLabel vertical={view.vertical} />
           <span
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[business.status]}`}
+            className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[view.status]}`}
           >
-            {STATUS_LABEL[business.status]}
+            {STATUS_LABEL[view.status]}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
-          <span className="font-mono">/{business.slug}</span>
+          <span className="font-mono">/{view.slug}</span>
           {owner && (
             <span>
               · 사장 {owner.name}
@@ -147,7 +249,8 @@ export default async function AdminSubscriptionDetailPage({
         </div>
 
         <PaymentForm
-          gymId={business.id}
+          gymId={view.id}
+          vertical={view.vertical}
           lang={lang}
           defaultPaidAtIso={isoDateInput(now)}
         />
@@ -157,20 +260,24 @@ export default async function AdminSubscriptionDetailPage({
         <h2 className="font-heading mb-4 text-xl tracking-tight text-ink">
           환불 기록
         </h2>
-        <RefundForm gymId={business.id} suggestedAmount={suggestedRefund} />
+        <RefundForm
+          gymId={view.id}
+          vertical={view.vertical}
+          suggestedAmount={suggestedRefund}
+        />
       </section>
 
       <section>
         <h2 className="font-heading mb-4 text-xl tracking-tight text-ink">
-          결제 이력 ({business.payments.length})
+          결제 이력 ({view.payments.length})
         </h2>
-        {business.payments.length === 0 ? (
+        {view.payments.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
             결제 이력이 없습니다.
           </div>
         ) : (
           <ul className="space-y-2">
-            {business.payments.map((p) => {
+            {view.payments.map((p) => {
               const isRefund = p.amountPhp < 0;
               return (
                 <li

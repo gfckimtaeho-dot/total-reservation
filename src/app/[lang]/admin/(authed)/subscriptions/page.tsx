@@ -223,7 +223,6 @@ export default async function AdminSubscriptionsPage({
                 const days = daysUntil(row.subscription?.endDate);
                 const isExpiringSoon =
                   days !== null && days >= 0 && days <= EXPIRING_DAYS;
-                const isHotel = row.vertical === "HOTEL";
 
                 const cells = (
                   <>
@@ -274,26 +273,9 @@ export default async function AdminSubscriptionsPage({
                   </>
                 );
 
-                // 호텔 row 의 상세 결제/취소 폼은 다음 commit 에서 분기 추가 예정.
-                // 일단 클릭 비활성 + 안내.
-                if (isHotel) {
-                  return (
-                    <div
-                      key={`HOTEL-${row.id}`}
-                      className={`grid ${GRID_COLS} gap-3 px-4 py-3 text-sm opacity-90 ${
-                        isExpiringSoon ? "bg-amber-50/70" : "bg-white"
-                      }`}
-                      aria-disabled
-                      title="호텔 매장 구독 결제/취소는 다음 라운드에서 제공됩니다."
-                    >
-                      {cells}
-                    </div>
-                  );
-                }
-
                 return (
                   <Link
-                    key={`GYM-${row.id}`}
+                    key={`${row.vertical}-${row.id}`}
                     href={`/${lang}/admin/subscriptions/${row.id}`}
                     className={`grid ${GRID_COLS} gap-3 px-4 py-3 text-sm transition hover:bg-zinc-50 ${
                       isExpiringSoon ? "bg-amber-50/70" : "bg-white"

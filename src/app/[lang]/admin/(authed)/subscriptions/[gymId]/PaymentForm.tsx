@@ -14,13 +14,14 @@ import {
 
 type Props = {
   gymId: string;
+  vertical: "GYM" | "HOTEL";
   lang: string;
   defaultPaidAtIso: string;
 };
 
 const initial: RecordPaymentState = {};
 
-export function PaymentForm({ gymId, lang, defaultPaidAtIso }: Props) {
+export function PaymentForm({ gymId, vertical, lang, defaultPaidAtIso }: Props) {
   const [state, action, pending] = useActionState<
     RecordPaymentState,
     FormData
@@ -47,6 +48,7 @@ export function PaymentForm({ gymId, lang, defaultPaidAtIso }: Props) {
           월 {MONTHLY_PRICE_KRW.toLocaleString()}₩
         </div>
       </div>
+      <input type="hidden" name="vertical" value={vertical} />
       <input type="hidden" name="gymId" value={gymId} />
       <input type="hidden" name="years" value={years} />
       <input type="hidden" name="amountKrw" value={amount} />

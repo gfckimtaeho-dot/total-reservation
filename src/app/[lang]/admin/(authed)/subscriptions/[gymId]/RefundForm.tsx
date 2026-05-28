@@ -8,12 +8,13 @@ import {
 
 type Props = {
   gymId: string;
+  vertical: "GYM" | "HOTEL";
   suggestedAmount: number;
 };
 
 const initial: RefundPaymentState = {};
 
-export function RefundForm({ gymId, suggestedAmount }: Props) {
+export function RefundForm({ gymId, vertical, suggestedAmount }: Props) {
   const [state, action, pending] = useActionState<
     RefundPaymentState,
     FormData
@@ -54,6 +55,7 @@ export function RefundForm({ gymId, suggestedAmount }: Props) {
         남은 기간 50% 권장 금액 = <strong>{suggestedAmount.toLocaleString()}₩</strong>.
         실제 협의 금액으로 수정 가능.
       </p>
+      <input type="hidden" name="vertical" value={vertical} />
       <input type="hidden" name="gymId" value={gymId} />
       <input type="hidden" name="amountKrw" value={amount} />
 
