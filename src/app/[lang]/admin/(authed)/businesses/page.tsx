@@ -242,8 +242,6 @@ export default async function AdminBusinessesPage({
 }
 
 function BusinessCard({ row, lang }: { row: BusinessRow; lang: string }) {
-  const isHotel = row.vertical === "HOTEL";
-
   const inner = (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0 flex-1 space-y-1">
@@ -278,24 +276,9 @@ function BusinessCard({ row, lang }: { row: BusinessRow; lang: string }) {
           </div>
         )}
       </div>
-      <span className="text-xs text-zinc-400">
-        {isHotel ? "상세 준비중" : "상세 >"}
-      </span>
+      <span className="text-xs text-zinc-400">상세 &gt;</span>
     </div>
   );
-
-  // 호텔 매장 상세 페이지 + 차단/재활성화는 다음 라운드. 일단 클릭 비활성 + 안내.
-  if (isHotel) {
-    return (
-      <div
-        className="block rounded-xl border border-zinc-200 bg-white p-4 opacity-90"
-        aria-disabled
-        title="호텔 매장 상세는 다음 라운드에서 제공됩니다."
-      >
-        {inner}
-      </div>
-    );
-  }
 
   return (
     <Link

@@ -434,8 +434,6 @@ export default async function AdminStatsPage({
                 <div className="text-center">누적 매출</div>
               </div>
               {businesses.map((b) => {
-                const isHotel = b.vertical === "HOTEL";
-
                 const cells = (
                   <>
                     <div className="min-w-0 truncate text-left text-zinc-900">
@@ -476,23 +474,9 @@ export default async function AdminStatsPage({
                   </>
                 );
 
-                // 호텔 매장 상세는 #8 라운드 이후 활성화. 일단 호텔 row 클릭 비활성.
-                if (isHotel) {
-                  return (
-                    <div
-                      key={`HOTEL-${b.id}`}
-                      className={`grid ${gymGridCols} gap-3 bg-white px-4 py-3 text-sm opacity-90`}
-                      aria-disabled
-                      title="호텔 매장 상세는 다음 라운드에서 제공됩니다."
-                    >
-                      {cells}
-                    </div>
-                  );
-                }
-
                 return (
                   <Link
-                    key={`GYM-${b.id}`}
+                    key={`${b.vertical}-${b.id}`}
                     href={`/${lang}/admin/businesses/${b.id}`}
                     className={`grid ${gymGridCols} gap-3 bg-white px-4 py-3 text-sm transition hover:bg-zinc-50`}
                   >

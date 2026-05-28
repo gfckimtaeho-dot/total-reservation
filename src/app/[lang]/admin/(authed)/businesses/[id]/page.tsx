@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/client";
+import { hotelDb } from "@/lib/hotel-db";
 import type { BusinessStatus } from "@/generated/prisma/client";
+import { VerticalLabel } from "../../invites/PendingInviteRow";
 import { BlockForm } from "./BlockForm";
 
 const dateFmt = new Intl.DateTimeFormat("ko-KR", {
@@ -30,6 +32,63 @@ const STATUS_CHIP: Record<BusinessStatus, string> = {
   BLOCKED: "bg-rose-50 text-rose-700 ring-rose-200",
 };
 
+type Vertical = "GYM" | "HOTEL";
+
+type OwnerView = {
+  id: string;
+  loginId: string | null;
+  email: string | null;
+  name: string;
+  phone: string | null;
+};
+
+type SubscriptionView = {
+  plan: string;
+  startDate: Date;
+  endDate: Date;
+};
+
+type GymExtras = {
+  category: string;
+  hasDeposit: boolean;
+  cityName: string | null;
+  barangayName: string | null;
+};
+
+type HotelExtras = {
+  address: string | null;
+  taxRegistrationNumber: string | null;
+  taxLegalName: string | null;
+  taxAddress: string | null;
+  taxBusinessType: string | null;
+  defaultCheckInMin: number;
+  defaultCheckOutMin: number;
+};
+
+type DetailView = {
+  id: string;
+  vertical: Vertical;
+  name: string;
+  slug: string;
+  phone: string | null;
+  contactEmail: string | null;
+  status: BusinessStatus;
+  blockedReason: string | null;
+  timeZone: string;
+  createdAt: Date;
+  updatedAt: Date;
+  owner: OwnerView | null;
+  subscription: SubscriptionView | null;
+  gym?: GymExtras;
+  hotel?: HotelExtras;
+};
+
+function minToHHMM(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export default async function AdminBusinessDetailPage({
   params,
 }: {
@@ -37,7 +96,8 @@ export default async function AdminBusinessDetailPage({
 }) {
   const { lang, id } = await params;
 
-  const business = await prisma.business.findUnique({
+  // 헬스장 먼저 try, 없으면 호텔 fallback.
+  const gymRow = await prisma.business.findUnique({
     where: { id },
     include: {
       users: {
@@ -57,9 +117,107 @@ export default async function AdminBusinessDetailPage({
     },
   });
 
-  if (!business) notFound();
+  let view: DetailView | null = null;
+  if (gymRow) {
+    view = {
+      id: gymRow.id,
+      vertical: "GYM",
+      name: gymRow.name,
+      slug: gymRow.slug,
+      phone: gymRow.phone,
+      contactEmail: gymRow.contactEmail,
+      status: gymRow.status as BusinessStatus,
+      blockedReason: gymRow.blockedReason,
+      timeZone: gymRow.timeZone,
+      createdAt: gymRow.createdAt,
+      updatedAt: gymRow.updatedAt,
+      owner: gymRow.users[0]
+        ? {
+            id: gymRow.users[0].id,
+            loginId: gymRow.users[0].loginId,
+            email: gymRow.users[0].email,
+            name: gymRow.users[0].name,
+            phone: gymRow.users[0].phone,
+          }
+        : null,
+      subscription: gymRow.subscription
+        ? {
+            plan: gymRow.subscription.plan,
+            startDate: gymRow.subscription.startDate,
+            endDate: gymRow.subscription.endDate,
+          }
+        : null,
+      gym: {
+        category: gymRow.category,
+        hasDeposit: gymRow.hasDeposit,
+        cityName: gymRow.city?.name ?? null,
+        barangayName: gymRow.barangay?.name ?? null,
+      },
+    };
+  } else {
+    const hotelRow = await hotelDb.business.findUnique({
+      where: { id },
+      include: {
+        users: {
+          where: { role: "OWNER" },
+          select: {
+            id: true,
+            loginId: true,
+            email: true,
+            name: true,
+            phone: true,
+          },
+          take: 1,
+        },
+        subscription: true,
+      },
+    });
+    if (hotelRow) {
+      view = {
+        id: hotelRow.id,
+        vertical: "HOTEL",
+        name: hotelRow.name,
+        slug: hotelRow.slug,
+        phone: hotelRow.phone,
+        contactEmail: hotelRow.contactEmail,
+        status: hotelRow.status as BusinessStatus,
+        blockedReason: hotelRow.blockedReason,
+        timeZone: hotelRow.timeZone,
+        createdAt: hotelRow.createdAt,
+        updatedAt: hotelRow.updatedAt,
+        owner: hotelRow.users[0]
+          ? {
+              id: hotelRow.users[0].id,
+              loginId: hotelRow.users[0].loginId,
+              email: hotelRow.users[0].email,
+              name: hotelRow.users[0].name,
+              phone: hotelRow.users[0].phone,
+            }
+          : null,
+        subscription: hotelRow.subscription
+          ? {
+              plan: hotelRow.subscription.plan,
+              startDate: hotelRow.subscription.startDate,
+              endDate: hotelRow.subscription.endDate,
+            }
+          : null,
+        hotel: {
+          address: hotelRow.address,
+          taxRegistrationNumber: hotelRow.taxRegistrationNumber,
+          taxLegalName: hotelRow.taxLegalName,
+          taxAddress: hotelRow.taxAddress,
+          taxBusinessType: hotelRow.taxBusinessType,
+          defaultCheckInMin: hotelRow.defaultCheckInMin,
+          defaultCheckOutMin: hotelRow.defaultCheckOutMin,
+        },
+      };
+    }
+  }
 
-  const owner = business.users[0];
+  if (!view) notFound();
+
+  const owner = view.owner;
+  const isHotel = view.vertical === "HOTEL";
 
   return (
     <div className="space-y-8">
@@ -75,26 +233,34 @@ export default async function AdminBusinessDetailPage({
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-heading text-3xl tracking-tight text-ink sm:text-4xl">
-            {business.name}
+            {view.name}
           </h1>
+          <VerticalLabel vertical={view.vertical} />
           <span
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[business.status]}`}
+            className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[view.status]}`}
           >
-            {STATUS_LABEL[business.status]}
+            {STATUS_LABEL[view.status]}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
-          <Link
-            href={`/${lang}/g/${business.slug}`}
-            className="font-mono text-zinc-700 underline-offset-2 hover:underline"
-          >
-            /{business.slug}
-          </Link>
-          <span>· {business.category}</span>
-          <span>· {business.timeZone}</span>
-          <span>
-            · {business.city?.name} {business.barangay?.name}
-          </span>
+          {view.gym ? (
+            <Link
+              href={`/${lang}/g/${view.slug}`}
+              className="font-mono text-zinc-700 underline-offset-2 hover:underline"
+            >
+              /{view.slug}
+            </Link>
+          ) : (
+            <span className="font-mono text-zinc-700">/{view.slug}</span>
+          )}
+          {view.gym && <span>· {view.gym.category}</span>}
+          <span>· {view.timeZone}</span>
+          {view.gym?.cityName && (
+            <span>
+              · {view.gym.cityName} {view.gym.barangayName ?? ""}
+            </span>
+          )}
+          {view.hotel?.address && <span>· {view.hotel.address}</span>}
         </div>
       </header>
 
@@ -107,40 +273,75 @@ export default async function AdminBusinessDetailPage({
         </InfoCard>
 
         <InfoCard label="구독">
-          <Row k="plan" v={business.subscription?.plan ?? "-"} />
+          <Row k="plan" v={view.subscription?.plan ?? "-"} />
           <Row
             k="시작"
             v={
-              business.subscription?.startDate
-                ? fmt(business.subscription.startDate)
+              view.subscription?.startDate
+                ? fmt(view.subscription.startDate)
                 : "-"
             }
           />
           <Row
             k="만료"
             v={
-              business.subscription?.endDate
-                ? fmt(business.subscription.endDate)
-                : "-"
+              view.subscription?.endDate ? fmt(view.subscription.endDate) : "-"
             }
           />
         </InfoCard>
 
         <InfoCard label="매장">
-          <Row k="phone" v={business.phone ?? "-"} mono />
-          <Row k="contactEmail" v={business.contactEmail ?? "-"} mono />
-          <Row k="입금" v={business.hasDeposit ? "사용" : "미사용"} />
-          <Row k="가입" v={fmt(business.createdAt)} />
-          <Row k="최근 수정" v={fmt(business.updatedAt)} />
+          <Row k="phone" v={view.phone ?? "-"} mono />
+          <Row k="contactEmail" v={view.contactEmail ?? "-"} mono />
+          {view.gym && (
+            <Row k="입금" v={view.gym.hasDeposit ? "사용" : "미사용"} />
+          )}
+          {view.hotel && (
+            <>
+              <Row
+                k="체크인"
+                v={minToHHMM(view.hotel.defaultCheckInMin)}
+                mono
+              />
+              <Row
+                k="체크아웃"
+                v={minToHHMM(view.hotel.defaultCheckOutMin)}
+                mono
+              />
+            </>
+          )}
+          <Row k="가입" v={fmt(view.createdAt)} />
+          <Row k="최근 수정" v={fmt(view.updatedAt)} />
         </InfoCard>
 
-        <div className="sm:row-span-2">
-          <BlockForm
-            businessId={business.id}
-            status={business.status}
-            blockedReason={business.blockedReason}
-          />
-        </div>
+        {isHotel && view.hotel ? (
+          <InfoCard label="사업자 정보 (세금계산서 발행용)">
+            <Row k="사업자번호" v={view.hotel.taxRegistrationNumber ?? "-"} mono />
+            <Row k="상호" v={view.hotel.taxLegalName ?? "-"} />
+            <Row k="사업장 주소" v={view.hotel.taxAddress ?? "-"} />
+            <Row k="업태/종목" v={view.hotel.taxBusinessType ?? "-"} />
+          </InfoCard>
+        ) : (
+          <div className="sm:row-span-2">
+            <BlockForm
+              businessId={view.id}
+              vertical={view.vertical}
+              status={view.status}
+              blockedReason={view.blockedReason}
+            />
+          </div>
+        )}
+
+        {isHotel && (
+          <div className="sm:col-span-2">
+            <BlockForm
+              businessId={view.id}
+              vertical={view.vertical}
+              status={view.status}
+              blockedReason={view.blockedReason}
+            />
+          </div>
+        )}
       </section>
     </div>
   );

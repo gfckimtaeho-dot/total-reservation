@@ -9,13 +9,14 @@ import {
 
 type Props = {
   businessId: string;
+  vertical: "GYM" | "HOTEL";
   status: string;
   blockedReason: string | null;
 };
 
 const blockInitial: BlockState = {};
 
-export function BlockForm({ businessId, status, blockedReason }: Props) {
+export function BlockForm({ businessId, vertical, status, blockedReason }: Props) {
   const [state, blockAction, blockPending] = useActionState<
     BlockState,
     FormData
@@ -26,6 +27,7 @@ export function BlockForm({ businessId, status, blockedReason }: Props) {
     startUnblock(async () => {
       const fd = new FormData();
       fd.append("id", businessId);
+      fd.append("vertical", vertical);
       await unblockBusiness(fd);
     });
   }
@@ -67,6 +69,7 @@ export function BlockForm({ businessId, status, blockedReason }: Props) {
       <p className="text-xs text-zinc-600">
         차단 시 검색·예약·QR 출입이 모두 막힙니다. 사유는 audit 차원으로 영구 보존.
       </p>
+      <input type="hidden" name="vertical" value={vertical} />
       <input type="hidden" name="id" value={businessId} />
       <label className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-zinc-800">차단 사유</span>
