@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/client";
+import { hotelDb } from "@/lib/hotel-db";
 import type { BusinessStatus } from "@/generated/prisma/client";
+import { VerticalLabel } from "../invites/PendingInviteRow";
 
 const dateFmt = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -36,6 +38,33 @@ const STATUS_CHIP: Record<BusinessStatus, string> = {
   BLOCKED: "bg-rose-50 text-rose-700 ring-rose-200",
 };
 
+type Vertical = "GYM" | "HOTEL";
+
+type OwnerView = {
+  loginId: string | null;
+  email: string | null;
+  name: string;
+  phone: string | null;
+};
+
+type SubscriptionView = {
+  plan: string;
+  endDate: Date | null;
+};
+
+type BusinessRow = {
+  id: string;
+  vertical: Vertical;
+  name: string;
+  slug: string;
+  status: BusinessStatus;
+  blockedReason: string | null;
+  cityName: string | null;
+  owner: OwnerView | null;
+  subscription: SubscriptionView | null;
+  createdAt: Date;
+};
+
 export default async function AdminBusinessesPage({
   params,
   searchParams,
@@ -54,7 +83,8 @@ export default async function AdminBusinessesPage({
       ? {}
       : { status: statusFilter as BusinessStatus };
 
-  const [businesses, totalAll] = await Promise.all([
+  // 두 DB (헬스장 + 호텔) Business 병렬 read 후 vertical 합성 + createdAt desc merge.
+  const [gymRows, hotelRows, gymTotal, hotelTotal] = await Promise.all([
     prisma.business.findMany({
       where,
       include: {
@@ -75,8 +105,83 @@ export default async function AdminBusinessesPage({
       },
       orderBy: { createdAt: "desc" },
     }),
+    hotelDb.business.findMany({
+      where,
+      include: {
+        users: {
+          where: { role: "OWNER" },
+          select: {
+            loginId: true,
+            email: true,
+            name: true,
+            phone: true,
+          },
+          take: 1,
+        },
+        subscription: {
+          select: { plan: true, endDate: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
     prisma.business.count(),
+    hotelDb.business.count(),
   ]);
+
+  const gymViews: BusinessRow[] = gymRows.map((b) => ({
+    id: b.id,
+    vertical: "GYM",
+    name: b.name,
+    slug: b.slug,
+    status: b.status as BusinessStatus,
+    blockedReason: b.blockedReason,
+    cityName: b.city?.name ?? null,
+    owner: b.users[0]
+      ? {
+          loginId: b.users[0].loginId,
+          email: b.users[0].email,
+          name: b.users[0].name,
+          phone: b.users[0].phone,
+        }
+      : null,
+    subscription: b.subscription
+      ? {
+          plan: b.subscription.plan,
+          endDate: b.subscription.endDate,
+        }
+      : null,
+    createdAt: b.createdAt,
+  }));
+
+  const hotelViews: BusinessRow[] = hotelRows.map((b) => ({
+    id: b.id,
+    vertical: "HOTEL",
+    name: b.name,
+    slug: b.slug,
+    status: b.status as BusinessStatus,
+    blockedReason: b.blockedReason,
+    cityName: null,
+    owner: b.users[0]
+      ? {
+          loginId: b.users[0].loginId,
+          email: b.users[0].email,
+          name: b.users[0].name,
+          phone: b.users[0].phone,
+        }
+      : null,
+    subscription: b.subscription
+      ? {
+          plan: b.subscription.plan,
+          endDate: b.subscription.endDate,
+        }
+      : null,
+    createdAt: b.createdAt,
+  }));
+
+  const businesses = [...gymViews, ...hotelViews].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
+  const totalAll = gymTotal + hotelTotal;
 
   return (
     <div className="space-y-10">
@@ -88,7 +193,7 @@ export default async function AdminBusinessesPage({
           가맹점 관리
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-ink/70">
-          가맹점 상태 조회 및 차단·재활성화. 총 {totalAll}개 매장.
+          가맹점 상태 조회 및 차단·재활성화. 총 {totalAll}개 매장 (헬스장 {gymTotal} + 호텔 {hotelTotal}).
         </p>
       </header>
 
@@ -124,61 +229,80 @@ export default async function AdminBusinessesPage({
           </div>
         ) : (
           <ul className="space-y-2">
-            {businesses.map((b) => {
-              const owner = b.users[0];
-              return (
-                <li key={b.id}>
-                  <Link
-                    href={`/${lang}/admin/businesses/${b.id}`}
-                    className="block rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-ink"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-ink">
-                            {b.name}
-                          </span>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[b.status]}`}
-                          >
-                            {STATUS_LABEL[b.status]}
-                          </span>
-                          <span className="text-xs text-zinc-500">
-                            /{b.slug}
-                          </span>
-                          {b.city?.name && (
-                            <span className="text-xs text-zinc-500">
-                              · {b.city.name}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs text-zinc-600">
-                          사장: {owner?.name ?? "(미등록)"}
-                          {owner?.loginId ? ` · ${owner.loginId}` : ""}
-                          {owner?.email ? ` · ${owner.email}` : ""}
-                          {owner?.phone ? ` · ${owner.phone}` : ""}
-                        </div>
-                        <div className="text-xs text-zinc-500">
-                          가입 {fmt(b.createdAt)} · 구독 {b.subscription?.plan ?? "-"}
-                          {b.subscription?.endDate
-                            ? ` 만료 ${fmt(b.subscription.endDate)}`
-                            : ""}
-                        </div>
-                        {b.status === "BLOCKED" && b.blockedReason && (
-                          <div className="mt-1 rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-800 ring-1 ring-rose-100">
-                            사유: {b.blockedReason}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-xs text-zinc-400">상세 &gt;</span>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
+            {businesses.map((b) => (
+              <li key={`${b.vertical}-${b.id}`}>
+                <BusinessCard row={b} lang={lang} />
+              </li>
+            ))}
           </ul>
         )}
       </section>
     </div>
+  );
+}
+
+function BusinessCard({ row, lang }: { row: BusinessRow; lang: string }) {
+  const isHotel = row.vertical === "HOTEL";
+
+  const inner = (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-ink">{row.name}</span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[row.status]}`}
+          >
+            {STATUS_LABEL[row.status]}
+          </span>
+          <VerticalLabel vertical={row.vertical} />
+          <span className="text-xs text-zinc-500">/{row.slug}</span>
+          {row.cityName && (
+            <span className="text-xs text-zinc-500">· {row.cityName}</span>
+          )}
+        </div>
+        <div className="text-xs text-zinc-600">
+          사장: {row.owner?.name ?? "(미등록)"}
+          {row.owner?.loginId ? ` · ${row.owner.loginId}` : ""}
+          {row.owner?.email ? ` · ${row.owner.email}` : ""}
+          {row.owner?.phone ? ` · ${row.owner.phone}` : ""}
+        </div>
+        <div className="text-xs text-zinc-500">
+          가입 {fmt(row.createdAt)} · 구독 {row.subscription?.plan ?? "-"}
+          {row.subscription?.endDate
+            ? ` 만료 ${fmt(row.subscription.endDate)}`
+            : ""}
+        </div>
+        {row.status === "BLOCKED" && row.blockedReason && (
+          <div className="mt-1 rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-800 ring-1 ring-rose-100">
+            사유: {row.blockedReason}
+          </div>
+        )}
+      </div>
+      <span className="text-xs text-zinc-400">
+        {isHotel ? "상세 준비중" : "상세 >"}
+      </span>
+    </div>
+  );
+
+  // 호텔 매장 상세 페이지 + 차단/재활성화는 다음 라운드. 일단 클릭 비활성 + 안내.
+  if (isHotel) {
+    return (
+      <div
+        className="block rounded-xl border border-zinc-200 bg-white p-4 opacity-90"
+        aria-disabled
+        title="호텔 매장 상세는 다음 라운드에서 제공됩니다."
+      >
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={`/${lang}/admin/businesses/${row.id}`}
+      className="block rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-ink"
+    >
+      {inner}
+    </Link>
   );
 }
