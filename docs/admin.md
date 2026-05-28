@@ -51,6 +51,16 @@
 - 사장 이메일 오타 등 가입 후 수정 필요 시 관리자가 직접 수정
 - 슬러그 변경: V2 (URL 변경은 PWA 설치·QR에 영향 → 신중)
 
+### 사장 비밀번호 재설정 메일 발송 (헬프데스크)
+- 가맹점 상세 화면의 "차단" 버튼 오른쪽에 "비밀번호 재설정 메일" 버튼
+- 사장이 loginId 자체를 잊은 경우 self-service "비번 찾기" 흐름이 막혀, admin 트리거로 구제
+- 동작: 활성 OWNER 1명 찾아 1회용 reset 링크 메일 발송 (`magicLinkToken` purpose=PASSWORD_RESET, 7일 만료, 발급 시 기존 미사용 토큰 일괄 무효화)
+- 평문 임시 비번을 메일에 넣지 않음 (메일 인박스 평문 잔류 / 가로채기 방지). 사장이 링크 클릭해 본인이 새 비번 직접 입력
+- 10 분 쿨다운 (직전 발송 토큰 createdAt 기준)
+- 확인 모달에 매장명·사장 이름·받는 메일 명시
+- 호텔 매장도 같은 버튼. URL 패턴은 호텔 측 합의안 `{HOTEL_PUBLIC_BASE_URL}/{lang}/h/{slug}/reset-credentials?token=...` 사용, 헬스장 admin 이 호텔 DB 의 `magicLinkToken` 에 직접 insert
+- 이메일 미등록 사장은 버튼 비활성 (가맹점 등록 form 이 email 필수라 실제로는 발생 안 함)
+
 ## 구독 관리
 
 ### 자동 trial

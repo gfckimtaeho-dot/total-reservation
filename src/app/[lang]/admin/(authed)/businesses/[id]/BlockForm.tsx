@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useTransition, type ReactNode } from "react";
 import {
   blockBusiness,
   unblockBusiness,
@@ -12,11 +12,19 @@ type Props = {
   vertical: "GYM" | "HOTEL";
   status: string;
   blockedReason: string | null;
+  // 차단/재활성화 버튼 우측 액션 슬롯 (예: 비밀번호 재설정 메일 발송 버튼).
+  passwordResetSlot?: ReactNode;
 };
 
 const blockInitial: BlockState = {};
 
-export function BlockForm({ businessId, vertical, status, blockedReason }: Props) {
+export function BlockForm({
+  businessId,
+  vertical,
+  status,
+  blockedReason,
+  passwordResetSlot,
+}: Props) {
   const [state, blockAction, blockPending] = useActionState<
     BlockState,
     FormData
@@ -46,14 +54,17 @@ export function BlockForm({ businessId, vertical, status, blockedReason }: Props
         <p className="text-xs text-rose-800/80">
           재활성화 시 status 는 ACTIVE 로 복귀. 차단 사유 메모는 audit 차원으로 그대로 보존.
         </p>
-        <button
-          type="button"
-          onClick={unblock}
-          disabled={unblockPending}
-          className="inline-flex h-10 items-center rounded-md bg-ink px-4 text-sm font-medium text-white transition hover:bg-ink/90 disabled:opacity-60"
-        >
-          {unblockPending ? "재활성화 중..." : "재활성화"}
-        </button>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <button
+            type="button"
+            onClick={unblock}
+            disabled={unblockPending}
+            className="inline-flex h-10 items-center rounded-md bg-ink px-4 text-sm font-medium text-white transition hover:bg-ink/90 disabled:opacity-60"
+          >
+            {unblockPending ? "재활성화 중..." : "재활성화"}
+          </button>
+          {passwordResetSlot}
+        </div>
       </div>
     );
   }
@@ -93,13 +104,16 @@ export function BlockForm({ businessId, vertical, status, blockedReason }: Props
       {state.ok && (
         <div className="text-xs text-emerald-700">차단 완료.</div>
       )}
-      <button
-        type="submit"
-        disabled={blockPending}
-        className="inline-flex h-10 items-center rounded-md bg-rose-600 px-4 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
-      >
-        {blockPending ? "차단 중..." : "차단"}
-      </button>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <button
+          type="submit"
+          disabled={blockPending}
+          className="inline-flex h-10 items-center rounded-md bg-rose-600 px-4 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+        >
+          {blockPending ? "차단 중..." : "차단"}
+        </button>
+        {passwordResetSlot}
+      </div>
     </form>
   );
 }

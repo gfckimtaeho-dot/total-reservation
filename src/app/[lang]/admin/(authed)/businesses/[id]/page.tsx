@@ -5,6 +5,7 @@ import { hotelDb } from "@/lib/hotel-db";
 import type { BusinessStatus } from "@/generated/prisma/client";
 import { VerticalLabel } from "../../invites/PendingInviteRow";
 import { BlockForm } from "./BlockForm";
+import { PasswordResetSendForm } from "./PasswordResetSendForm";
 
 const dateFmt = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -218,6 +219,15 @@ export default async function AdminBusinessDetailPage({
 
   const owner = view.owner;
   const isHotel = view.vertical === "HOTEL";
+  const passwordResetSlot = (
+    <PasswordResetSendForm
+      businessId={view.id}
+      vertical={view.vertical}
+      ownerName={owner?.name ?? null}
+      ownerEmail={owner?.email ?? null}
+      storeName={view.name}
+    />
+  );
 
   return (
     <div className="space-y-8">
@@ -328,6 +338,7 @@ export default async function AdminBusinessDetailPage({
               vertical={view.vertical}
               status={view.status}
               blockedReason={view.blockedReason}
+              passwordResetSlot={passwordResetSlot}
             />
           </div>
         )}
@@ -339,6 +350,7 @@ export default async function AdminBusinessDetailPage({
               vertical={view.vertical}
               status={view.status}
               blockedReason={view.blockedReason}
+              passwordResetSlot={passwordResetSlot}
             />
           </div>
         )}
