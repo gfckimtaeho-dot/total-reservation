@@ -420,9 +420,15 @@ model MagicLinkToken {
   @@index([expiresAt])
 }
 
+enum Vertical {
+  GYM
+  HOTEL
+}
+
 model InviteToken {
   id                   String    @id @default(cuid())
   token                String    @unique
+  vertical             Vertical  @default(GYM)
   expectedBusinessName String?
   expectedOwnerEmail   String?
   expectedOwnerPhone   String?

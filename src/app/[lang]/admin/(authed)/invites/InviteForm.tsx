@@ -22,6 +22,7 @@ export function InviteForm() {
     createInvite,
     initialState,
   );
+  const [vertical, setVertical] = useState<"GYM" | "HOTEL">("GYM");
   const [copied, setCopied] = useState<string | null>(null);
   const [sendStatus, setSendStatus] = useState<
     "idle" | "sending" | "ok" | "error"
@@ -62,6 +63,30 @@ export function InviteForm() {
   return (
     <div className="space-y-8">
       <form action={formAction} className="space-y-5">
+        <div className="space-y-2">
+          <span className="text-sm font-medium text-zinc-800">
+            업종<span className="ml-0.5 text-rose-600">*</span>
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <VerticalChip
+              active={vertical === "GYM"}
+              onClick={() => setVertical("GYM")}
+              label="헬스장"
+            />
+            <VerticalChip
+              active={vertical === "HOTEL"}
+              onClick={() => setVertical("HOTEL")}
+              label="호텔"
+            />
+          </div>
+          <input type="hidden" name="vertical" value={vertical} />
+          {state.errors?.vertical && (
+            <span className="block text-xs text-red-600">
+              {state.errors.vertical.join(", ")}
+            </span>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field
             label="예상 매장명"
@@ -199,6 +224,30 @@ export function InviteForm() {
         </div>
       )}
     </div>
+  );
+}
+
+function VerticalChip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex h-11 items-center rounded-md px-5 text-sm font-medium transition ${
+        active
+          ? "bg-ink text-white"
+          : "border border-zinc-300 bg-white text-zinc-700 hover:border-ink"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 

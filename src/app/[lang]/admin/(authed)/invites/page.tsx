@@ -2,7 +2,17 @@ import Link from "next/link";
 import { prisma } from "@/lib/db/client";
 import { baseUrl, cleanupExpiredInvites } from "./actions";
 import { InviteForm } from "./InviteForm";
-import { PendingInviteRow } from "./PendingInviteRow";
+import { PendingInviteRow, VerticalLabel } from "./PendingInviteRow";
+
+function inviteUrlFor(
+  vertical: "GYM" | "HOTEL",
+  token: string,
+  gymBase: string,
+  hotelBase: string,
+): string {
+  const base = vertical === "HOTEL" ? hotelBase : gymBase;
+  return base ? `${base}/ko/register?token=${token}` : "";
+}
 
 const dateFmt = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -39,6 +49,7 @@ export default async function AdminInvitesPage({
     }),
     baseUrl(),
   ]);
+  const hotelBase = process.env.HOTEL_PUBLIC_BASE_URL?.trim() ?? "";
 
   const pending = all.filter((t) => !t.usedAt && !t.revokedAt);
   const used = all.filter((t) => !!t.usedAt);
@@ -113,7 +124,8 @@ export default async function AdminInvitesPage({
               <PendingInviteRow
                 key={t.id}
                 id={t.id}
-                url={`${urlBase}/ko/register?token=${t.token}`}
+                url={inviteUrlFor(t.vertical, t.token, urlBase, hotelBase)}
+                vertical={t.vertical}
                 businessName={t.expectedBusinessName}
                 ownerEmail={t.expectedOwnerEmail}
                 ownerPhone={t.expectedOwnerPhone}
@@ -155,7 +167,8 @@ export default async function AdminInvitesPage({
                         <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200">
                           가입 완료
                         </span>
-                        {t.createdBusiness?.slug && (
+                        <VerticalLabel vertical={t.vertical} />
+                        {t.createdBusiness?.slug && t.vertical === "GYM" && (
                           <Link
                             href={`/${lang}/g/${t.createdBusiness.slug}`}
                             className="text-xs text-emerald-700 underline-offset-2 hover:underline"
@@ -206,6 +219,7 @@ export default async function AdminInvitesPage({
                       <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-700">
                         회수
                       </span>
+                      <VerticalLabel vertical={t.vertical} />
                     </div>
                     <div className="text-xs text-zinc-500">
                       {t.expectedOwnerEmail || "이메일 없음"}

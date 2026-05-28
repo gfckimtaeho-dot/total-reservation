@@ -11,10 +11,21 @@ import { sendInviteEmail } from "@/lib/email/resend";
 const SEVEN_DAYS_MS = 1000 * 60 * 60 * 24 * 7;
 
 const createSchema = z.object({
+  vertical: z.enum(["GYM", "HOTEL"], { message: "업종을 선택해 주세요" }),
   expectedBusinessName: z.string().min(1, "예상 매장명을 입력해 주세요"),
   expectedOwnerEmail: z.string().email("이메일 형식이 올바르지 않습니다"),
   expectedOwnerPhone: z.string().min(1, "사장 전화번호를 입력해 주세요"),
 });
+
+// HOTEL 발급은 admin/.env 의 HOTEL_PUBLIC_BASE_URL 을 사용. 미설정이면 invite 발급 차단.
+async function resolveInviteBaseUrl(
+  vertical: "GYM" | "HOTEL",
+): Promise<string | null> {
+  if (vertical === "HOTEL") {
+    return process.env.HOTEL_PUBLIC_BASE_URL?.trim() || null;
+  }
+  return await baseUrl();
+}
 
 export type CreateInviteState = {
   errors?: Record<string, string[] | undefined>;
@@ -39,6 +50,7 @@ export async function createInvite(
 ): Promise<CreateInviteState> {
   await requireAdmin();
   const parsed = createSchema.safeParse({
+    vertical: formData.get("vertical"),
     expectedBusinessName: formData.get("expectedBusinessName"),
     expectedOwnerEmail: formData.get("expectedOwnerEmail"),
     expectedOwnerPhone: formData.get("expectedOwnerPhone"),
@@ -52,10 +64,22 @@ export async function createInvite(
     };
   }
 
+  const inviteBase = await resolveInviteBaseUrl(parsed.data.vertical);
+  if (!inviteBase) {
+    return {
+      errors: {
+        vertical: [
+          "HOTEL_PUBLIC_BASE_URL 환경변수가 설정되지 않아 호텔 invite 를 발급할 수 없습니다.",
+        ],
+      },
+    };
+  }
+
   const token = crypto.randomBytes(32).toString("base64url");
   const created = await prisma.inviteToken.create({
     data: {
       token,
+      vertical: parsed.data.vertical,
       expectedBusinessName: parsed.data.expectedBusinessName,
       expectedOwnerEmail: parsed.data.expectedOwnerEmail,
       expectedOwnerPhone: parsed.data.expectedOwnerPhone,
@@ -63,7 +87,7 @@ export async function createInvite(
     },
   });
 
-  const url = `${await baseUrl()}/ko/register?token=${created.token}`;
+  const url = `${inviteBase}/ko/register?token=${created.token}`;
   revalidatePath("/admin/invites");
   return {
     created: {
@@ -94,7 +118,14 @@ export async function emailInvite(
     return { message: "이미 사용·회수된 invite입니다." };
   }
 
-  const url = `${await baseUrl()}/ko/register?token=${invite.token}`;
+  const inviteBase = await resolveInviteBaseUrl(invite.vertical);
+  if (!inviteBase) {
+    return {
+      message:
+        "HOTEL_PUBLIC_BASE_URL 환경변수가 설정되지 않아 호텔 invite URL 을 생성할 수 없습니다.",
+    };
+  }
+  const url = `${inviteBase}/ko/register?token=${invite.token}`;
   const result = await sendInviteEmail({
     to: invite.expectedOwnerEmail,
     inviteUrl: url,

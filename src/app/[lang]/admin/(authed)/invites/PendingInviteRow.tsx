@@ -4,9 +4,25 @@ import { useState, useTransition } from "react";
 import { copyText } from "@/lib/clipboard";
 import { emailInvite, revokeInvite } from "./actions";
 
+export function VerticalLabel({ vertical }: { vertical: "GYM" | "HOTEL" }) {
+  const isHotel = vertical === "HOTEL";
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${
+        isHotel
+          ? "text-sky-700 ring-sky-300"
+          : "text-emerald-700 ring-emerald-300"
+      }`}
+    >
+      {isHotel ? "호텔" : "헬스장"}
+    </span>
+  );
+}
+
 type Props = {
   id: string;
   url: string;
+  vertical: "GYM" | "HOTEL";
   businessName: string | null;
   ownerEmail: string | null;
   ownerPhone: string | null;
@@ -18,6 +34,7 @@ export function PendingInviteRow(props: Props) {
   const {
     id,
     url,
+    vertical,
     businessName,
     ownerEmail,
     ownerPhone,
@@ -76,6 +93,7 @@ export function PendingInviteRow(props: Props) {
             <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
               미사용
             </span>
+            <VerticalLabel vertical={vertical} />
           </div>
           <div className="text-xs text-zinc-600">
             {ownerEmail || "이메일 없음"}
