@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/client";
-import type { BusinessStatus, Prisma } from "@/generated/prisma/client";
+import { hotelDb } from "@/lib/hotel-db";
+import type { BusinessStatus } from "@/generated/prisma/client";
 import { applyExpiryTransitions } from "@/lib/subscription/lifecycle";
+import { VerticalLabel } from "../invites/PendingInviteRow";
 
 const dateFmt = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium" });
 function fmt(d: Date | null | undefined): string {
@@ -16,6 +18,8 @@ function daysUntil(d: Date | null | undefined): number | null {
   if (!d) return null;
   return Math.ceil((d.getTime() - Date.now()) / DAY_MS);
 }
+
+type Vertical = "GYM" | "HOTEL";
 
 type FilterValue =
   | "ALL"
@@ -50,6 +54,21 @@ const STATUS_CHIP: Record<BusinessStatus, string> = {
 
 const GRID_COLS = "grid-cols-[minmax(160px,2fr)_minmax(220px,2.5fr)_minmax(120px,1.2fr)_minmax(140px,1.3fr)_minmax(100px,1fr)]";
 
+type RowView = {
+  id: string;
+  vertical: Vertical;
+  name: string;
+  slug: string;
+  phone: string | null;
+  status: BusinessStatus;
+  ownerName: string | null;
+  subscription: {
+    startDate: Date;
+    endDate: Date;
+  } | null;
+  createdAt: Date;
+};
+
 export default async function AdminSubscriptionsPage({
   params,
   searchParams,
@@ -60,6 +79,7 @@ export default async function AdminSubscriptionsPage({
   const { lang } = await params;
   const sp = await searchParams;
 
+  // 호텔 측 lifecycle transition 은 호텔 repo 책임 (cron 또는 자체 lazy). 헬스장 transition 만 적용.
   const { toGrace, toExpired } = await applyExpiryTransitions();
 
   const filter = FILTER_OPTIONS.find((o) => o.value === sp.status)?.value
@@ -68,30 +88,73 @@ export default async function AdminSubscriptionsPage({
   const now = new Date();
   const monthAhead = new Date(Date.now() + EXPIRING_DAYS * DAY_MS);
 
-  const where: Prisma.BusinessWhereInput = (() => {
+  // where 조건은 두 DB 의 Business model 에 동일 적용 (inline literal 이라 type 호환).
+  const buildWhere = () => {
     if (filter === "ALL") return {};
     if (filter === "EXPIRING_1M") {
       return {
         subscription: { endDate: { gte: now, lte: monthAhead } },
       };
     }
-    return { status: filter };
-  })();
+    return { status: filter as BusinessStatus };
+  };
 
-  const businesses = await prisma.business.findMany({
-    where,
-    include: {
-      subscription: true,
-      users: {
-        where: { role: "OWNER" },
-        select: { name: true },
-        take: 1,
-      },
+  const includeArgs = {
+    subscription: true,
+    users: {
+      where: { role: "OWNER" as const },
+      select: { name: true },
+      take: 1,
     },
-    orderBy: [
-      { subscription: { endDate: "asc" } },
-      { createdAt: "desc" },
-    ],
+  };
+
+  const [gymRows, hotelRows] = await Promise.all([
+    prisma.business.findMany({
+      where: buildWhere(),
+      include: includeArgs,
+      orderBy: { createdAt: "desc" },
+    }),
+    hotelDb.business.findMany({
+      where: buildWhere(),
+      include: includeArgs,
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const gymViews: RowView[] = gymRows.map((b) => ({
+    id: b.id,
+    vertical: "GYM",
+    name: b.name,
+    slug: b.slug,
+    phone: b.phone,
+    status: b.status as BusinessStatus,
+    ownerName: b.users[0]?.name ?? null,
+    subscription: b.subscription
+      ? { startDate: b.subscription.startDate, endDate: b.subscription.endDate }
+      : null,
+    createdAt: b.createdAt,
+  }));
+
+  const hotelViews: RowView[] = hotelRows.map((b) => ({
+    id: b.id,
+    vertical: "HOTEL",
+    name: b.name,
+    slug: b.slug,
+    phone: b.phone,
+    status: b.status as BusinessStatus,
+    ownerName: b.users[0]?.name ?? null,
+    subscription: b.subscription
+      ? { startDate: b.subscription.startDate, endDate: b.subscription.endDate }
+      : null,
+    createdAt: b.createdAt,
+  }));
+
+  // 만료일 asc (subscription 없으면 뒤), createdAt desc tiebreak. 두 DB 결과 클라 측 정렬.
+  const rows: RowView[] = [...gymViews, ...hotelViews].sort((a, b) => {
+    const aEnd = a.subscription?.endDate.getTime() ?? Number.POSITIVE_INFINITY;
+    const bEnd = b.subscription?.endDate.getTime() ?? Number.POSITIVE_INFINITY;
+    if (aEnd !== bEnd) return aEnd - bEnd;
+    return b.createdAt.getTime() - a.createdAt.getTime();
   });
 
   return (
@@ -140,7 +203,7 @@ export default async function AdminSubscriptionsPage({
       </nav>
 
       <section>
-        {businesses.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
             해당 조건에 맞는 매장이 없습니다.
           </div>
@@ -156,31 +219,29 @@ export default async function AdminSubscriptionsPage({
                 <div className="text-center">매장전화번호</div>
                 <div className="text-center">상태</div>
               </div>
-              {businesses.map((b) => {
-                const days = daysUntil(b.subscription?.endDate);
+              {rows.map((row) => {
+                const days = daysUntil(row.subscription?.endDate);
                 const isExpiringSoon =
                   days !== null && days >= 0 && days <= EXPIRING_DAYS;
-                const owner = b.users[0];
-                return (
-                  <Link
-                    key={b.id}
-                    href={`/${lang}/admin/subscriptions/${b.id}`}
-                    className={`grid ${GRID_COLS} gap-3 px-4 py-3 text-sm transition hover:bg-zinc-50 ${
-                      isExpiringSoon ? "bg-amber-50/70" : "bg-white"
-                    }`}
-                  >
+                const isHotel = row.vertical === "HOTEL";
+
+                const cells = (
+                  <>
                     <div className="min-w-0 truncate text-left text-zinc-900">
-                      <div className="font-medium">{b.name}</div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium">{row.name}</span>
+                        <VerticalLabel vertical={row.vertical} />
+                      </div>
                       <div className="text-[11px] text-zinc-500">
-                        /{b.slug}
+                        /{row.slug}
                       </div>
                     </div>
 
                     <div className="min-w-0 text-left text-zinc-700">
-                      {b.subscription ? (
+                      {row.subscription ? (
                         <>
                           <div>
-                            {fmt(b.subscription.startDate)} ~ {fmt(b.subscription.endDate)}
+                            {fmt(row.subscription.startDate)} ~ {fmt(row.subscription.endDate)}
                           </div>
                           <div className="text-[11px] text-zinc-500">
                             {days === null
@@ -196,20 +257,49 @@ export default async function AdminSubscriptionsPage({
                     </div>
 
                     <div className="min-w-0 truncate text-left text-zinc-800">
-                      {owner?.name ?? "-"}
+                      {row.ownerName ?? "-"}
                     </div>
 
                     <div className="min-w-0 truncate text-left font-mono text-xs text-zinc-700">
-                      {b.phone ?? "-"}
+                      {row.phone ?? "-"}
                     </div>
 
                     <div className="flex items-center justify-center">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[b.status]}`}
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ${STATUS_CHIP[row.status]}`}
                       >
-                        {STATUS_LABEL[b.status]}
+                        {STATUS_LABEL[row.status]}
                       </span>
                     </div>
+                  </>
+                );
+
+                // 호텔 row 의 상세 결제/취소 폼은 다음 commit 에서 분기 추가 예정.
+                // 일단 클릭 비활성 + 안내.
+                if (isHotel) {
+                  return (
+                    <div
+                      key={`HOTEL-${row.id}`}
+                      className={`grid ${GRID_COLS} gap-3 px-4 py-3 text-sm opacity-90 ${
+                        isExpiringSoon ? "bg-amber-50/70" : "bg-white"
+                      }`}
+                      aria-disabled
+                      title="호텔 매장 구독 결제/취소는 다음 라운드에서 제공됩니다."
+                    >
+                      {cells}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={`GYM-${row.id}`}
+                    href={`/${lang}/admin/subscriptions/${row.id}`}
+                    className={`grid ${GRID_COLS} gap-3 px-4 py-3 text-sm transition hover:bg-zinc-50 ${
+                      isExpiringSoon ? "bg-amber-50/70" : "bg-white"
+                    }`}
+                  >
+                    {cells}
                   </Link>
                 );
               })}
