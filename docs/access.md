@@ -80,9 +80,29 @@
 - React Native는 추후 (백그라운드 위치·Bluetooth 등 OS 기능 필요할 때)
 - **셋업 자체는 미구현** — 다음 작업
 
-## 호텔 게스트 출입 (설계 - 2026-05-29, 미구현)
+## 호텔 게스트 출입 (백엔드 구현 완료 - 2026-05-30)
 
-제휴 호텔의 투숙객에게 체크인 시 헬스장 QR을 메일/문자로 발송, 체크인~체크아웃 기간 동안 헬스장 출입을 허용하는 기능. 아직 양쪽 schema 어디에도 없는 설계 단계.
+제휴 호텔의 투숙객에게 체크인 시 헬스장 QR을 메일로 발송, 체크인~체크아웃 기간 동안 헬스장 출입을 허용하는 기능.
+
+구현 상태 (2026-05-30):
+- 헬스장 측 schema: `GymHotelAffiliation`(N:N 제휴 매핑) + `GuestAccessLog`(게스트 출입 로그) 추가. db push 완료.
+- verify 로직: `src/lib/access/guestVerify.ts` (`decideGuestAccess` 순수 코어 + `verifyGuestAccess` cross-DB IO 쉘).
+- endpoint: `POST /api/access/verify` body `{ slug, token }`.
+- 호텔 측: 이미 `Stay.gymOptIn`(이용 의사) + `Stay.gymQrSentAt`(QR 발송 시각) + `Stay.status`(ACTIVE/CHECKED_OUT) 보유. QR = `Stay.id` 인코딩 + 체크인 화면 표시 + 메일 발송까지 호텔 측에서 구현됨.
+- admin 제휴 관리 UI: 구현됨. 가맹점 상세(GYM) 의 "제휴 호텔" 섹션 (`businesses/[id]/AffiliationManager.tsx` + `affiliationActions.ts`). 호텔 드롭다운 추가 + 행별 활성/비활성 토글.
+- 미구현(다음): 스캐너 태블릿 UI, 게스트 방문 통계, 회원/트레이너 공용 verify 분기.
+
+### 호텔 측 확정 답변 (2026-05-30)
+
+- QR = bare `Stay.id` (cuid) 문자열. URL/JSON 래핑 없음. 메일 본문에도 같은 토큰 텍스트로 병기.
+- `gymOptIn=true` 보장 (체크인 시 "헬스장 이용" 선택 + QR 발송 성공 시 재셋). QR 받은 게스트는 전부 true.
+- QR 은 체크인(Stay 생성) 이후에만 발송. 예약 시점엔 Stay 없음.
+- 체크아웃/조기퇴실 시 `status=CHECKED_OUT`(+checkedOutAt) 즉시 전이. 투숙 중엔 ACTIVE.
+- 호텔 BLOCKED 라도 투숙 중 게스트는 출입 허용 (헬스장은 호텔 status 안 봄. BLOCKED 호텔은 신규 체크인 자체가 안 됨). 헬스장 로직 그대로.
+- StayStatus 는 ACTIVE/CHECKED_OUT 둘뿐 (CANCELLED 없음). 잘못된 체크인은 체크아웃으로 무름. -> verify 는 `status==='ACTIVE'` whitelist 권고. 향후 status 추가돼도 안전.
+- 레이트 체크아웃/연장: 호텔이 `Stay.checkOutDate` 갱신 -> 헬스장 live read 로 자동 반영(재발급/동기화 불필요).
+- 게스트 QR 메일 발송 = 100% 호텔 (호텔 코드 + 호텔 SMTP). 헬스장은 READ/검증만. (호텔이 헬스장과 같은 Gmail 발신 계정을 공유할 뿐 코드 경로 독립.)
+- 테스트 데이터 (Grand Hotel, ACTIVE): `Stay.id = cmpr49kd9i3nnig13bcp2dv`, gymOptIn=true, status=ACTIVE, 2026-05-29 ~ 2026-06-03 (checkOutDate exclusive -> 06-02 까지 통과, 06-03 부터 거절).
 
 ### 채택 아키텍처 = 모델 B (헬스장이 호텔 Stay 를 live read)
 
@@ -96,25 +116,33 @@
 
 QR 이 인코딩하는 값은 호텔 `Stay.id` (cuid). `reservationNumber` 는 금지 - 사람이 주고받는 번호라 추측 가능하고 호텔별 unique 라 전역 유일하지 않음. 예약번호는 게스트 표기용(메일 본문)으로만.
 
-### 검증 흐름
+### 검증 흐름 (`decideGuestAccess` 우선순위 순)
 
-1. 매장 단말이 QR 스캔, `Stay.id` 추출
-2. cross-DB 로 호텔 `Stay` 조회
-3. `checkInDate <= 오늘 < checkOutDate` 확인 (checkOutDate exclusive 라 마지막 밤까지 커버, 퇴실 당일 이후 자동 차단)
-4. 호텔-헬스장 매핑 확인 (해당 호텔 게스트가 이 헬스장 출입 권한 있는지)
-5. AccessLog 기록 후 OK/거절 응답
+1. 매장 단말이 QR 스캔, `Stay.id` 추출 -> `POST /api/access/verify { slug, token }`
+2. slug 로 헬스장 조회 (없으면 GYM_NOT_FOUND)
+3. cross-DB 로 호텔 `Stay` 조회 (없으면 STAY_NOT_FOUND, 로그 안 남김). 게스트명은 `Stay -> reservation -> customer.name` 경로.
+4. 제휴 확인: `GymHotelAffiliation(gymId, Stay.hotelId, active)` 없거나 비활성이면 NOT_AFFILIATED
+5. `Stay.gymOptIn` 확인: false 면 NOT_OPTED_IN (게스트가 헬스장 이용 의사 표시 안 함)
+6. `Stay.status` whitelist: `ACTIVE` 만 통과. CHECKED_OUT(조기퇴실 포함) 및 향후 추가될 어떤 status 든 EXPIRED 거절 (호텔 측 권고 - blacklist 아닌 whitelist). 호텔이 status 를 live 갱신 = 동기화 0.
+7. 날짜창: `checkInDate <= 오늘 < checkOutDate` (checkOutDate exclusive 라 마지막 밤까지 커버). 체크인 전 NOT_YET, 체크아웃일 이후 CHECKED_OUT
+8. `GuestAccessLog` 기록 (제휴 컨텍스트가 잡힌 4번 이후의 모든 결과). OK/거절 응답
 
 ### 연장(late checkout) 처리
 
 호텔은 자기 DB 의 `Stay.checkOutDate` 만 갱신(호텔 자체 연장 흐름에서 이미 하는 일). 헬스장은 스캔 시점에 최신 `checkOutDate` 를 live read 하므로 헬스장 DB sync 코드가 0. 조기퇴실/취소도 동일하게 호텔이 자기 Stay 갱신하면 헬스장이 자동 반영.
 
-### 미정 / 다음 단계
+### 결정 완료 (2026-05-30)
 
-- 출입 verify endpoint 자체가 아직 미구현(위 "출입 검증 흐름" TODO 와 함께).
-- 게스트 출입 로그: `AccessLog.userId` 는 헬스장 `User` FK 라 게스트와 안 맞음. (a) userId nullable + 게스트 식별 필드(stayId 등) 추가, 또는 (b) 게스트 전용 출입 로그 모델 신설 - 미정.
-- 호텔-헬스장 매핑: 헬스장 `Business` 에 `affiliatedHotelId` 같은 필드 추가 예정(1호텔-1헬스장 가정 시). 다대다면 별도 매핑 테이블.
-- 토큰 회수/회전: 필요해지면 호텔 `Stay` 에 전용 랜덤 토큰 컬럼 추가(호텔 schema 변경=호텔 측 작업). V1 은 Stay.id 로 충분(체크아웃 시 자동 만료).
-- 호텔 측 합의 필요: 체크인 메일/문자 QR 에 `Stay.id` 인코딩 + 연장 시 `Stay.checkOutDate` 갱신 여부 확인 + 1호텔-1헬스장 매핑 여부.
+- 게스트 출입 로그: 별도 `GuestAccessLog` 모델 (회원 `AccessLog` 와 분리). stayId/hotelId/guestName 스냅샷 보존.
+- 호텔-헬스장 매핑: N:N `GymHotelAffiliation` 테이블 (1호텔-1헬스장도 포함). `hotelId`/`stayId` 는 호텔 DB 값이라 cross-DB FK 불가 - 값만 저장하고 verify 가 live read 로 무결성 보장.
+- 토큰 = `Stay.id` (cuid). 체크아웃 시 status/날짜창으로 자동 만료. 회수/회전 전용 컬럼은 V2.
+
+### 다음 단계
+
+- admin 제휴 관리 화면: `GymHotelAffiliation` row 생성/활성토글 UI 없음 - 이게 없으면 제휴를 못 맺어 실사용 불가. 다음 우선.
+- 스캐너 태블릿 UI (`/g/[slug]/scan` 등): QR 카메라 스캔 -> endpoint 호출 -> OK/거절 표시.
+- 회원/트레이너 공용 verify: `User.accessToken`(32자 base64url) 분기 추가. 현재 endpoint 는 token 을 무조건 Stay.id 로 간주.
+- 게스트 방문 통계: 자유 운동 집계에 `GuestAccessLog` union.
 
 ## V2 로드맵
 

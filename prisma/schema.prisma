@@ -302,6 +302,8 @@ model Business {
   refundRequests      RefundRequest[]
   sales               Sale[]
   chatThreads         ChatThread[]
+  hotelAffiliations   GymHotelAffiliation[]
+  guestAccessLogs     GuestAccessLog[]
   createdById         String?
   updatedById         String?
 
@@ -1045,6 +1047,48 @@ model AccessLog {
 
   @@index([gymId, occurredAt])
   @@index([gymId, userId, occurredAt])
+}
+
+// ─── 호텔 게스트 출입 (모델 B: 헬스장이 호텔 Stay live read) ──
+// 제휴 호텔 게스트가 이 헬스장에 출입할 수 있게 하는 N:N 매핑.
+// hotelId 는 호텔 DB(Business.id) — 다른 물리 DB 라 Prisma relation 불가,
+// 값만 저장하고 verify 시 cross-DB live read 로 검증한다. hotelName 은 admin
+// 목록 렌더용 스냅샷(호텔 DB 안 때려도 보임). docs/access.md 참고.
+model GymHotelAffiliation {
+  id          String   @id @default(cuid())
+  gymId       String
+  business    Business @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  hotelId     String
+  hotelName   String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@unique([gymId, hotelId])
+  @@index([gymId])
+}
+
+// 호텔 게스트 출입 로그. 게스트는 헬스장 User 가 아니므로 AccessLog 와 분리.
+// stayId 는 호텔 DB Stay.id (cross-DB, FK 없음). guestName 은 스캔 시점 스냅샷.
+// 자유 운동 통계는 회원 AccessLog 와 union 으로 합산.
+model GuestAccessLog {
+  id          String       @id @default(cuid())
+  gymId       String
+  business    Business     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  hotelId     String
+  stayId      String
+  guestName   String?
+  result      AccessResult
+  occurredAt  DateTime     @default(now()) @db.Timestamptz(3)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  @@index([gymId, occurredAt])
+  @@index([stayId])
 }
 
 // ─── User Deletion (1달 익명화 cron 대상) ─────────────────

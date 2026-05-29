@@ -1,8 +1,8 @@
 // 호텔 repo (C:\projects\hotelreservation) 의 prisma/schema.prisma 의 복제본.
-// 헬스장 admin 이 호텔 DB 의 InviteToken/Business/Subscription 등을 read/write 하기 위한 prisma client generate 용.
+// 헬스장 admin 이 호텔 DB 의 InviteToken/Business/Subscription/Stay 등을 read/write 하기 위한 prisma client generate 용.
 // 호텔 repo 의 schema 는 절대 수정 X (사용자 명시 룰). 변경은 호텔 측이 master.
 // 호텔 schema 변경 시 사람 책임 sync = 호텔 측 변경 받아 이 파일에 복사 후 `npm run prisma:generate-hotel`.
-// 마지막 sync: 2026-05-29.
+// 마지막 sync: 2026-05-30 (Reservation 분리 + Stay.reservationId/gymOptIn/gymQrSentAt/status 반영).
 //
 // 헬스장 측 변경 항목 (호텔 원본과 다른 부분):
 //   - generator output: `../src/generated/prisma` → `../src/generated/prisma-hotel`
@@ -21,11 +21,18 @@ datasource db {
 
 // ─── Enums ─────────────────────────────────────────────────
 
-// 호텔 db 안의 User 의 role. 헬스장의 ADMIN/TRAINER/CUSTOMER 는 호텔에 없음.
-// CLEANER 는 로그인 안 함 (offline 보고) - role enum 에 없음.
+// 호텔 db 안의 User/Staff 의 role. 기획서 01 의 역할 7종. 헬스장의
+// ADMIN/TRAINER/CUSTOMER 는 호텔에 없음. 화면을 한 화면씩 만들며 사용 시점에 도입:
+// OWNER/MANAGER(가입·대시보드), CLEANER(직원관리 08), ROOM_TABLET/COFFEE_TABLET/
+// COFFEE_MANAGER(태블릿·커피숍 12/13), MANAGER_PHONE(전화받는 매니저, Call 기능).
 enum Role {
   OWNER
   MANAGER
+  CLEANER
+  ROOM_TABLET
+  COFFEE_TABLET
+  COFFEE_MANAGER
+  MANAGER_PHONE
 }
 
 enum UserStatus {
@@ -86,6 +93,52 @@ enum CheckOutState {
   CONFIRMED
 }
 
+// 예약 상태 (기획서 04). 체크인 시 STAYING + Stay row 생성(05), 체크아웃 시 CHECKED_OUT.
+enum ReservationStatus {
+  RESERVED
+  STAYING
+  CHECKED_OUT
+  CANCELLED
+}
+
+// 투숙 상태 (기획서 05/15). 헬스장이 cross-DB 로 읽어 출입 판정.
+enum StayStatus {
+  ACTIVE
+  CHECKED_OUT
+}
+
+// 정산(folio) 상태 (기획서 05).
+enum FolioStatus {
+  OPEN
+  SETTLED
+}
+
+// 결제 수단 (체크아웃 정산 / 매출). 매니저가 대면 수령.
+enum PaymentMethod {
+  GPAY
+  CARD
+  CASH
+}
+
+// 청소 종류 / 상태 (기획서 07).
+enum CleaningType {
+  CHECKOUT
+  REQUEST
+}
+
+enum CleaningStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
+// 매출 종류 (기획서 14/16). 호텔 매출 = ROOM + ROOM_SERVICE. COFFEE 는 커피숍 몫(분리).
+enum RevenueType {
+  ROOM
+  ROOM_SERVICE
+  COFFEE
+}
+
 // ─── Business (호텔 가맹점) ────────────────────────────────
 
 model Business {
@@ -116,7 +169,12 @@ model Business {
   users           User[]
   staff           Staff[]
   rooms           Room[]
+  roomTypes       RoomType[]
+  reservations    Reservation[]
   stays           Stay[]
+  folios          Folio[]
+  cleaningRecords CleaningRecord[]
+  revenueEntries  RevenueEntry[]
   customers       Customer[]
   subscription    Subscription?
   payments        Payment[]
@@ -261,10 +319,42 @@ model Staff {
   createdById String?
   updatedById String?
 
+  // 청소 배정 (다대다, 기획서 07). 청소부 = 활성 CLEANER staff.
+  cleanings CleaningRecord[]
+
   @@index([hotelId, role])
 }
 
-// ─── 호텔 도메인: Room / Stay / Customer ───────────────────
+// ─── 호텔 도메인: RoomType / Room / Stay / Customer ─────────
+
+// 룸타입 (등급). 객실을 타입에 매핑. 기본가는 참고용, 실제 객실료는 예약별 입력.
+// Delete 없음 = 활성/비활성만 (과거 예약이 타입을 참조할 수 있어 보존).
+model RoomType {
+  id          String   @id @default(cuid())
+  hotelId     String
+  business    Business @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  // 타입명 (예: A타입, Standard, Suite). 호텔별 unique.
+  name        String
+  // 침대 수.
+  bedCount    Int      @default(1)
+  // 욕조 유무.
+  hasBathtub  Boolean  @default(false)
+  // 크기 - free-text (㎡/평/"32 sqm" 등 호텔마다 표기 제각각). 정형화는 V2.
+  size        String?
+  // 기본 1박 가격 (PHP) - 참고용. 실제 객실료는 예약 시 매니저 입력값 우선.
+  basePricePhp Int     @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  rooms        Room[]
+  reservations Reservation[]
+
+  @@unique([hotelId, name])
+  @@index([hotelId, isActive])
+}
 
 model Room {
   id          String    @id @default(cuid())
@@ -274,8 +364,9 @@ model Room {
   roomNumber  String
   // 층 번호. 9F 의 901 호 = floor 9.
   floor       Int?
-  // 등급 (Single/Double/Suite 등). V1 = 단순 string. V2 에서 RoomType 모델 분리 가능.
-  roomType    String?
+  // 룸타입 (등급) 참조. 방 먼저 만들고 타입 나중 지정 가능 = nullable.
+  roomTypeId  String?
+  roomType    RoomType? @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
   // 기본 1박 가격 (PHP). 시즌 가격은 V2 (별 모델).
   basePricePhp Int
   state       RoomState @default(READY)
@@ -286,7 +377,9 @@ model Room {
   createdById String?
   updatedById String?
 
-  stays Stay[]
+  reservations    Reservation[]
+  stays           Stay[]
+  cleaningRecords CleaningRecord[]
 
   @@unique([hotelId, roomNumber])
   @@index([hotelId, state])
@@ -308,14 +401,15 @@ model Customer {
   createdById     String?
   updatedById     String?
 
-  stays Stay[]
+  reservations Reservation[]
 
   @@index([hotelId, name])
   @@index([hotelId, phone])
 }
 
-// 예약 (1박 단위). makeReservation.png 의 필드 그대로.
-model Stay {
+// 예약 (부킹). 기획서 04. 방은 미배정 가능(체크인 때 배정 = roomId nullable).
+// 투숙(Stay, 헬스장 read 단일소스)은 체크인 시 생성되는 별 모델 = 05 에서 추가.
+model Reservation {
   id                    String        @id @default(cuid())
   hotelId               String
   business              Business      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
@@ -323,31 +417,143 @@ model Stay {
   reservationNumber     String
   // OTA (Agoda/Trip.com/Naver) 예약 번호 메모. V1 = 자동 연동 X, 매니저 수동 입력.
   otaReservationNumber  String?
-  roomId                String
-  room                  Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  // 룸타입 (필수, 부킹은 타입 기준). 기획서 04 필수값.
+  roomTypeId            String
+  roomType              RoomType      @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+  // 객실 (선택 - 체크인 때 배정). 미배정 예약 허용 = nullable.
+  roomId                String?
+  room                  Room?         @relation(fields: [roomId], references: [id], onDelete: Restrict)
   customerId            String
   customer              Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
   // 1박 단위. checkOutDate 는 exclusive (예: 10/02 ~ 10/03 = 10/02 밤만).
   checkInDate           DateTime      @db.Date
   checkOutDate          DateTime      @db.Date
-  // 예약 시점 가격 snapshot (Room.basePricePhp 변경 영향 안 받음).
-  roomPricePhp          Int
+  // 객실료 (PHP). 미리예약은 비워뒀다 체크인 때 확정 가능 = nullable.
+  roomPricePhp          Int?
   totalPerson           Int           @default(1)
-  checkInState          CheckInState  @default(NOT_CONFIRMED)
-  checkOutState         CheckOutState @default(NOT_CONFIRMED)
-  // 실제 체크인/체크아웃 timestamp (matched 또는 별 분리 - 일단 timestamp 만).
-  checkedInAt           DateTime?     @db.Timestamptz(3)
-  checkedOutAt          DateTime?     @db.Timestamptz(3)
+  // 예약 출처 (Agoda/Trip.com/Walk-in 등). 매출 출처 분석. free-text.
+  source                String?
+  status                ReservationStatus @default(RESERVED)
   etc                   String?
   createdAt             DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime      @updatedAt @db.Timestamptz(3)
   createdById           String?
   updatedById           String?
 
+  stay Stay?
+
   @@unique([hotelId, reservationNumber])
   @@index([hotelId, checkInDate])
   @@index([hotelId, checkOutDate])
+  @@index([hotelId, status])
   @@index([roomId, checkInDate])
+}
+
+// 투숙 (기획서 05/15). 체크인 시 생성. id = QR 토큰(헬스장이 cross-DB 로 read).
+// 호텔이 단일 소스 = 연장/조기퇴실/방변경 시 호텔만 갱신, 동기화 코드 0.
+model Stay {
+  id            String      @id @default(cuid())
+  hotelId       String
+  business      Business    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  reservationId String      @unique
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  roomId        String
+  room          Room        @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  // 헬스장이 읽는 기간 (checkOutDate exclusive). 레이트체크아웃/방변경 시 갱신.
+  checkInDate   DateTime    @db.Date
+  checkOutDate  DateTime    @db.Date
+  status        StayStatus  @default(ACTIVE)
+  checkedInAt   DateTime    @db.Timestamptz(3)
+  checkedOutAt  DateTime?   @db.Timestamptz(3)
+  // 헬스장 이용 의사 + QR 이메일 발송 시각 (기획서 15).
+  gymOptIn      Boolean     @default(false)
+  gymQrSentAt   DateTime?   @db.Timestamptz(3)
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(3)
+  createdById   String?
+  updatedById   String?
+
+  folio Folio?
+
+  @@index([hotelId, status])
+  @@index([roomId, checkInDate])
+}
+
+// 정산 (기획서 05). 체크인 시 OPEN 생성, 체크아웃 시 결제수단 + SETTLED.
+model Folio {
+  id            String         @id @default(cuid())
+  hotelId       String
+  business      Business       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  stayId        String         @unique
+  stay          Stay           @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  status        FolioStatus    @default(OPEN)
+  paymentMethod PaymentMethod?
+  settledAt     DateTime?      @db.Timestamptz(3)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  createdById   String?
+  updatedById   String?
+
+  lines FolioLine[]
+
+  @@index([hotelId, status])
+}
+
+// 정산 줄. 유료 룸서비스 항목명·당시가격 스냅샷 (기획서 05). 메뉴 변경과 무관.
+model FolioLine {
+  id           String   @id @default(cuid())
+  folioId      String
+  folio        Folio    @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  name         String
+  unitPricePhp Int
+  quantity     Int      @default(1)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+  createdById  String?
+  updatedById  String?
+
+  @@index([folioId])
+}
+
+// 청소 기록 (기획서 07). 방-담당자 다대다. 보존(삭제 없음).
+model CleaningRecord {
+  id          String         @id @default(cuid())
+  hotelId     String
+  business    Business       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  roomId      String
+  room        Room           @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  type        CleaningType   @default(CHECKOUT)
+  status      CleaningStatus @default(PENDING)
+  completedAt DateTime?      @db.Timestamptz(3)
+  note        String?
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
+  createdById String?
+  updatedById String?
+
+  assignees Staff[]
+
+  @@index([hotelId, status])
+  @@index([roomId])
+}
+
+// 매출 적립 (기획서 14/16). 객실료는 묵은 밤마다 하루치씩 적립(체크아웃 시 생성).
+model RevenueEntry {
+  id            String         @id @default(cuid())
+  hotelId       String
+  business      Business       @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  date          DateTime       @db.Date
+  type          RevenueType
+  amountPhp     Int
+  paymentMethod PaymentMethod?
+  stayId        String?
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  createdById   String?
+  updatedById   String?
+
+  @@index([hotelId, date])
+  @@index([hotelId, type])
 }
 
 // ─── 구독 / 결제 ───────────────────────────────────────────

@@ -7,6 +7,7 @@ import { VerticalLabel } from "../../invites/PendingInviteRow";
 import { BlockForm } from "./BlockForm";
 import { PasswordResetSendForm } from "./PasswordResetSendForm";
 import { OwnerContactForm } from "./OwnerContactForm";
+import { AffiliationManager } from "./AffiliationManager";
 
 const dateFmt = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -220,6 +221,41 @@ export default async function AdminBusinessDetailPage({
 
   const owner = view.owner;
   const isHotel = view.vertical === "HOTEL";
+
+  // 게스트 출입 제휴 (GYM 만). 현재 제휴 목록 + 추가 가능한 호텔 목록(cross-DB).
+  let affiliations: {
+    id: string;
+    hotelId: string;
+    hotelName: string | null;
+    active: boolean;
+  }[] = [];
+  let availableHotels: {
+    id: string;
+    name: string;
+    slug: string;
+    status: string;
+  }[] = [];
+  if (view.gym) {
+    const [affRows, hotelRows] = await Promise.all([
+      prisma.gymHotelAffiliation.findMany({
+        where: { gymId: view.id },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, hotelId: true, hotelName: true, active: true },
+      }),
+      hotelDb.business.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, slug: true, status: true },
+      }),
+    ]);
+    // 호텔명은 live 값으로 갱신 표시(스냅샷 stale 방지).
+    const liveName = new Map(hotelRows.map((h) => [h.id, h.name]));
+    affiliations = affRows.map((a) => ({
+      ...a,
+      hotelName: liveName.get(a.hotelId) ?? a.hotelName,
+    }));
+    const affiliatedIds = new Set(affRows.map((a) => a.hotelId));
+    availableHotels = hotelRows.filter((h) => !affiliatedIds.has(h.id));
+  }
   const passwordResetSlot = (
     <PasswordResetSendForm
       businessId={view.id}
@@ -368,6 +404,16 @@ export default async function AdminBusinessDetailPage({
           </div>
         )}
       </section>
+
+      {view.gym && (
+        <section>
+          <AffiliationManager
+            gymId={view.id}
+            affiliations={affiliations}
+            availableHotels={availableHotels}
+          />
+        </section>
+      )}
     </div>
   );
 }
