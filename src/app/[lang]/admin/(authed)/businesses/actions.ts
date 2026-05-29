@@ -225,6 +225,84 @@ async function sendGymOwnerReset(
   return { ok: true, emailedTo: owner.email };
 }
 
+// 사장 연락처(전화/이메일) 수정 (admin 가맹점 상세).
+// 이름/loginId 는 운영 정합성상 read-only — 여기서도 건드리지 않는다.
+// GYM 은 stamping 확장 클라이언트로 updatedById 자동 기록, HOTEL 은 cross-DB
+// 직접 write (호텔 User 테이블에 헬스장 admin id 없음 → updatedById 미기록).
+const contactSchema = z.object({
+  vertical: verticalEnum,
+  id: z.string().min(1),
+  ownerId: z.string().min(1),
+  email: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z
+      .string()
+      .max(200)
+      .email("올바른 이메일 형식이 아닙니다")
+      .or(z.literal("")),
+  ),
+  phone: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z.string().max(40),
+  ),
+});
+
+export type OwnerContactState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  ok?: boolean;
+};
+
+export async function updateOwnerContact(
+  _prev: OwnerContactState,
+  formData: FormData,
+): Promise<OwnerContactState> {
+  await requireAdmin();
+  const parsed = contactSchema.safeParse({
+    vertical: parseVertical(formData.get("vertical")),
+    id: formData.get("id"),
+    ownerId: formData.get("ownerId"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+  });
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[] | undefined
+      >,
+    };
+  }
+  const { vertical, id, ownerId, email, phone } = parsed.data;
+  const emailVal = email.length > 0 ? email : null;
+  const phoneVal = phone.length > 0 ? phone : null;
+
+  if (vertical === "HOTEL") {
+    const existing = await hotelDb.user.findFirst({
+      where: { id: ownerId, hotelId: id, role: "OWNER" },
+      select: { id: true },
+    });
+    if (!existing) return { message: "사장 계정을 찾을 수 없습니다." };
+    await hotelDb.user.update({
+      where: { id: ownerId },
+      data: { email: emailVal, phone: phoneVal },
+    });
+  } else {
+    const existing = await prisma.user.findFirst({
+      where: { id: ownerId, gymId: id, role: "OWNER" },
+      select: { id: true },
+    });
+    if (!existing) return { message: "사장 계정을 찾을 수 없습니다." };
+    await prisma.user.update({
+      where: { id: ownerId },
+      data: { email: emailVal, phone: phoneVal },
+    });
+  }
+
+  revalidatePath(`/admin/businesses/${id}`);
+  return { ok: true };
+}
+
 async function sendHotelOwnerReset(
   businessId: string,
 ): Promise<PasswordResetSendResult> {

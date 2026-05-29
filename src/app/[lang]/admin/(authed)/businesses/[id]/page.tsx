@@ -6,6 +6,7 @@ import type { BusinessStatus } from "@/generated/prisma/client";
 import { VerticalLabel } from "../../invites/PendingInviteRow";
 import { BlockForm } from "./BlockForm";
 import { PasswordResetSendForm } from "./PasswordResetSendForm";
+import { OwnerContactForm } from "./OwnerContactForm";
 
 const dateFmt = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -275,12 +276,24 @@ export default async function AdminBusinessDetailPage({
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <InfoCard label="사장">
-          <Row k="이름" v={owner?.name ?? "-"} />
-          <Row k="loginId" v={owner?.loginId ?? "-"} mono />
-          <Row k="email" v={owner?.email ?? "-"} mono />
-          <Row k="전화" v={owner?.phone ?? "-"} mono />
-        </InfoCard>
+        {owner ? (
+          <OwnerContactForm
+            businessId={view.id}
+            vertical={view.vertical}
+            ownerId={owner.id}
+            name={owner.name}
+            loginId={owner.loginId}
+            initialEmail={owner.email}
+            initialPhone={owner.phone}
+          />
+        ) : (
+          <InfoCard label="사장">
+            <Row k="이름" v="-" />
+            <Row k="loginId" v="-" mono />
+            <Row k="email" v="-" mono />
+            <Row k="전화" v="-" mono />
+          </InfoCard>
+        )}
 
         <InfoCard label="구독">
           <Row k="plan" v={view.subscription?.plan ?? "-"} />
