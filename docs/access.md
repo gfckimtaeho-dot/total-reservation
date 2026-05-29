@@ -80,6 +80,42 @@
 - React Native는 추후 (백그라운드 위치·Bluetooth 등 OS 기능 필요할 때)
 - **셋업 자체는 미구현** — 다음 작업
 
+## 호텔 게스트 출입 (설계 - 2026-05-29, 미구현)
+
+제휴 호텔의 투숙객에게 체크인 시 헬스장 QR을 메일/문자로 발송, 체크인~체크아웃 기간 동안 헬스장 출입을 허용하는 기능. 아직 양쪽 schema 어디에도 없는 설계 단계.
+
+### 채택 아키텍처 = 모델 B (헬스장이 호텔 Stay 를 live read)
+
+스캔 시점에 헬스장 verify endpoint 가 cross-DB 로 호텔 `Stay` 를 직접 읽어 검증. 호텔이 헬스장 DB 에 게스트/숙박기간을 복제(insert)하지 않음.
+
+폐기 = 모델 A (호텔이 체크인 때 헬스장 DB 에 게스트 출입권 row 복제). 폐기 이유: 연장/조기퇴실/취소를 전부 호텔이 헬스장 DB 로 sync 해야 하고, 그 write 코드가 호텔 repo 에 들어가야 해서 호텔 repo no-touch 룰과 충돌 + 이중 소스 불일치 위험.
+
+모델 B 채택 근거: 헬스장 repo 가 이미 호텔 cross-DB 클라이언트 보유(`src/lib/hotel-db.ts`, `prisma-hotel`) + 호텔 DB 가 호텔 도메인 master + 스캐너 online 가정.
+
+### QR 토큰 = Stay.id
+
+QR 이 인코딩하는 값은 호텔 `Stay.id` (cuid). `reservationNumber` 는 금지 - 사람이 주고받는 번호라 추측 가능하고 호텔별 unique 라 전역 유일하지 않음. 예약번호는 게스트 표기용(메일 본문)으로만.
+
+### 검증 흐름
+
+1. 매장 단말이 QR 스캔, `Stay.id` 추출
+2. cross-DB 로 호텔 `Stay` 조회
+3. `checkInDate <= 오늘 < checkOutDate` 확인 (checkOutDate exclusive 라 마지막 밤까지 커버, 퇴실 당일 이후 자동 차단)
+4. 호텔-헬스장 매핑 확인 (해당 호텔 게스트가 이 헬스장 출입 권한 있는지)
+5. AccessLog 기록 후 OK/거절 응답
+
+### 연장(late checkout) 처리
+
+호텔은 자기 DB 의 `Stay.checkOutDate` 만 갱신(호텔 자체 연장 흐름에서 이미 하는 일). 헬스장은 스캔 시점에 최신 `checkOutDate` 를 live read 하므로 헬스장 DB sync 코드가 0. 조기퇴실/취소도 동일하게 호텔이 자기 Stay 갱신하면 헬스장이 자동 반영.
+
+### 미정 / 다음 단계
+
+- 출입 verify endpoint 자체가 아직 미구현(위 "출입 검증 흐름" TODO 와 함께).
+- 게스트 출입 로그: `AccessLog.userId` 는 헬스장 `User` FK 라 게스트와 안 맞음. (a) userId nullable + 게스트 식별 필드(stayId 등) 추가, 또는 (b) 게스트 전용 출입 로그 모델 신설 - 미정.
+- 호텔-헬스장 매핑: 헬스장 `Business` 에 `affiliatedHotelId` 같은 필드 추가 예정(1호텔-1헬스장 가정 시). 다대다면 별도 매핑 테이블.
+- 토큰 회수/회전: 필요해지면 호텔 `Stay` 에 전용 랜덤 토큰 컬럼 추가(호텔 schema 변경=호텔 측 작업). V1 은 Stay.id 로 충분(체크아웃 시 자동 만료).
+- 호텔 측 합의 필요: 체크인 메일/문자 QR 에 `Stay.id` 인코딩 + 연장 시 `Stay.checkOutDate` 갱신 여부 확인 + 1호텔-1헬스장 매핑 여부.
+
 ## V2 로드맵
 
 - PWA 셋업 (manifest + 홈화면 추가 안내)
