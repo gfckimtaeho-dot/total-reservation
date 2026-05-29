@@ -68,21 +68,17 @@ export default async function ActivatePage({
             {business.name}
           </span>
           <h1 className="font-heading text-3xl leading-tight tracking-tight text-ink sm:text-4xl">
-            {tokenInvalid ? (
-              t("invalidTitle")
-            ) : isReset ? (
-              <span
-                dangerouslySetInnerHTML={{
-                  __html: t("resetTitle", { name: link!.targetUser.name }),
-                }}
-              />
-            ) : (
-              <span
-                dangerouslySetInnerHTML={{
-                  __html: t("welcome", { name: link!.targetUser.name }),
-                }}
-              />
-            )}
+            {tokenInvalid
+              ? t("invalidTitle")
+              : isReset
+                ? t.rich("resetTitle", {
+                    name: link!.targetUser.name,
+                    em: (c) => <em>{c}</em>,
+                  })
+                : t.rich("welcome", {
+                    name: link!.targetUser.name,
+                    em: (c) => <em>{c}</em>,
+                  })}
           </h1>
           {!tokenInvalid && (
             <p className="text-sm leading-relaxed text-ink/70">
