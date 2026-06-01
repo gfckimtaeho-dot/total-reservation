@@ -35,10 +35,12 @@ export function AccountForm({
   const [phone, setPhone] = useState(initial.phone);
   const [locale, setLocale] = useState<"en" | "ko">(initial.locale);
 
-  // 저장 완료 시 toast 효과 (3초 후 success flag clear).
+  // 저장 완료 시 toast 효과 (3초 후 success flag clear). 성공 시 즉시 표시 +
+  // 재저장 시 재표시를 위해 effect 안 동기 setState 가 필요한 의도된 패턴.
   const [basicSavedFlash, setBasicSavedFlash] = useState(false);
   useEffect(() => {
     if (basicState.success) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 저장 성공 토스트(의도된 동기 set)
       setBasicSavedFlash(true);
       const tm = setTimeout(() => setBasicSavedFlash(false), 3000);
       return () => clearTimeout(tm);
@@ -53,6 +55,7 @@ export function AccountForm({
   const [pwSavedFlash, setPwSavedFlash] = useState(false);
   useEffect(() => {
     if (pwState.success) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 비번 변경 성공 토스트(의도된 동기 set)
       setPwSavedFlash(true);
       const tm = setTimeout(() => setPwSavedFlash(false), 3000);
       return () => clearTimeout(tm);
