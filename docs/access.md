@@ -41,17 +41,24 @@
 - "재발급" 버튼: confirm dialog → `regenerateTrainerAccessToken` action → `accessToken` 새 값으로 update → 옛 QR 즉시 무효
 - (회원도 동일 패턴 추후 추가 예정)
 
-## 출입 검증 흐름 (TODO — endpoint 미구현)
+## 출입 검증 흐름 (회원/트레이너 — 구현 완료 2026-06-01)
 
 1. 트레이너·회원이 핸드폰에서 dashboard 진입 → QR 자동 표시 (영구)
 2. 매장 단말이 QR 스캔 → token 추출
-3. 서버 verify endpoint 호출:
-   - User 조회 (`accessToken` 매칭)
-   - status=ACTIVE 확인, gymId 확인
-   - (회원만) 멤버십 만료일 검사
-4. AccessLog 작성 (성공/거절 모두 기록 — schema에 `AccessResult` enum)
-5. 단말에 OK/거절 응답
-6. 도어락 열림 (V2 자동화, V1은 수동 안내)
+3. `POST /api/access/verify { slug, token }` → `verifyAccess` 디스패처가 종류 판별:
+   - 먼저 로컬 `User.accessToken` 매칭 시도 → 매칭되면 회원/직원 경로(`verifyMemberAccess`)
+   - 매칭 안 되면 호텔 게스트 경로(`verifyGuestAccess`, cross-DB Stay)
+   - 토큰 형식 휴리스틱 대신 로컬 조회 우선 (둘 다 고엔트로피 unique)
+4. 회원/직원 판정(`decideMemberAccess` 순수 코어):
+   - `active=false` 또는 `status!=ACTIVE` → DENIED INACTIVE
+   - 토큰은 유효하나 `gymId` 불일치 → DENIED WRONG_GYM
+   - 직원(TRAINER/MANAGER) → 회원권 불필요, 바로 ALLOWED
+   - 회원(CUSTOMER) → 환불 동결(refundedAt) 제외 회원권 날짜창 검사.
+     `startDate <= 오늘 <= endDate`(endDate **inclusive**, 게스트는 exclusive)면 ALLOWED.
+     만료된 회원권만 있으면 EXPIRED MEMBERSHIP_EXPIRED, 없으면 DENIED NO_MEMBERSHIP
+5. `AccessLog` 작성 (성공/거절 모두 — `AccessResult` enum). 영구 accessToken 은 QrToken row 가 아니라 `qrTokenId=null`
+6. 단말에 OK/거절 응답 (스캐너 화면이 reason 머신코드를 `access.reason.*` 로 번역)
+7. 도어락 열림 (V2 자동화, V1은 수동 안내)
 
 ## 자유 운동 통계
 
@@ -59,6 +66,15 @@
 - AccessLog가 유일한 방문 기록
 - 사장 매출·방문 통계 화면에서 PT·단체·자유 운동 구분 표시
 - 일별·주별·월별 자유 운동 방문자 수 집계
+
+## 게스트 매출 (구현 완료 2026-06-01)
+
+호텔 게스트는 일반 회원권으로 받지 않고 별도 1일 단가로 과금. 매출현황에서 분리 표시.
+
+- 설정: `Business.hotelGuestDailyPricePhp Int?` (₱, nullable=미설정). `/g/{slug}/settings` 의 "호텔 게스트 1일 가격" 카드에서 OWNER/MANAGER 가 설정. 변경 시 `PriceChangeLog`(entityType=`HOTEL_GUEST_DAILY_PRICE`, entityId=businessId) 기록 — [[feedback_money_audit_log]].
+- 매출: `/g/{slug}/revenue` 의 "호텔 게스트 매출" 별도 섹션. **Sale row 아님** — 집계 시에만 산출하고 상단 KPI/차트(Sale 기반)엔 미합산.
+- 산식: 게스트 1명(=stayId 단위) 매출 = **실제 방문일수 x 1일 단가**. 방문일수 = 선택 기간 내 `result=ALLOWED` GuestAccessLog 의 매장 달력일 distinct (하루 여러 스캔은 1일). 손님명은 로그 스냅샷(가장 최근 non-null).
+- 가격 미설정 시 매출 0 + 설정 링크 안내. 기간은 매출현황 차트의 선택 기간(view/anchor)을 따름.
 
 ## 멤버십 만료 처리 (회원 한정)
 
@@ -90,7 +106,10 @@
 - endpoint: `POST /api/access/verify` body `{ slug, token }`.
 - 호텔 측: 이미 `Stay.gymOptIn`(이용 의사) + `Stay.gymQrSentAt`(QR 발송 시각) + `Stay.status`(ACTIVE/CHECKED_OUT) 보유. QR = `Stay.id` 인코딩 + 체크인 화면 표시 + 메일 발송까지 호텔 측에서 구현됨.
 - admin 제휴 관리 UI: 구현됨. 가맹점 상세(GYM) 의 "제휴 호텔" 섹션 (`businesses/[id]/AffiliationManager.tsx` + `affiliationActions.ts`). 호텔 드롭다운 추가 + 행별 활성/비활성 토글.
-- 미구현(다음): 스캐너 태블릿 UI, 게스트 방문 통계, 회원/트레이너 공용 verify 분기.
+- 스캐너 태블릿 UI: 구현됨(2026-05-31). `/[lang]/g/[slug]/scan` (`AccessScanner.tsx`). requireGymStaff 게이트. 입력 이중화 = HID 스캐너/수동입력 자동포커스 input(Enter 제출) + 카메라(`BarcodeDetector`, secure context 전용, 미지원 시 안내 fallback). 결과 전체화면 색상(허용=emerald/거절=rose/만료=amber), reason i18n(access.reason.*), 자동 idle 복귀(연속 스캔). 사이드바 "출입 스캔" 진입점.
+- 회원/트레이너 공용 verify: 구현됨(2026-06-01). `verifyAccess` 디스패처 + `verifyMemberAccess`/`decideMemberAccess`. 위 "출입 검증 흐름" 절 참조.
+- 호텔 게스트 매출: 구현됨(2026-06-01). 아래 "게스트 매출" 절 참조.
+- 미구현(다음): 회원 자유 운동 방문 통계(AccessLog 집계).
 
 ### 호텔 측 확정 답변 (2026-05-30)
 
@@ -140,8 +159,8 @@ QR 이 인코딩하는 값은 호텔 `Stay.id` (cuid). `reservationNumber` 는 �
 ### 다음 단계
 
 - admin 제휴 관리 화면: `GymHotelAffiliation` row 생성/활성토글 UI 없음 - 이게 없으면 제휴를 못 맺어 실사용 불가. 다음 우선.
-- 스캐너 태블릿 UI (`/g/[slug]/scan` 등): QR 카메라 스캔 -> endpoint 호출 -> OK/거절 표시.
-- 회원/트레이너 공용 verify: `User.accessToken`(32자 base64url) 분기 추가. 현재 endpoint 는 token 을 무조건 Stay.id 로 간주.
+- ~~스캐너 태블릿 UI (`/g/[slug]/scan`)~~ 완료 (2026-05-31, 위 "호텔 게스트 출입" 절 참조).
+- ~~회원/트레이너 공용 verify: `User.accessToken`(32자 base64url) 분기 추가~~ 완료(2026-06-01).
 - 게스트 방문 통계: 자유 운동 집계에 `GuestAccessLog` union.
 
 ## V2 로드맵

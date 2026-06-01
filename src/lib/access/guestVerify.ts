@@ -10,24 +10,17 @@
 import { prisma } from "@/lib/db/client";
 import { hotelDb } from "@/lib/hotel-db";
 import { gymTodayUtcMidnight } from "@/lib/calendar/gymTime";
+import type { AccessOutcome, AccessReason, AccessResultValue } from "./types";
 
-export type GuestVerifyReason =
-  | "GYM_NOT_FOUND" // slug 로 헬스장 못 찾음
-  | "STAY_NOT_FOUND" // 호텔 DB 에 해당 Stay 없음 (garbage/만료 토큰)
-  | "NOT_AFFILIATED" // 이 호텔은 이 헬스장과 제휴 아님(또는 제휴 비활성)
-  | "NOT_OPTED_IN" // 게스트가 헬스장 이용 의사(gymOptIn) 표시 안 함
-  | "NOT_YET" // 체크인 전
-  | "CHECKED_OUT"; // 체크아웃(조기 포함) 이후
-
-export type GuestAccessResult = "ALLOWED" | "DENIED" | "EXPIRED";
-
-export type GuestVerifyOutcome = {
-  result: GuestAccessResult;
-  kind: "GUEST";
-  guestName: string | null;
-  hotelName: string | null;
-  reason: GuestVerifyReason | null;
-};
+// 게스트 경로가 낼 수 있는 사유만 추린 부분집합 (순수 코어 시그니처 명세용).
+export type GuestVerifyReason = Extract<
+  AccessReason,
+  | "STAY_NOT_FOUND"
+  | "NOT_AFFILIATED"
+  | "NOT_OPTED_IN"
+  | "NOT_YET"
+  | "CHECKED_OUT"
+>;
 
 // 순수 판정 코어 — IO 없이 이미 조회한 값만 받아 결과를 낸다(테스트 가능).
 // 호출 측이 affiliation/Stay 를 cross-DB 로 조회해 넘긴다. 우선순위:
@@ -39,7 +32,7 @@ export function decideGuestAccess(input: {
   checkInDate: Date;
   checkOutDate: Date;
   today: Date; // 매장 타임존 기준 오늘 UTC 자정
-}): { result: GuestAccessResult; reason: GuestVerifyReason | null } {
+}): { result: AccessResultValue; reason: GuestVerifyReason | null } {
   if (!input.affiliationActive) return { result: "DENIED", reason: "NOT_AFFILIATED" };
   if (!input.gymOptIn) return { result: "DENIED", reason: "NOT_OPTED_IN" };
   // status whitelist: ACTIVE 만 통과. CHECKED_OUT(조기퇴실 포함) 및 향후 추가될
@@ -52,23 +45,16 @@ export function decideGuestAccess(input: {
   return { result: "ALLOWED", reason: null };
 }
 
+// gym 은 디스패처(verifyAccess)가 이미 조회해 넘긴다 (slug -> gym 중복 조회 방지).
 export async function verifyGuestAccess(
-  slug: string,
+  gym: { id: string; timeZone: string },
   token: string,
-): Promise<GuestVerifyOutcome> {
+): Promise<AccessOutcome> {
   const base = {
     kind: "GUEST" as const,
-    guestName: null,
+    name: null,
     hotelName: null,
   };
-
-  const gym = await prisma.business.findUnique({
-    where: { slug },
-    select: { id: true, timeZone: true },
-  });
-  if (!gym) {
-    return { ...base, result: "DENIED", reason: "GYM_NOT_FOUND" };
-  }
 
   // 호텔 Stay live read (cross-DB). token == Stay.id (cuid).
   // 게스트명은 Stay -> reservation -> customer 경로. gymOptIn/status 는 호텔이
@@ -118,5 +104,5 @@ export async function verifyGuestAccess(
       result,
     },
   });
-  return { kind: "GUEST", guestName, hotelName, result, reason };
+  return { kind: "GUEST", name: guestName, hotelName, result, reason };
 }

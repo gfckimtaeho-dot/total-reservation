@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { LangToggle } from "@/components/LangToggle";
+import { HotelGuestPriceForm } from "./HotelGuestPriceForm";
 
 export default async function GymSettingsPage({
   params,
@@ -12,6 +14,15 @@ export default async function GymSettingsPage({
   const user = await requireGymStaff(slug);
   const business = user.business!;
   const t = await getTranslations("settings");
+
+  // 호텔 게스트 단가는 OWNER/MANAGER 만 설정. 세션 business 엔 없는 필드라 조회.
+  const canManagePrice = user.role === "OWNER" || user.role === "MANAGER";
+  const priceRow = canManagePrice
+    ? await prisma.business.findUnique({
+        where: { id: business.id },
+        select: { hotelGuestDailyPricePhp: true },
+      })
+    : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -69,6 +80,18 @@ export default async function GymSettingsPage({
             href={`/${lang}/g/${slug}/settings/account`}
             cta={t("account.cta")}
           />
+
+          {canManagePrice && (
+            <SettingCard
+              heading={t("hotelGuestPrice.heading")}
+              body={t("hotelGuestPrice.body")}
+            >
+              <HotelGuestPriceForm
+                slug={slug}
+                current={priceRow?.hotelGuestDailyPricePhp ?? null}
+              />
+            </SettingCard>
+          )}
         </div>
       </main>
 

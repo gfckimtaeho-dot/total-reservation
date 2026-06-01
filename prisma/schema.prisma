@@ -118,6 +118,7 @@ enum PriceChangeEntity {
   COMBO_PLAN_PRICE
   PROMOTION_VALUE
   STAFF_BASE_SALARY
+  HOTEL_GUEST_DAILY_PRICE
 }
 
 // 환불 대상 종류 — 수업권 / 회원권.
@@ -260,6 +261,9 @@ model Business {
   contactEmail String?
   hasDeposit   Boolean          @default(false)
   gcashQrUrl   String?
+  // 제휴 호텔 게스트 1일 출입 단가(₱). 일반 회원권과 별도로 매장이 설정.
+  // 게스트 매출 = 실제 방문일수 x 이 값. null = 미설정(매출 0 표기 + 설정 유도).
+  hotelGuestDailyPricePhp Int?
   status       BusinessStatus   @default(TRIAL)
   // 관리자가 status=BLOCKED 로 차단 시 사유 메모. 재활성화 후에도 남겨 audit.
   blockedReason String?

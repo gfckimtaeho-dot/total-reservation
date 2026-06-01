@@ -14,6 +14,7 @@ type ActiveKey =
   | "services"
   | "revenue"
   | "refunds"
+  | "scan"
   | "chat"
   | "settings";
 
@@ -32,6 +33,7 @@ function items(lang: string, slug: string): Item[] {
     { key: "products", href: `/${lang}/g/${slug}/products` },
     { key: "revenue", href: `/${lang}/g/${slug}/revenue` },
     { key: "refunds", href: `/${lang}/g/${slug}/refunds` },
+    { key: "scan", href: `/${lang}/g/${slug}/scan` },
     { key: "chat", href: `/${lang}/g/${slug}/chat` },
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
   ];
@@ -66,6 +68,7 @@ function parsePathname(
   else if (section === "services") key = "services";
   else if (section === "revenue") key = "revenue";
   else if (section === "refunds") key = "refunds";
+  else if (section === "scan") key = "scan";
   else if (section === "chat") key = "chat";
   else if (section === "settings") key = "settings";
   return { lang, slug, activeKey: key };
@@ -80,6 +83,7 @@ function keyFromHref(href: string): ActiveKey | null {
   if (href.endsWith("/services")) return "services";
   if (href.endsWith("/revenue")) return "revenue";
   if (href.endsWith("/refunds")) return "refunds";
+  if (href.endsWith("/scan")) return "scan";
   if (href.endsWith("/chat")) return "chat";
   if (href.endsWith("/settings")) return "settings";
   return null;
@@ -215,6 +219,7 @@ export function SidebarNav() {
             n.key === "services" ||
             n.key === "revenue" ||
             n.key === "refunds" ||
+            n.key === "scan" ||
             n.key === "chat" ||
             n.key === "settings") &&
           effectiveKey === n.key;

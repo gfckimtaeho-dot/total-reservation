@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
@@ -269,6 +270,52 @@ export default async function RevenuePage({
     owner: byBucket.get(bk)?.owner ?? 0,
   }));
 
+  // ── 호텔 게스트 매출 (별도 집계 — Sale 아님, 위 KPI/차트엔 미포함) ──
+  // 매출 = 실제 방문일수 x 1일 단가. 방문일수 = 같은 기간 ALLOWED 출입의
+  // 매장 달력일 distinct(하루 여러 스캔은 1일). stayId 단위로 게스트 구분.
+  const [guestPriceRow, guestLogs] = await Promise.all([
+    prisma.business.findUnique({
+      where: { id: business.id },
+      select: { hotelGuestDailyPricePhp: true },
+    }),
+    prisma.guestAccessLog.findMany({
+      where: {
+        gymId: business.id,
+        result: "ALLOWED",
+        occurredAt: { gte: rangeFrom, lt: rangeTo },
+      },
+      select: { stayId: true, guestName: true, occurredAt: true },
+    }),
+  ]);
+  const guestDailyPrice = guestPriceRow?.hotelGuestDailyPricePhp ?? null;
+
+  const byStay = new Map<
+    string,
+    { name: string | null; days: Set<string>; lastTs: number }
+  >();
+  for (const g of guestLogs) {
+    const k = gymYmd(g.occurredAt, tz);
+    if (!inPeriod(k)) continue;
+    const cur =
+      byStay.get(g.stayId) ?? { name: null, days: new Set<string>(), lastTs: 0 };
+    cur.days.add(k);
+    const ts = g.occurredAt.getTime();
+    if (g.guestName && ts >= cur.lastTs) {
+      cur.name = g.guestName;
+      cur.lastTs = ts;
+    }
+    byStay.set(g.stayId, cur);
+  }
+  const guestRows = [...byStay.values()]
+    .map((v) => ({
+      name: v.name,
+      days: v.days.size,
+      revenue: (guestDailyPrice ?? 0) * v.days.size,
+    }))
+    .sort((a, b) => b.days - a.days);
+  const guestDaysTotal = guestRows.reduce((s, x) => s + x.days, 0);
+  const guestRevenueTotal = guestRows.reduce((s, x) => s + x.revenue, 0);
+
   // ── 트레이너별 월 지급액 (월급 지급용) — 앵커 달 기준, 완료 세션 합 ──
   const perf = await Promise.all(
     trainers.map((tr) =>
@@ -393,6 +440,83 @@ export default async function RevenuePage({
           periodLabel={periodLabel}
           series={series}
         />
+
+        {/* 호텔 게스트 매출 — 별도 집계(Sale 아님). 손님명 / 방문일수 / 매출 */}
+        <div className={`mt-3 rounded-2xl border ${TK.card} p-4`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className={`text-xs ${TK.sub}`}>{t("guestRevenueTitle")}</span>
+            <span className={`text-xs ${TK.sub}`}>{periodLabel}</span>
+          </div>
+
+          {guestDailyPrice === null ? (
+            <p className="mt-2 text-xs text-amber-600">
+              {t("guestPriceUnset")}{" "}
+              <Link
+                href={`/${lang}/g/${slug}/settings`}
+                className="underline underline-offset-2"
+              >
+                {t("guestPriceSetCta")}
+              </Link>
+            </p>
+          ) : (
+            <p className={`mt-1 text-[11px] ${TK.sub}`}>
+              {t("guestDailyPriceNote", { price: money(guestDailyPrice) })}
+            </p>
+          )}
+
+          {guestRows.length === 0 ? (
+            <div className={`mt-2 text-sm ${TK.sub}`}>{t("noData")}</div>
+          ) : (
+            <>
+              {/* 헤더 중앙, 셀은 손님명=좌 / 방문일수·매출=우(천단위 콤마) */}
+              <div
+                className={`mt-3 hidden border-b ${TK.rowBorder} pb-2 text-sm font-bold ${TK.num} sm:grid sm:grid-cols-[1fr_7rem_9rem] sm:gap-4`}
+              >
+                <div className="text-left">{t("colGuest")}</div>
+                <div className="text-right">{t("colVisitDays")}</div>
+                <div className="text-right">{t("colGuestRevenue")}</div>
+              </div>
+              <ul>
+                {guestRows.map((g, i) => (
+                  <li
+                    key={i}
+                    className={`grid grid-cols-[1fr_4rem_7rem] gap-2 border-t ${TK.rowBorder} py-3 first:border-t-0 sm:grid-cols-[1fr_7rem_9rem] sm:gap-4`}
+                  >
+                    <div className={`text-sm font-medium ${TK.num}`}>
+                      {g.name ?? t("guestUnknown")}
+                    </div>
+                    <div className={`text-right text-sm tabular-nums ${TK.sub}`}>
+                      {t("guestDays", { n: g.days })}
+                    </div>
+                    <div
+                      className={`text-right font-heading text-base tabular-nums ${TK.num}`}
+                    >
+                      {money(g.revenue)}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {/* 합계 — 방문일수 합 / 매출 합 */}
+              <div
+                className={`mt-2 grid grid-cols-[1fr_4rem_7rem] gap-2 border-t ${TK.rowBorder} pt-3 sm:grid-cols-[1fr_7rem_9rem] sm:gap-4`}
+              >
+                <div
+                  className={`text-xs font-semibold uppercase tracking-[0.18em] ${TK.sub}`}
+                >
+                  {t("guestRevenueTotal")}
+                </div>
+                <div className={`text-right text-sm tabular-nums ${TK.sub}`}>
+                  {t("guestDays", { n: guestDaysTotal })}
+                </div>
+                <div
+                  className={`text-right font-heading text-base font-semibold tabular-nums ${TK.num}`}
+                >
+                  {money(guestRevenueTotal)}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         {/* 트레이너별 월 지급액 — 수업 payout + 기본급 누적 + 총 지급 */}
         <div className={`mt-3 rounded-2xl border ${TK.card} p-4`}>

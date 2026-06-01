@@ -102,6 +102,17 @@
       "savedPassword": "비밀번호 변경 완료",
       "errCurrentPw": "현재 비밀번호가 일치하지 않습니다",
       "errNewPwConfirm": "비밀번호 확인이 일치하지 않습니다"
+    },
+    "hotelGuestPrice": {
+      "heading": "호텔 게스트 1일 가격",
+      "body": "제휴 호텔 손님의 1일 출입 단가입니다. 일반 회원권과 별도로 적용되며, 매출현황의 호텔 게스트 매출 계산에 쓰입니다. 비워서 저장하면 미설정으로 되돌립니다.",
+      "placeholder": "예: 300",
+      "unit": "/ 1일",
+      "save": "저장",
+      "saving": "저장 중...",
+      "saved": "저장 완료",
+      "err_invalid": "0 이상의 정수를 입력하세요",
+      "err_forbidden": "권한이 없습니다"
     }
   },
   "register": {
@@ -237,6 +248,7 @@
     "services": "프로그램 안내",
     "revenue": "매출현황",
     "refunds": "환불 요청",
+    "scan": "출입 스캔",
     "chat": "채팅",
     "chatAudit": "트레이너 채팅 열람",
     "settings": "설정",
@@ -327,7 +339,17 @@
     "legendBasePay": "기본급",
     "type_MEMBERSHIP": "회원권",
     "type_PACKAGE": "수업",
-    "type_COMBO": "콤보"
+    "type_COMBO": "콤보",
+    "guestRevenueTitle": "호텔 게스트 매출",
+    "guestDailyPriceNote": "1일 단가 {price} 기준 (방문일수 x 단가)",
+    "guestPriceUnset": "호텔 게스트 1일 가격이 설정되지 않아 매출이 0으로 표시됩니다.",
+    "guestPriceSetCta": "설정에서 가격 입력",
+    "colGuest": "손님",
+    "colVisitDays": "방문일수",
+    "colGuestRevenue": "매출",
+    "guestUnknown": "이름 미상",
+    "guestDays": "{n}일",
+    "guestRevenueTotal": "합계"
   },
   "refunds": {
     "title": "환불 요청",
@@ -1629,5 +1651,38 @@
     "handoverHint": "1:1 프로그램의 담당 트레이너를 다른 트레이너로 양도합니다. 단체 수업은 양도되지 않습니다.",
     "handoverEmpty": "양도할 1:1 프로그램이 없습니다.",
     "handoverCurrentLabel": "담당"
+  },
+  "access": {
+    "title": "출입 스캔",
+    "subtitle": "QR 을 스캐너에 대거나 토큰을 입력한 뒤 Enter 를 누르세요.",
+    "inputPlaceholder": "QR 토큰",
+    "scanButton": "카메라로 스캔",
+    "scanStop": "카메라 끄기",
+    "cameraUnavailable": "이 기기/브라우저에서는 카메라 스캔을 쓸 수 없습니다. HTTPS 환경의 지원 브라우저가 필요합니다. 스캐너 입력 또는 수동 입력을 사용하세요.",
+    "cameraError": "카메라를 열 수 없습니다. 권한을 확인하거나 스캐너 입력을 사용하세요.",
+    "verifying": "확인 중...",
+    "resultAllowed": "출입 허용",
+    "resultDenied": "출입 거절",
+    "resultExpired": "기간 만료",
+    "badge": {
+      "GUEST": "호텔 게스트",
+      "MEMBER": "회원",
+      "STAFF": "직원"
+    },
+    "hotelLabel": "호텔",
+    "scanAgain": "다시 스캔",
+    "networkError": "네트워크 오류 - 다시 시도하세요.",
+    "reason": {
+      "GYM_NOT_FOUND": "매장을 찾을 수 없습니다.",
+      "STAY_NOT_FOUND": "유효하지 않은 QR 입니다.",
+      "NOT_AFFILIATED": "제휴되지 않은 호텔입니다.",
+      "NOT_OPTED_IN": "헬스장 이용 신청이 없습니다.",
+      "NOT_YET": "체크인 전입니다.",
+      "CHECKED_OUT": "이용 기간이 만료되었습니다.",
+      "WRONG_GYM": "다른 매장 소속 QR 입니다.",
+      "INACTIVE": "비활성 계정입니다.",
+      "NO_MEMBERSHIP": "유효한 회원권이 없습니다.",
+      "MEMBERSHIP_EXPIRED": "회원권이 만료되었습니다."
+    }
   }
 }

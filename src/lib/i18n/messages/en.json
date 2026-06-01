@@ -102,6 +102,17 @@
       "savedPassword": "Password changed",
       "errCurrentPw": "Current password does not match",
       "errNewPwConfirm": "Password confirmation does not match"
+    },
+    "hotelGuestPrice": {
+      "heading": "Hotel guest daily price",
+      "body": "Per-day access rate for affiliated hotel guests. Applied separately from regular memberships and used to compute hotel guest revenue on the revenue page. Save empty to clear.",
+      "placeholder": "e.g. 300",
+      "unit": "/ day",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Saved",
+      "err_invalid": "Enter a non-negative integer",
+      "err_forbidden": "Not allowed"
     }
   },
   "register": {
@@ -237,6 +248,7 @@
     "services": "Programs",
     "revenue": "Revenue",
     "refunds": "Refunds",
+    "scan": "Access scan",
     "chat": "Chat",
     "chatAudit": "Trainer chat audit",
     "settings": "Settings",
@@ -327,7 +339,17 @@
     "legendBasePay": "Base",
     "type_MEMBERSHIP": "Membership",
     "type_PACKAGE": "Session pass",
-    "type_COMBO": "Combo"
+    "type_COMBO": "Combo",
+    "guestRevenueTitle": "Hotel guest revenue",
+    "guestDailyPriceNote": "At {price} / day (visit days x rate)",
+    "guestPriceUnset": "Hotel guest daily price is not set, so revenue shows as 0.",
+    "guestPriceSetCta": "Set the price in Settings",
+    "colGuest": "Guest",
+    "colVisitDays": "Visit days",
+    "colGuestRevenue": "Revenue",
+    "guestUnknown": "Unknown",
+    "guestDays": "{n}d",
+    "guestRevenueTotal": "Total"
   },
   "refunds": {
     "title": "Refund requests",
@@ -1629,5 +1651,38 @@
     "handoverHint": "Hand over 1:1 program assignment to another trainer. Group classes are excluded.",
     "handoverEmpty": "No 1:1 program available for handover.",
     "handoverCurrentLabel": "Trainer"
+  },
+  "access": {
+    "title": "Access scan",
+    "subtitle": "Scan a QR or type the token, then press Enter.",
+    "inputPlaceholder": "QR token",
+    "scanButton": "Scan with camera",
+    "scanStop": "Stop camera",
+    "cameraUnavailable": "Camera scanning is unavailable on this device/browser. It requires a supported browser over HTTPS. Use a scanner gun or manual entry instead.",
+    "cameraError": "Could not open the camera. Check permissions or use scanner input.",
+    "verifying": "Verifying...",
+    "resultAllowed": "Access granted",
+    "resultDenied": "Access denied",
+    "resultExpired": "Expired",
+    "badge": {
+      "GUEST": "Hotel guest",
+      "MEMBER": "Member",
+      "STAFF": "Staff"
+    },
+    "hotelLabel": "Hotel",
+    "scanAgain": "Scan again",
+    "networkError": "Network error - please try again.",
+    "reason": {
+      "GYM_NOT_FOUND": "Gym not found.",
+      "STAY_NOT_FOUND": "Invalid QR.",
+      "NOT_AFFILIATED": "Hotel is not affiliated.",
+      "NOT_OPTED_IN": "No gym access requested.",
+      "NOT_YET": "Before check-in.",
+      "CHECKED_OUT": "Stay period has ended.",
+      "WRONG_GYM": "QR belongs to another gym.",
+      "INACTIVE": "Account is inactive.",
+      "NO_MEMBERSHIP": "No valid membership.",
+      "MEMBERSHIP_EXPIRED": "Membership has expired."
+    }
   }
 }
