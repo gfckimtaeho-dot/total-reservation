@@ -65,7 +65,8 @@
 
 제휴 호텔의 카페 사장(커피매니저) 계정을 헬스장 admin 이 발급. 호텔 가맹점 상세에만 노출되는 "커피매니저" 카드. **호텔 코드 추가 0** — 호텔 reset-credentials 페이지가 이미 `STAFF_INVITE`/`PASSWORD_RESET` 토큰 + role=`COFFEE_MANAGER` 를 처리해 설정 후 `/coffee/menu` 로 보낸다.
 
-- 입력: 카페 사장 이름 + 이메일 (+ 선택 전화). 대상 호텔 `Business.id`/`slug` 는 상세에서 이미 보유.
+- 입력: 카페 사장 이름 + 이메일 (+ 선택 전화) + 커피숍 이름 한글/영문(선택). 대상 호텔 `Business.id`/`slug` 는 상세에서 이미 보유.
+- 커피숍 이름은 호텔 `Business.cafeNameKo`/`cafeNameEn` 에 cross-DB update (호텔 마이그레이션 20260605081544_add_cafe_name, gym 은 schema-hotel 복제본 sync + generate만). 발급/재발급 매 제출 시 입력값 반영(빈값=null), 기존값 prefill.
 - 동작 (모두 호텔 DB 에 cross-DB write — `hotelDb` = `HOTEL_DATABASE_URL` prisma client):
   1. 같은 호텔 `COFFEE_MANAGER` 조회. 없으면 신규, 있으면 재발급(유저 중복 생성 금지, 호텔당 카페 1개 가정).
   2. 신규: `User`(role=`COFFEE_MANAGER`, status=`ACTIVE`, active=true, loginId/passwordHash=null) + `Staff`(role=`COFFEE_MANAGER`) 생성. loginId/비번은 카페 사장이 reset 에서 직접 설정.
