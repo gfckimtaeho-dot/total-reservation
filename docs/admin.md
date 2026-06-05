@@ -61,6 +61,20 @@
 - 호텔 매장도 같은 버튼. URL 패턴은 호텔 측 합의안 `{HOTEL_PUBLIC_BASE_URL}/{lang}/h/{slug}/reset-credentials?token=...` 사용, 헬스장 admin 이 호텔 DB 의 `magicLinkToken` 에 직접 insert
 - 이메일 미등록 사장은 버튼 비활성 (가맹점 등록 form 이 email 필수라 실제로는 발생 안 함)
 
+### 커피매니저 발급 (HOTEL 가맹점 전용, 2026-06-05)
+
+제휴 호텔의 카페 사장(커피매니저) 계정을 헬스장 admin 이 발급. 호텔 가맹점 상세에만 노출되는 "커피매니저" 카드. **호텔 코드 추가 0** — 호텔 reset-credentials 페이지가 이미 `STAFF_INVITE`/`PASSWORD_RESET` 토큰 + role=`COFFEE_MANAGER` 를 처리해 설정 후 `/coffee/menu` 로 보낸다.
+
+- 입력: 카페 사장 이름 + 이메일 (+ 선택 전화). 대상 호텔 `Business.id`/`slug` 는 상세에서 이미 보유.
+- 동작 (모두 호텔 DB 에 cross-DB write — `hotelDb` = `HOTEL_DATABASE_URL` prisma client):
+  1. 같은 호텔 `COFFEE_MANAGER` 조회. 없으면 신규, 있으면 재발급(유저 중복 생성 금지, 호텔당 카페 1개 가정).
+  2. 신규: `User`(role=`COFFEE_MANAGER`, status=`ACTIVE`, active=true, loginId/passwordHash=null) + `Staff`(role=`COFFEE_MANAGER`) 생성. loginId/비번은 카페 사장이 reset 에서 직접 설정.
+  3. `MagicLinkToken`(purpose=`STAFF_INVITE`, 7일, 직전 미사용 토큰 무효화) 생성.
+  4. URL = `{HOTEL_PUBLIC_BASE_URL}/ko/h/{slug}/reset-credentials?token=...`. 신규 초대 메일 템플릿(`sendCoffeeManagerInviteEmail`)으로 카페 사장 이메일 발송. 발송 인프라는 가맹점 등록 메일과 동일.
+- **재발급**: 기존 유저 대상으로 토큰만 새로. admin 이 입력한 이름/이메일/전화로 유저 정보 갱신 후 그 이메일로 발송(결정: 이메일 정정 가능). 10분 쿨다운(직전 `STAFF_INVITE` createdAt 기준).
+- 메일 발송 실패해도 row 는 생성되므로 화면에 설정 링크를 노출해 admin 이 복사 전달 가능.
+- 계약: loginId 는 호텔별 unique, 카페 사장이 reset 에서 직접(중복이면 호텔이 P2002 표시). 커피숍 직원/태블릿 계정은 admin 이 안 만듦 — 커피매니저가 호텔 `/coffee` 에서 자율 생성(호텔 측 구현 예정). 가맹점 BLOCKED/EXPIRED 면 호텔 login 가드가 막음.
+
 ## 구독 관리
 
 ### 자동 trial
