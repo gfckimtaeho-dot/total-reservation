@@ -60,12 +60,24 @@
 6. 단말에 OK/거절 응답 (스캐너 화면이 reason 머신코드를 `access.reason.*` 로 번역)
 7. 도어락 열림 (V2 자동화, V1은 수동 안내)
 
-## 자유 운동 통계
+## 자유 운동 통계 (구현 완료 2026-06-05)
 
 - 자유 운동은 예약 row 없음
 - AccessLog가 유일한 방문 기록
-- 사장 매출·방문 통계 화면에서 PT·단체·자유 운동 구분 표시
-- 일별·주별·월별 자유 운동 방문자 수 집계
+- 사장 방문 통계 화면(`/g/{slug}/visits`)에서 PT·단체·자유 운동 구분 표시
+- 일별·월별·연별 방문자 수 집계 (revenue 화면과 동일 기간 토글)
+
+구현 상세:
+- "방문(visit-day)" 단위 = `result=ALLOWED` 이고 회원(role=CUSTOMER)인 AccessLog 의
+  (userId, 매장 달력일) distinct. 같은 회원이 하루 여러 번 스캔해도 1 방문.
+- AccessLog 에는 방문 종류 정보가 없으므로 **같은 날 그 회원의 Reservation 유무로
+  역추론**: 그날 PT(scheduledClassId=null) 예약 있으면 PT, 단체(scheduledClassId 있음)만
+  있으면 CLASS, 예약 없으면 FREE(자유운동). 같은 날 PT+단체면 PT 우선.
+  취소/거절(CANCELLED/REJECTED) 예약은 제외.
+- 화면: KPI 3장(오늘/이번달/올해 자유운동 방문 수 + PT/단체 보조라인, 자유운동 기준
+  전기간 대비 %) + 누적 막대 차트(자유운동/PT/단체 3세그먼트, day/month/year 토글).
+- 한계(MVP): visit-day 가 분류 단위라 PT 받은 날 추가로 한 자유운동은 PT 로 흡수됨
+  (같은 날 = 1 방문). 호텔 게스트(GuestAccessLog)는 이 집계에 미포함 — 아래 "다음 단계".
 
 ## 게스트 매출 (구현 완료 2026-06-01)
 
@@ -109,7 +121,8 @@
 - 스캐너 태블릿 UI: 구현됨(2026-05-31). `/[lang]/g/[slug]/scan` (`AccessScanner.tsx`). requireGymStaff 게이트. 입력 이중화 = HID 스캐너/수동입력 자동포커스 input(Enter 제출) + 카메라(`BarcodeDetector`, secure context 전용, 미지원 시 안내 fallback). 결과 전체화면 색상(허용=emerald/거절=rose/만료=amber), reason i18n(access.reason.*), 자동 idle 복귀(연속 스캔). 사이드바 "출입 스캔" 진입점.
 - 회원/트레이너 공용 verify: 구현됨(2026-06-01). `verifyAccess` 디스패처 + `verifyMemberAccess`/`decideMemberAccess`. 위 "출입 검증 흐름" 절 참조.
 - 호텔 게스트 매출: 구현됨(2026-06-01). 아래 "게스트 매출" 절 참조.
-- 미구현(다음): 회원 자유 운동 방문 통계(AccessLog 집계).
+- 회원 자유 운동 방문 통계: 구현됨(2026-06-05). 위 "자유 운동 통계" 절 참조.
+- 미구현(다음): 게스트 방문 통계(GuestAccessLog union).
 
 ### 호텔 측 확정 답변 (2026-05-30)
 
