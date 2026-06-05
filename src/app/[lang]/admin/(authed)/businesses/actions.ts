@@ -8,7 +8,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { hotelDb } from "@/lib/hotel-db";
 import { requireAdmin } from "@/lib/auth/dal";
-import { sendPasswordResetEmail } from "@/lib/email/resend";
+import {
+  sendPasswordResetEmail,
+  sendCoffeeManagerInviteEmail,
+} from "@/lib/email/resend";
 
 type Vertical = "GYM" | "HOTEL";
 
@@ -378,4 +381,165 @@ async function sendHotelOwnerReset(
     };
   }
   return { ok: true, emailedTo: owner.email };
+}
+
+// ─── 커피매니저(카페 사장) 발급 (HOTEL 가맹점 상세) ──────────
+// 헬스장 admin 이 호텔 DB(cross-DB)에 User+Staff+MagicLinkToken 을 직접 write 하고
+// 카페 사장 이메일로 호텔 reset-credentials 설정 링크를 보낸다. 호텔 코드 추가 0 —
+// 호텔 reset 페이지가 STAFF_INVITE 토큰 + role=COFFEE_MANAGER 를 이미 처리한다.
+// 호텔당 카페 1개 가정: COFFEE_MANAGER 가 이미 있으면 그 유저 대상으로 재발급(토큰만
+// 새로). docs/access.md 의 게스트 출입과 같은 hotelDb 클라이언트 사용.
+const coffeeSchema = z.object({
+  id: z.string().min(1),
+  name: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z.string().min(1, "카페 사장 이름을 입력해 주세요").max(100),
+  ),
+  email: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z
+      .string()
+      .min(1, "이메일을 입력해 주세요")
+      .max(200)
+      .email("올바른 이메일 형식이 아닙니다"),
+  ),
+  phone: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z.string().max(40),
+  ),
+});
+
+export type CoffeeManagerState = {
+  errors?: Record<string, string[] | undefined>;
+  message?: string;
+  ok?: boolean;
+  reissued?: boolean; // 기존 유저 재발급 여부
+  mailed?: boolean; // 메일 실제 발송 성공 여부 (false 면 아래 url 복사 전달)
+  emailedTo?: string;
+  url?: string; // 메일 실패 시 admin 이 복사해 전달할 설정 링크
+};
+
+export async function issueCoffeeManager(
+  _prev: CoffeeManagerState,
+  formData: FormData,
+): Promise<CoffeeManagerState> {
+  await requireAdmin();
+  const parsed = coffeeSchema.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+  });
+  if (!parsed.success) {
+    return {
+      errors: parsed.error.flatten().fieldErrors as Record<
+        string,
+        string[] | undefined
+      >,
+    };
+  }
+  const { id: hotelId, name, email } = parsed.data;
+  const phone = parsed.data.phone.length > 0 ? parsed.data.phone : null;
+
+  const hotelBase = process.env.HOTEL_PUBLIC_BASE_URL?.trim();
+  if (!hotelBase) {
+    return {
+      message:
+        "HOTEL_PUBLIC_BASE_URL 환경변수가 설정되지 않아 설정 링크를 만들 수 없습니다.",
+    };
+  }
+
+  const business = await hotelDb.business.findUnique({
+    where: { id: hotelId },
+    select: { id: true, name: true, slug: true },
+  });
+  if (!business) return { message: "호텔을 찾을 수 없습니다." };
+
+  // 1) 같은 호텔에 COFFEE_MANAGER 이미 있으면 재발급(유저 중복 생성 금지).
+  const existing = await hotelDb.user.findFirst({
+    where: { hotelId, role: "COFFEE_MANAGER" },
+    select: { id: true },
+  });
+
+  let targetUserId: string;
+  let reissued: boolean;
+  if (existing) {
+    // 재발급 — 입력값으로 이름/이메일/전화 갱신 후 그 이메일로 발송(결정 B).
+    await hotelDb.user.update({
+      where: { id: existing.id },
+      data: { name, email, phone },
+    });
+    targetUserId = existing.id;
+    reissued = true;
+
+    // 재발급 10분 쿨다운 — 직전 STAFF_INVITE 발송과 너무 가까우면 차단.
+    const recent = await hotelDb.magicLinkToken.findFirst({
+      where: { targetUserId, purpose: "STAFF_INVITE" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    if (recent) {
+      const elapsed = Date.now() - recent.createdAt.getTime();
+      if (elapsed < RESET_COOLDOWN_MS) {
+        return { message: cooldownMsg(elapsed) };
+      }
+    }
+  } else {
+    // 2) 신규 User + 3) Staff 생성. loginId/passwordHash 는 카페 사장이 reset 에서
+    // 직접 설정하므로 null(default) 유지. status=ACTIVE, active=true (호텔 가드 전제).
+    const user = await hotelDb.user.create({
+      data: {
+        hotelId,
+        name,
+        email,
+        phone,
+        role: "COFFEE_MANAGER",
+        status: "ACTIVE",
+        active: true,
+      },
+      select: { id: true },
+    });
+    await hotelDb.staff.create({
+      data: { hotelId, userId: user.id, role: "COFFEE_MANAGER" },
+    });
+    targetUserId = user.id;
+    reissued = false;
+  }
+
+  // 4) MagicLinkToken(STAFF_INVITE, 7일). 직전 미사용 토큰은 무효화.
+  const token = crypto.randomBytes(32).toString("base64url");
+  await hotelDb.$transaction([
+    hotelDb.magicLinkToken.updateMany({
+      where: { targetUserId, purpose: "STAFF_INVITE", usedAt: null },
+      data: { usedAt: new Date() },
+    }),
+    hotelDb.magicLinkToken.create({
+      data: {
+        token,
+        targetUserId,
+        hotelId,
+        purpose: "STAFF_INVITE",
+        expiresAt: new Date(Date.now() + SEVEN_DAYS_MS),
+      },
+    }),
+  ]);
+
+  // 5) reset 링크 (lang=ko 기본). 6) 카페 사장 이메일로 발송.
+  const url = `${hotelBase}/ko/h/${business.slug}/reset-credentials?token=${token}`;
+  const r = await sendCoffeeManagerInviteEmail({
+    to: email,
+    recipientName: name,
+    hotelName: business.name,
+    setupUrl: url,
+  });
+
+  revalidatePath(`/admin/businesses/${hotelId}`);
+  // 메일 실패해도 row 는 이미 만들어졌으니 url 을 돌려줘 admin 이 복사 전달 가능.
+  return {
+    ok: true,
+    reissued,
+    mailed: r.ok,
+    emailedTo: email,
+    url,
+  };
 }

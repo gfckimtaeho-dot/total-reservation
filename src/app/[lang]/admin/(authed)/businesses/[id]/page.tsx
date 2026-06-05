@@ -8,6 +8,7 @@ import { BlockForm } from "./BlockForm";
 import { PasswordResetSendForm } from "./PasswordResetSendForm";
 import { OwnerContactForm } from "./OwnerContactForm";
 import { AffiliationManager } from "./AffiliationManager";
+import { CoffeeManagerForm } from "./CoffeeManagerForm";
 
 const dateFmt = new Intl.DateTimeFormat("ko-KR", {
   dateStyle: "medium",
@@ -256,6 +257,16 @@ export default async function AdminBusinessDetailPage({
     const affiliatedIds = new Set(affRows.map((a) => a.hotelId));
     availableHotels = hotelRows.filter((h) => !affiliatedIds.has(h.id));
   }
+  // 커피매니저 발급 (HOTEL 만). 이미 있으면 재발급 모드 + 입력 prefill.
+  let coffee: { name: string; email: string | null; phone: string | null } | null =
+    null;
+  if (view.hotel) {
+    coffee = await hotelDb.user.findFirst({
+      where: { hotelId: view.id, role: "COFFEE_MANAGER" },
+      select: { name: true, email: true, phone: true },
+    });
+  }
+
   const passwordResetSlot = (
     <PasswordResetSendForm
       businessId={view.id}
@@ -400,6 +411,18 @@ export default async function AdminBusinessDetailPage({
               status={view.status}
               blockedReason={view.blockedReason}
               passwordResetSlot={passwordResetSlot}
+            />
+          </div>
+        )}
+
+        {isHotel && (
+          <div className="sm:col-span-2">
+            <CoffeeManagerForm
+              businessId={view.id}
+              exists={coffee !== null}
+              initialName={coffee?.name ?? ""}
+              initialEmail={coffee?.email ?? ""}
+              initialPhone={coffee?.phone ?? ""}
             />
           </div>
         )}

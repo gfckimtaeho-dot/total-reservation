@@ -265,3 +265,50 @@ export async function sendInviteEmail(opts: {
     return { ok: false, fallback: false, error: message };
   }
 }
+
+// 호텔 커피매니저(카페 사장) 초대 메일. 헬스장 admin 이 가맹점(호텔) 상세에서
+// "커피매니저 발급" 클릭 시 호출. 링크는 호텔 reset-credentials 의 STAFF_INVITE
+// 토큰 — 카페 사장이 아이디/비번을 직접 설정하면 호텔 커피 화면으로 진입한다.
+// 발송 인프라(Gmail SMTP)는 가맹점 등록 메일과 동일, 문구만 커피 초대용.
+export async function sendCoffeeManagerInviteEmail(opts: {
+  to: string;
+  recipientName: string;
+  hotelName: string;
+  setupUrl: string;
+}): Promise<SendResult> {
+  const subject = `${opts.hotelName} — 커피매니저 등록 안내`;
+  const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px">
+    <p style="font-size:16px">${opts.recipientName} 님, 안녕하세요.</p>
+    <p style="font-size:16px"><strong>${opts.hotelName}</strong>의 커피매니저로 초대되셨습니다. 아래 버튼을 눌러 아이디와 비밀번호를 설정하시면 바로 커피 운영 화면으로 입장하실 수 있습니다.</p>
+    <p style="margin:24px 0">
+      <a href="${opts.setupUrl}" style="display:inline-block;background:#1A1A1A;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">아이디 / 비밀번호 설정</a>
+    </p>
+    <p style="font-size:12px;color:#666">버튼이 작동하지 않으면 이 URL을 복사해 주세요:<br/><a href="${opts.setupUrl}">${opts.setupUrl}</a></p>
+    <p style="font-size:12px;color:#666;margin-top:24px">📌 태블릿/폰 브라우저에서 열고 메뉴의 "홈 화면에 추가"를 누르면 앱처럼 사용할 수 있습니다. 링크는 7일간 유효합니다.</p>
+  </div>`;
+  const text = `${opts.recipientName} 님,\n\n${opts.hotelName}의 커피매니저로 초대되셨습니다.\n아이디/비밀번호 설정: ${opts.setupUrl}\n(7일 유효)`;
+
+  const transport = makeTransport();
+  if (!transport) {
+    console.log(
+      `[email/fallback] coffee manager invite skipped (GMAIL creds missing) to ${opts.to}`,
+    );
+    console.log(`[email/fallback] setup: ${opts.setupUrl}`);
+    return { ok: false, fallback: true };
+  }
+
+  try {
+    const info = await transport.sendMail({
+      from: `${FROM_NAME} <${user}>`,
+      to: opts.to,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, id: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[email] SMTP error (coffee manager invite):", message);
+    return { ok: false, fallback: false, error: message };
+  }
+}
