@@ -407,6 +407,15 @@ const coffeeSchema = z.object({
     (v) => (typeof v === "string" ? v.trim() : v),
     z.string().max(40),
   ),
+  // 커피숍 이름 한글/영문 — 둘 다 선택. 호텔 Business.cafeNameKo/En 에 저장.
+  cafeNameKo: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z.string().max(100),
+  ),
+  cafeNameEn: z.preprocess(
+    (v) => (typeof v === "string" ? v.trim() : v),
+    z.string().max(100),
+  ),
 });
 
 export type CoffeeManagerState = {
@@ -440,6 +449,10 @@ export async function issueCoffeeManager(
   }
   const { id: hotelId, name, email } = parsed.data;
   const phone = parsed.data.phone.length > 0 ? parsed.data.phone : null;
+  const cafeNameKo =
+    parsed.data.cafeNameKo.length > 0 ? parsed.data.cafeNameKo : null;
+  const cafeNameEn =
+    parsed.data.cafeNameEn.length > 0 ? parsed.data.cafeNameEn : null;
 
   const hotelBase = process.env.HOTEL_PUBLIC_BASE_URL?.trim();
   if (!hotelBase) {
@@ -454,6 +467,12 @@ export async function issueCoffeeManager(
     select: { id: true, name: true, slug: true },
   });
   if (!business) return { message: "호텔을 찾을 수 없습니다." };
+
+  // 커피숍 이름(한글/영문) 호텔 Business 에 저장 — 발급/재발급 무관 입력값 반영.
+  await hotelDb.business.update({
+    where: { id: hotelId },
+    data: { cafeNameKo, cafeNameEn },
+  });
 
   // 1) 같은 호텔에 COFFEE_MANAGER 이미 있으면 재발급(유저 중복 생성 금지).
   const existing = await hotelDb.user.findFirst({

@@ -67,6 +67,8 @@ type HotelExtras = {
   taxBusinessType: string | null;
   defaultCheckInMin: number;
   defaultCheckOutMin: number;
+  cafeNameKo: string | null;
+  cafeNameEn: string | null;
 };
 
 type DetailView = {
@@ -213,6 +215,8 @@ export default async function AdminBusinessDetailPage({
           taxBusinessType: hotelRow.taxBusinessType,
           defaultCheckInMin: hotelRow.defaultCheckInMin,
           defaultCheckOutMin: hotelRow.defaultCheckOutMin,
+          cafeNameKo: hotelRow.cafeNameKo,
+          cafeNameEn: hotelRow.cafeNameEn,
         },
       };
     }
@@ -423,6 +427,8 @@ export default async function AdminBusinessDetailPage({
               initialName={coffee?.name ?? ""}
               initialEmail={coffee?.email ?? ""}
               initialPhone={coffee?.phone ?? ""}
+              initialCafeNameKo={view.hotel?.cafeNameKo ?? ""}
+              initialCafeNameEn={view.hotel?.cafeNameEn ?? ""}
             />
           </div>
         )}

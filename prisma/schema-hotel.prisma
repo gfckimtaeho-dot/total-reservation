@@ -2,7 +2,7 @@
 // 헬스장 admin 이 호텔 DB 의 InviteToken/Business/Subscription/Stay 등을 read/write 하기 위한 prisma client generate 용.
 // 호텔 repo 의 schema 는 절대 수정 X (사용자 명시 룰). 변경은 호텔 측이 master.
 // 호텔 schema 변경 시 사람 책임 sync = 호텔 측 변경 받아 이 파일에 복사 후 `npm run prisma:generate-hotel`.
-// 마지막 sync: 2026-05-30 (Reservation 분리 + Stay.reservationId/gymOptIn/gymQrSentAt/status 반영).
+// 마지막 sync: 2026-06-05 (Business.cafeNameKo/cafeNameEn 추가 = 호텔 마이그레이션 20260605081544_add_cafe_name).
 //
 // 헬스장 측 변경 항목 (호텔 원본과 다른 부분):
 //   - generator output: `../src/generated/prisma` → `../src/generated/prisma-hotel`
@@ -161,6 +161,10 @@ model Business {
   // 체크인/체크아웃 기본 시간 (자정 기준 분, Manila). 15:00 / 11:00.
   defaultCheckInMin  Int @default(900)
   defaultCheckOutMin Int @default(660)
+  // 커피숍 이름 (한글/영문). 헬스장 admin 이 커피매니저 발급 시 입력 → cross-DB write.
+  // 호텔 마이그레이션 20260605081544_add_cafe_name 으로 적용됨. 둘 다 nullable.
+  cafeNameKo    String?
+  cafeNameEn    String?
   createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
   createdById   String?

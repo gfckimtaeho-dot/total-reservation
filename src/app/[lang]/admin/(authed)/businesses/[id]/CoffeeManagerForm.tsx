@@ -14,6 +14,8 @@ type Props = {
   initialName: string;
   initialEmail: string;
   initialPhone: string;
+  initialCafeNameKo: string;
+  initialCafeNameEn: string;
 };
 
 // 커피매니저(카페 사장) 발급 카드 — HOTEL 가맹점 상세 전용.
@@ -26,6 +28,8 @@ export function CoffeeManagerForm({
   initialName,
   initialEmail,
   initialPhone,
+  initialCafeNameKo,
+  initialCafeNameEn,
 }: Props) {
   const [state, formAction, pending] = useActionState(
     issueCoffeeManager,
@@ -34,6 +38,8 @@ export function CoffeeManagerForm({
   const [name, setName] = useState(initialName);
   const [email, setEmail] = useState(initialEmail);
   const [phone, setPhone] = useState(initialPhone);
+  const [cafeNameKo, setCafeNameKo] = useState(initialCafeNameKo);
+  const [cafeNameEn, setCafeNameEn] = useState(initialCafeNameEn);
   const [copied, setCopied] = useState(false);
 
   async function copyUrl(url: string) {
@@ -120,6 +126,45 @@ export function CoffeeManagerForm({
             </span>
           )}
         </label>
+
+        {/* 커피숍 이름 — 한글/영문 (호텔 Business.cafeNameKo/En 에 저장) */}
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="text-xs text-zinc-500">커피숍 이름 (한글)</span>
+            <input
+              type="text"
+              name="cafeNameKo"
+              value={cafeNameKo}
+              onChange={(e) => setCafeNameKo(e.target.value)}
+              autoComplete="off"
+              placeholder="그랜드 카페"
+              className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-2.5 text-xs text-zinc-900 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/15"
+            />
+            {state.errors?.cafeNameKo && (
+              <span className="mt-1 block text-xs text-rose-600">
+                {state.errors.cafeNameKo.join(", ")}
+              </span>
+            )}
+          </label>
+
+          <label className="block">
+            <span className="text-xs text-zinc-500">커피숍 이름 (영문)</span>
+            <input
+              type="text"
+              name="cafeNameEn"
+              value={cafeNameEn}
+              onChange={(e) => setCafeNameEn(e.target.value)}
+              autoComplete="off"
+              placeholder="Grand Cafe"
+              className="mt-1 h-9 w-full rounded-md border border-zinc-300 bg-white px-2.5 text-xs text-zinc-900 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/15"
+            />
+            {state.errors?.cafeNameEn && (
+              <span className="mt-1 block text-xs text-rose-600">
+                {state.errors.cafeNameEn.join(", ")}
+              </span>
+            )}
+          </label>
+        </div>
 
         {state.message && (
           <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
