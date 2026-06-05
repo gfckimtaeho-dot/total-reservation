@@ -438,6 +438,8 @@ export async function issueCoffeeManager(
     name: formData.get("name"),
     email: formData.get("email"),
     phone: formData.get("phone"),
+    cafeNameKo: formData.get("cafeNameKo"),
+    cafeNameEn: formData.get("cafeNameEn"),
   });
   if (!parsed.success) {
     return {
