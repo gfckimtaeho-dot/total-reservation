@@ -55,6 +55,10 @@ export function AccessScanner({
   const [view, setView] = useState<View>({ phase: "idle" });
   const [inputValue, setInputValue] = useState("");
   const [cameraOn, setCameraOn] = useState(false);
+  // 전면/후면 카메라 선택. 벽걸이 키오스크는 손님이 화면을 마주보므로 보통 전면
+  // (user). 기본은 후면(environment) — 직원이 손님 폰을 찍는 경우. 버튼으로 전환.
+  const [facing, setFacing] = useState<"environment" | "user">("environment");
+  const facingRef = useRef<"environment" | "user">("environment");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -114,7 +118,8 @@ export function AccessScanner({
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        // 문자열 facingMode 는 ideal 제약이라 해당 카메라 없으면 다른 걸로 fallback.
+        video: { facingMode: facingRef.current },
       });
       streamRef.current = stream;
       lockRef.current = false;
@@ -153,6 +158,28 @@ export function AccessScanner({
       stopCamera();
     }
   }, [t, stopCamera, submit]);
+
+  // 전면/후면 전환. 현재 스트림을 끊고 반대 카메라로 다시 켠다.
+  const flipCamera = useCallback(() => {
+    const next = facingRef.current === "environment" ? "user" : "environment";
+    facingRef.current = next;
+    setFacing(next);
+    stopCamera();
+    startCamera();
+  }, [stopCamera, startCamera]);
+
+  // 브라우저 주소창 숨김(전체화면). 사용자 제스처(버튼 클릭)에서 호출해야 동작.
+  // 미지원/거부는 무시. PWA "홈 화면에 추가"로 standalone 설치 시엔 불필요.
+  const enterFullscreen = useCallback(() => {
+    const el = document.documentElement as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>;
+    };
+    try {
+      (el.requestFullscreen?.() ?? el.webkitRequestFullscreen?.())?.catch?.(() => {});
+    } catch {
+      // 무시.
+    }
+  }, []);
 
   // 결과/에러는 일정 시간 뒤 idle 로 복귀. 카메라 켜져 있으면 잠금 해제로
   // 자동 재스캔 재개(무인). 카메라 꺼진 수동 모드는 그대로 idle 입력 대기.
@@ -283,17 +310,26 @@ export function AccessScanner({
           </Overlay>
         )}
 
-        {/* 카메라 켜진 idle = 무인 대기 상태. 손님이 폰 QR 을 비추도록 안내 + 중지 버튼. */}
+        {/* 카메라 켜진 idle = 무인 대기 상태. 손님이 폰 QR 을 비추도록 안내 + 전환/중지. */}
         {cameraOn && view.phase === "idle" && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-5 bg-gradient-to-t from-zinc-950/90 to-transparent px-6 pb-10 pt-16 text-center">
             <p className="text-base font-medium text-white/80">{t("subtitle")}</p>
-            <button
-              type="button"
-              onClick={stopCamera}
-              className="pointer-events-auto rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15"
-            >
-              {t("scanStop")}
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={flipCamera}
+                className="pointer-events-auto rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold hover:bg-white/10"
+              >
+                {facing === "environment" ? t("cameraFront") : t("cameraBack")}
+              </button>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="pointer-events-auto rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15"
+              >
+                {t("scanStop")}
+              </button>
+            </div>
           </div>
         )}
 
@@ -324,13 +360,25 @@ export function AccessScanner({
               />
             </form>
 
-            <button
-              type="button"
-              onClick={startCamera}
-              className="rounded-xl border border-white/15 px-5 py-3 text-sm font-medium text-white/70 hover:bg-white/5"
-            >
-              {t("scanButton")}
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  enterFullscreen();
+                  startCamera();
+                }}
+                className="rounded-xl border border-white/15 px-5 py-3 text-sm font-medium text-white/70 hover:bg-white/5"
+              >
+                {t("scanButton")}
+              </button>
+              <button
+                type="button"
+                onClick={enterFullscreen}
+                className="rounded-xl border border-white/15 px-5 py-3 text-sm font-medium text-white/70 hover:bg-white/5"
+              >
+                {t("fullscreen")}
+              </button>
+            </div>
           </div>
         )}
       </main>

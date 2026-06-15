@@ -1,7 +1,21 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/client";
 import { normalizeSlug } from "@/lib/auth/normalize";
 import { AccessScanner } from "../AccessScanner";
+
+// "홈 화면에 추가" 시 주소창 없는 standalone 키오스크로 스캐너에 바로 진입하도록
+// 스캐너 전용 manifest 를 연결(area=scan + key). start_url = 이 키 링크.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string; slug: string; key: string }>;
+}): Promise<Metadata> {
+  const { lang, slug, key } = await params;
+  return {
+    manifest: `/${lang}/g/${slug}/manifest.webmanifest?area=scan&key=${encodeURIComponent(key)}`,
+  };
+}
 
 // 무인 출입 스캐너 (세션 없는 영구 링크). /g/{slug}/scan/{key}.
 // 직원 로그인 대신 링크 안의 scannerKey 로만 인증 — 사장이 설정에서 발급/재발급.

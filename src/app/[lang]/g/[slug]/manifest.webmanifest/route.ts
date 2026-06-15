@@ -20,8 +20,11 @@ export async function GET(
   { params }: { params: Promise<{ lang: string; slug: string }> },
 ) {
   const { lang, slug } = await params;
-  const isStaff =
-    new URL(req.url).searchParams.get("area") === "staff";
+  const sp = new URL(req.url).searchParams;
+  const area = sp.get("area");
+  const isStaff = area === "staff";
+  const isScan = area === "scan";
+  const scanKey = sp.get("key") ?? "";
 
   const business = await prisma.business.findUnique({
     where: { slug },
@@ -32,20 +35,29 @@ export async function GET(
   }
 
   const base = `/${lang}/g/${slug}`;
-  // 진입점: 고객은 그 매장 고객 영역, 운영은 그 매장 대시보드. 세션이 있으면
-  // 바로 들어가고, 없으면 각 가드(requireGymCustomer/requireGymStaff)가
-  // 그 매장 로그인으로 보낸다.
-  const entry = isStaff ? `${base}/dashboard` : `${base}/me`;
-  // 홈화면 아이콘 이름 = 매장명. 운영용은 " 운영" suffix 로 구분(한 사람이
-  // 둘 다 설치할 수 있어 이름이 같으면 헷갈린다).
-  const name = isStaff ? `${business.name} 운영` : business.name;
+  // 진입점: 고객은 그 매장 고객 영역, 운영은 그 매장 대시보드, 스캐너는 무인 키
+  // 링크. 세션 기반(고객/운영)은 가드가 로그인으로 보내고, 스캐너는 키로만 열린다.
+  // 스캐너를 "홈 화면에 추가"하면 주소창 없는 standalone 키오스크로 바로 진입.
+  const entry = isScan
+    ? `${base}/scan/${scanKey}`
+    : isStaff
+      ? `${base}/dashboard`
+      : `${base}/me`;
+  // 홈화면 아이콘 이름 = 매장명. 운영용은 " 운영", 스캐너는 " 출입" suffix 로 구분.
+  const name = isScan
+    ? `${business.name} 출입`
+    : isStaff
+      ? `${business.name} 운영`
+      : business.name;
 
   const manifest = {
     name,
     short_name: name,
-    description: isStaff
-      ? `${business.name} 운영 관리`
-      : `${business.name} 회원 예약`,
+    description: isScan
+      ? `${business.name} 무인 출입 스캐너`
+      : isStaff
+        ? `${business.name} 운영 관리`
+        : `${business.name} 회원 예약`,
     // id 를 변형별로 분리 — 고객용/운영용이 각각 독립 설치되도록.
     id: entry,
     start_url: entry,
@@ -54,8 +66,8 @@ export async function GET(
     // V18 Sunset Peach 채택 후 — 고객용은 화이트 chrome, 운영용은 어제 다크 그대로.
     // PWA 재설치 시 splash/상태바 색이 페이지 톤과 일치한다. 기존 설치된 PWA 는
     // manifest 캐시가 보존되므로 사용자가 제거 후 재추가해야 갱신된다.
-    background_color: isStaff ? "#09090b" : "#ffffff",
-    theme_color: isStaff ? "#09090b" : "#ffffff",
+    background_color: isStaff || isScan ? "#09090b" : "#ffffff",
+    theme_color: isStaff || isScan ? "#09090b" : "#ffffff",
     icons: [
       { src: "/icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icon/512", sizes: "512x512", type: "image/png", purpose: "any" },
