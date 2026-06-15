@@ -5,11 +5,12 @@
 //   token = QR 인코딩 값. 회원/직원 User.accessToken 또는 호텔 게스트 Stay.id.
 //           verifyAccess 디스패처가 종류를 판별해 알맞은 경로로 보낸다.
 //
-// V1 보안: 미인증 (스캐너는 매장 신뢰 단말, 항상 online 가정 — docs/access.md).
-// token 은 추측 불가 고엔트로피. 응답은 해당 토큰 1건의 가부만 노출.
-// V2 hardening: 매장 staff 세션/디바이스 토큰 요구 + rate limit.
+// 보안: 무인 키 링크 단말은 body.key(매장 scannerKey)를 함께 보내 인증한다.
+// key 가 일치할 때만 통과 — 재발급된 옛 링크/임의 호출 차단(403). 직원 세션
+// 스캐너는 key 없이 기존 동작(token 추측 불가 고엔트로피). docs/access.md.
 
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db/client";
 import { normalizeSlug } from "@/lib/auth/normalize";
 import { verifyAccess } from "@/lib/access/verify";
 
@@ -21,15 +22,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalidBody" }, { status: 400 });
   }
 
-  const { slug: rawSlug, token: rawToken } = (body ?? {}) as {
+  const { slug: rawSlug, token: rawToken, key: rawKey } = (body ?? {}) as {
     slug?: unknown;
     token?: unknown;
+    key?: unknown;
   };
   const slug = normalizeSlug(typeof rawSlug === "string" ? rawSlug : "");
   const token = typeof rawToken === "string" ? rawToken.trim() : "";
+  const key = typeof rawKey === "string" ? rawKey.trim() : "";
 
   if (!slug || !token) {
     return NextResponse.json({ error: "missingParams" }, { status: 400 });
+  }
+
+  // 무인 키 링크 단말은 key 를 함께 보낸다. 매장 scannerKey 와 일치할 때만 통과.
+  if (key) {
+    const gym = await prisma.business.findUnique({
+      where: { slug },
+      select: { scannerKey: true },
+    });
+    if (!gym?.scannerKey || gym.scannerKey !== key) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
   }
 
   const outcome = await verifyAccess(slug, token);

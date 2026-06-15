@@ -40,10 +40,15 @@ export function AccessScanner({
   slug,
   gymName,
   dashboardHref,
+  verifyKey,
 }: {
   slug: string;
   gymName: string;
-  dashboardHref: string;
+  // 직원 세션 스캐너는 대시보드로 돌아가는 링크 제공. 무인 키오스크(키 링크)는
+  // 생략 — 손님이 운영 화면으로 새지 않게.
+  dashboardHref?: string;
+  // 무인 키 링크에서 넘어온 스캐너 키. 있으면 verify 요청에 함께 보내 단말을 인증.
+  verifyKey?: string;
 }) {
   const t = useTranslations("access");
   const tc = useTranslations("common");
@@ -82,7 +87,7 @@ export function AccessScanner({
         const res = await fetch("/api/access/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug, token }),
+          body: JSON.stringify(verifyKey ? { slug, token, key: verifyKey } : { slug, token }),
         });
         if (!res.ok) {
           setView({ phase: "error", message: t("networkError") });
@@ -94,7 +99,7 @@ export function AccessScanner({
         setView({ phase: "error", message: t("networkError") });
       }
     },
-    [slug, t],
+    [slug, t, verifyKey],
   );
 
   const startCamera = useCallback(async () => {
@@ -169,6 +174,34 @@ export function AccessScanner({
   // 언마운트 시 카메라 정리.
   useEffect(() => () => stopCamera(), [stopCamera]);
 
+  // 무인 단말 화면 꺼짐 방지(Screen Wake Lock). secure context(HTTPS) 전용이라
+  // 미지원/실패는 조용히 무시. 화면 복귀 시 잠금 재획득(브라우저가 자동 해제하므로).
+  useEffect(() => {
+    const nav = navigator as Navigator & {
+      wakeLock?: { request: (type: "screen") => Promise<{ release: () => Promise<void> }> };
+    };
+    if (!nav.wakeLock) return;
+    let sentinel: { release: () => Promise<void> } | null = null;
+    let cancelled = false;
+    const acquire = async () => {
+      try {
+        sentinel = await nav.wakeLock!.request("screen");
+      } catch {
+        // 미지원/거부 — 무시.
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !cancelled) acquire();
+    };
+    acquire();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      sentinel?.release().catch(() => {});
+    };
+  }, []);
+
   const showResult = view.phase === "result";
   const showError = view.phase === "error";
   const showVerifying = view.phase === "verifying";
@@ -188,12 +221,14 @@ export function AccessScanner({
           </span>
           <span className="text-sm font-medium text-white/80">{gymName}</span>
         </div>
-        <Link
-          href={dashboardHref}
-          className="rounded-lg border border-white/15 px-4 py-2 text-xs font-medium text-white/70 hover:bg-white/5"
-        >
-          {tc("home")}
-        </Link>
+        {dashboardHref && (
+          <Link
+            href={dashboardHref}
+            className="rounded-lg border border-white/15 px-4 py-2 text-xs font-medium text-white/70 hover:bg-white/5"
+          >
+            {tc("home")}
+          </Link>
+        )}
       </header>
 
       <main className="relative flex flex-1 items-center justify-center px-6">

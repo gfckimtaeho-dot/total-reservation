@@ -270,6 +270,10 @@ model Business {
   // IANA 타임존 — 매장 현지 시간 기준(오늘/영업/예약 판정). 기존 매장은
   // 모두 필리핀이라 default Asia/Manila. 등록 시 선택받는다.
   timeZone     String           @default("Asia/Manila")
+  // 무인 출입 스캐너 영구 링크 키. 사장이 대시보드에서 발급/재발급. 세션 없는
+  // /g/{slug}/scan/{scannerKey} 화면이 이 값으로만 열린다(로그인 불필요).
+  // null = 미발급. 재발급하면 옛 링크는 즉시 무효(분실 단말 회수). docs/access.md.
+  scannerKey   String?          @unique
   cityId       String
   barangayId   String
   city         City             @relation(fields: [cityId], references: [id])

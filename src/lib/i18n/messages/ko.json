@@ -113,6 +113,28 @@
       "saved": "저장 완료",
       "err_invalid": "0 이상의 정수를 입력하세요",
       "err_forbidden": "권한이 없습니다"
+    },
+    "scannerLink": {
+      "heading": "무인 출입 스캐너 링크",
+      "body": "태블릿용 영구 출입 스캔 링크입니다. 로그인 없이 한 번 열어두면 그대로 계속 작동합니다. 메일로 보내 태블릿에서 열거나, 링크를 복사해 사용하세요. 분실 시 재발급하면 옛 링크는 즉시 무효가 됩니다.",
+      "linkLabel": "스캐너 링크",
+      "copy": "복사",
+      "copied": "복사됨",
+      "emailLabel": "이 링크를 메일로 보내기",
+      "sendEmail": "메일 보내기",
+      "sending": "보내는 중...",
+      "sent": "메일을 보냈습니다",
+      "fallback": "메일 발송 설정이 없어 전송하지 못했습니다. 위 링크를 직접 복사해 사용하세요.",
+      "regenerate": "링크 재발급",
+      "regenerating": "재발급 중...",
+      "regenerateHint": "재발급하면 기존 링크는 즉시 작동을 멈춥니다(분실 단말 회수).",
+      "generated": "새 링크가 발급됐습니다",
+      "notSet": "아직 스캐너 링크가 발급되지 않았습니다.",
+      "generate": "링크 생성",
+      "generating": "생성 중...",
+      "err_forbidden": "권한이 없습니다",
+      "err_invalid": "올바른 이메일을 입력하세요",
+      "err_send": "메일 전송에 실패했습니다"
     }
   },
   "register": {

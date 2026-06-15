@@ -1,8 +1,11 @@
 "use server";
 
+import { randomBytes } from "crypto";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
+import { sendScannerLinkEmail } from "@/lib/email/resend";
 
 export type SavePriceState =
   | { status: "idle" }
@@ -68,4 +71,92 @@ export async function updateHotelGuestDailyPrice(
   revalidatePath(`/ko/g/${slug}/revenue`);
   revalidatePath(`/en/g/${slug}/revenue`);
   return { status: "saved" };
+}
+
+// ─── 무인 출입 스캐너 영구 링크 ─────────────────────────────
+
+export type ScannerKeyState =
+  | { status: "idle" }
+  | { status: "generated" }
+  | { status: "error"; message: "forbidden" };
+
+export type ScannerEmailState =
+  | { status: "idle" }
+  | { status: "sent" }
+  | { status: "fallback" }
+  | { status: "error"; message: "forbidden" | "invalid" | "send" };
+
+// 추측 불가 고엔트로피 키(32바이트 base64url ≈ 43자). 링크 자체가 인증 수단.
+function newScannerKey(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+async function requestBaseUrl(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  return `${proto}://${host}`;
+}
+
+// 스캐너 링크 키 발급/재발급. 재발급하면 옛 링크는 즉시 무효(분실 단말 회수).
+// OWNER/MANAGER 만. audit 스탬핑은 Prisma extension 이 updatedById 자동 처리.
+export async function regenerateScannerKey(
+  slug: string,
+  _prev: ScannerKeyState,
+): Promise<ScannerKeyState> {
+  void _prev; // useActionState 시그니처용 — 사용 안 함.
+  const auth = await requireGymStaff(slug);
+  if (!["OWNER", "MANAGER"].includes(auth.role)) {
+    return { status: "error", message: "forbidden" };
+  }
+  await prisma.business.update({
+    where: { id: auth.business!.id },
+    data: { scannerKey: newScannerKey() },
+  });
+  revalidatePath(`/ko/g/${slug}/settings`);
+  revalidatePath(`/en/g/${slug}/settings`);
+  return { status: "generated" };
+}
+
+// 스캐너 영구 링크를 입력 이메일로 발송. 키가 없으면 먼저 발급한다.
+export async function sendScannerLink(
+  slug: string,
+  _prev: ScannerEmailState,
+  formData: FormData,
+): Promise<ScannerEmailState> {
+  const auth = await requireGymStaff(slug);
+  if (!["OWNER", "MANAGER"].includes(auth.role)) {
+    return { status: "error", message: "forbidden" };
+  }
+  const to = String(formData.get("email") ?? "").trim();
+  if (!to || !to.includes("@")) {
+    return { status: "error", message: "invalid" };
+  }
+  const gymId = auth.business!.id;
+
+  const biz = await prisma.business.findUnique({
+    where: { id: gymId },
+    select: { name: true, scannerKey: true },
+  });
+  let key = biz?.scannerKey ?? null;
+  if (!key) {
+    key = newScannerKey();
+    await prisma.business.update({
+      where: { id: gymId },
+      data: { scannerKey: key },
+    });
+    revalidatePath(`/ko/g/${slug}/settings`);
+    revalidatePath(`/en/g/${slug}/settings`);
+  }
+
+  const base = await requestBaseUrl();
+  const scanUrl = `${base}/ko/g/${slug}/scan/${key}`;
+  const res = await sendScannerLinkEmail({
+    to,
+    storeName: biz?.name ?? slug,
+    scanUrl,
+  });
+  if (res.ok) return { status: "sent" };
+  if (!res.ok && "fallback" in res && res.fallback) return { status: "fallback" };
+  return { status: "error", message: "send" };
 }

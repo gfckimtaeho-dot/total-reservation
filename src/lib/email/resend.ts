@@ -312,3 +312,47 @@ export async function sendCoffeeManagerInviteEmail(opts: {
     return { ok: false, fallback: false, error: message };
   }
 }
+
+// 무인 출입 스캐너 영구 링크 메일. 사장이 설정에서 "메일로 보내기" 클릭 시 호출.
+// 태블릿에서 이 링크를 한 번 열면 로그인 없이 영구 사용(세션 없는 키 인증).
+export async function sendScannerLinkEmail(opts: {
+  to: string;
+  storeName: string;
+  scanUrl: string;
+}): Promise<SendResult> {
+  const subject = `${opts.storeName} — 무인 출입 스캐너 링크`;
+  const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px">
+    <p style="font-size:16px"><strong>${opts.storeName}</strong> 무인 출입 스캐너 링크입니다.</p>
+    <p style="font-size:15px;color:#444">태블릿에서 아래 버튼을 누르면 출입 스캔 화면이 열립니다. 로그인 불필요, 한 번 열어두면 그대로 계속 작동합니다. 브라우저 메뉴의 "홈 화면에 추가"로 아이콘을 만들어 두면 한 번에 들어갑니다.</p>
+    <p style="margin:24px 0">
+      <a href="${opts.scanUrl}" style="display:inline-block;background:#1A1A1A;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px">출입 스캐너 열기</a>
+    </p>
+    <p style="font-size:12px;color:#666">버튼이 작동하지 않으면 이 URL을 복사해 주세요:<br/><a href="${opts.scanUrl}">${opts.scanUrl}</a></p>
+    <p style="font-size:12px;color:#666;margin-top:24px">📌 이 링크에는 매장 전용 비밀키가 들어 있어 외부에 공유하지 마세요. 분실 시 설정에서 "링크 재발급"을 누르면 옛 링크는 즉시 무효가 됩니다.</p>
+  </div>`;
+  const text = `${opts.storeName} 무인 출입 스캐너 링크\n\n태블릿에서 아래 URL을 열면 로그인 없이 계속 사용할 수 있습니다.\n${opts.scanUrl}\n\n외부 공유 금지. 분실 시 설정에서 재발급하세요.`;
+
+  const transport = makeTransport();
+  if (!transport) {
+    console.log(
+      `[email/fallback] scanner link skipped (GMAIL creds missing) to ${opts.to}`,
+    );
+    console.log(`[email/fallback] scan: ${opts.scanUrl}`);
+    return { ok: false, fallback: true };
+  }
+
+  try {
+    const info = await transport.sendMail({
+      from: `${FROM_NAME} <${user}>`,
+      to: opts.to,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, id: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[email] SMTP error (scanner link):", message);
+    return { ok: false, fallback: false, error: message };
+  }
+}

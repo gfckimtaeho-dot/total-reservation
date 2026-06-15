@@ -113,6 +113,28 @@
       "saved": "Saved",
       "err_invalid": "Enter a non-negative integer",
       "err_forbidden": "Not allowed"
+    },
+    "scannerLink": {
+      "heading": "Unattended access scanner link",
+      "body": "A permanent access-scan link for a tablet. No login required; open it once and it keeps working. Email it to the tablet or copy the link. Regenerate if lost, and the old link stops working immediately.",
+      "linkLabel": "Scanner link",
+      "copy": "Copy",
+      "copied": "Copied",
+      "emailLabel": "Email this link",
+      "sendEmail": "Send email",
+      "sending": "Sending...",
+      "sent": "Email sent",
+      "fallback": "Email is not configured, so it was not sent. Copy the link above instead.",
+      "regenerate": "Regenerate link",
+      "regenerating": "Regenerating...",
+      "regenerateHint": "Regenerating stops the existing link immediately (revoke a lost device).",
+      "generated": "A new link was issued",
+      "notSet": "No scanner link has been issued yet.",
+      "generate": "Create link",
+      "generating": "Creating...",
+      "err_forbidden": "Not allowed",
+      "err_invalid": "Enter a valid email",
+      "err_send": "Failed to send email"
     }
   },
   "register": {

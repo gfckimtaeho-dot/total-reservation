@@ -100,6 +100,18 @@
 - 매장 스캐너는 항상 온라인 가정
 - **PWA 오프라인 시 출입 검증 안 함, 그냥 입장 허용** (V1 단순화 — 사장 신뢰 모델)
 
+## 무인 출입 스캐너 (영구 키 링크 — 구현 완료 2026-06-15)
+
+손님 셀프 출입(지하철 개찰구식) 단말을 직원 로그인/세션 없이 영구 운영하기 위한 구조. 직원 세션 스캐너(`/g/{slug}/scan`, requireGymStaff)는 그대로 두고, 무인 단말용 **세션 없는 키 링크**를 추가한다.
+
+- 인증 = 링크 안의 키. `Business.scannerKey`(nullable, unique, 32B base64url). 사장이 설정에서 발급/재발급. 링크 자체가 영구 인증 수단이라 로그인/세션 만료(JWT 30/90일) 문제를 회피.
+- 라우트 = `/{lang}/g/{slug}/scan/{key}` (`scan/[key]/page.tsx`). 세션 게이트 없음. key 가 매장 scannerKey 와 일치 + 매장 status 가 BLOCKED/EXPIRED 아닐 때만 화면 노출, 아니면 404(재발급된 옛 링크 차단).
+- 검증 endpoint = `POST /api/access/verify` 가 body.key 를 받아 매장 scannerKey 와 대조. 불일치 시 403(임의 호출/회수된 단말 차단). 직원 세션 스캐너는 key 없이 기존 동작.
+- 사장 발급 UI = `/g/{slug}/settings` 의 "무인 출입 스캐너 링크" 카드(OWNER/MANAGER). 링크 표시/복사 + 이메일 발송(`sendScannerLinkEmail`) + 재발급(옛 링크 즉시 무효 = 분실 단말 회수). 발급/재발급은 `regenerateScannerKey`, 발송은 `sendScannerLink` 서버 액션.
+- 연속 자동 스캔 = 카메라 모드에서 한 명 인식해도 카메라를 끄지 않고 계속 대기(`AccessScanner.tsx`). QR 인식 -> 결과 4초 -> 자동 재대기. 같은 폰 연타 방지: 직전 QR 이 프레임에서 빠진(빈 프레임) 뒤에만 다음 스캔 허용 + 검증/결과 중 잠금. HID 하드웨어 스캐너(다이소식) 경로는 그대로 — 영구 링크 위에 2D 스캐너만 꽂으면 동작.
+- 화면 꺼짐 방지 = Screen Wake Lock API(secure context 전용, 미지원 무시) + 단말 측 키오스크/충전중 화면유지 설정.
+- 트레이드오프: 링크에 비밀키가 들어가므로 링크 소지 = 스캔 가능. 단 스캔으로 노출되는 건 제시된 QR 1건의 허용/거절뿐(회원정보 X)이고 재발급으로 즉시 회수 가능 — 무인 단말에 적정.
+
 ## 모바일 앱 전략 (2026-05-07 결정)
 
 - **PWA (Progressive Web App)** 채택. native iOS/Android 앱 X.
