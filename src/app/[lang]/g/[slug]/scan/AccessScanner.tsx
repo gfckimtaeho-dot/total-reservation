@@ -55,12 +55,20 @@ export function AccessScanner({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
+  // 무인 연속 스캔 제어:
+  //  - lockRef: 검증중/결과표시중엔 새 스캔 잠금(다음 손님은 idle 복귀 후 받음).
+  //  - clearedRef: 직전 QR 이 프레임에서 빠진 뒤(빈 프레임 1회)에만 다음 스캔 허용.
+  //    같은 폰을 계속 들고 있어도 연타로 중복 스캔되지 않게 하는 디바운스.
+  const lockRef = useRef(false);
+  const clearedRef = useRef(true);
 
   const stopCamera = useCallback(() => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    lockRef.current = false;
+    clearedRef.current = true;
     setCameraOn(false);
   }, []);
 
@@ -104,6 +112,8 @@ export function AccessScanner({
         video: { facingMode: "environment" },
       });
       streamRef.current = stream;
+      lockRef.current = false;
+      clearedRef.current = true;
       setCameraOn(true);
       const video = videoRef.current;
       if (!video) {
@@ -113,15 +123,19 @@ export function AccessScanner({
       video.srcObject = stream;
       await video.play();
       const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+      // 무인 연속 루프: 한 번 인식해도 카메라를 끄지 않고 계속 돈다.
       const tick = async () => {
         if (!streamRef.current) return;
         try {
           const codes = await detector.detect(video);
           const value = codes[0]?.rawValue;
-          if (value) {
-            stopCamera();
+          if (!value) {
+            // 프레임이 비었다 = 직전 손님 폰이 빠졌다. 다음 스캔 허용.
+            clearedRef.current = true;
+          } else if (clearedRef.current && !lockRef.current) {
+            clearedRef.current = false;
+            lockRef.current = true;
             submit(value);
-            return;
           }
         } catch {
           // 일시적 detect 실패는 무시하고 다음 프레임에서 재시도.
@@ -135,11 +149,15 @@ export function AccessScanner({
     }
   }, [t, stopCamera, submit]);
 
-  // 결과/에러는 일정 시간 뒤 idle 로 복귀.
+  // 결과/에러는 일정 시간 뒤 idle 로 복귀. 카메라 켜져 있으면 잠금 해제로
+  // 자동 재스캔 재개(무인). 카메라 꺼진 수동 모드는 그대로 idle 입력 대기.
   useEffect(() => {
     if (view.phase !== "result" && view.phase !== "error") return;
     const ms = view.phase === "result" ? RESULT_MS : ERROR_MS;
-    const id = setTimeout(() => setView({ phase: "idle" }), ms);
+    const id = setTimeout(() => {
+      lockRef.current = false;
+      setView({ phase: "idle" });
+    }, ms);
     return () => clearTimeout(id);
   }, [view]);
 
@@ -151,6 +169,11 @@ export function AccessScanner({
   // 언마운트 시 카메라 정리.
   useEffect(() => () => stopCamera(), [stopCamera]);
 
+  const showResult = view.phase === "result";
+  const showError = view.phase === "error";
+  const showVerifying = view.phase === "verifying";
+  const showIdleManual = view.phase === "idle" && !cameraOn;
+
   return (
     <div
       className="fixed inset-0 flex flex-col bg-zinc-950 text-white"
@@ -158,7 +181,7 @@ export function AccessScanner({
         if (view.phase === "idle" && !cameraOn) inputRef.current?.focus();
       }}
     >
-      <header className="flex items-center justify-between px-6 py-4">
+      <header className="relative z-20 flex items-center justify-between px-6 py-4">
         <div className="flex flex-col">
           <span className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">
             {t("title")}
@@ -174,32 +197,73 @@ export function AccessScanner({
       </header>
 
       <main className="relative flex flex-1 items-center justify-center px-6">
-        {view.phase === "result" && (
-          <ResultPanel
-            outcome={view.outcome}
-            t={t}
-            onAgain={() => setView({ phase: "idle" })}
-          />
+        {/* 카메라 프리뷰 — 켜졌을 때만 풀블리드 베이스 레이어. */}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={
+            cameraOn
+              ? "absolute inset-0 h-full w-full object-cover"
+              : "hidden"
+          }
+        />
+
+        {showResult && (
+          <Overlay>
+            <ResultPanel
+              outcome={(view as { outcome: Outcome }).outcome}
+              t={t}
+              onAgain={() => {
+                lockRef.current = false;
+                setView({ phase: "idle" });
+              }}
+            />
+          </Overlay>
         )}
 
-        {view.phase === "error" && (
-          <div className="flex max-w-md flex-col items-center gap-6 text-center">
-            <p className="text-lg leading-relaxed text-white/80">{view.message}</p>
+        {showError && (
+          <Overlay>
+            <div className="flex max-w-md flex-col items-center gap-6 text-center">
+              <p className="text-lg leading-relaxed text-white/80">
+                {(view as { message: string }).message}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  lockRef.current = false;
+                  setView({ phase: "idle" });
+                }}
+                className="rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15"
+              >
+                {t("scanAgain")}
+              </button>
+            </div>
+          </Overlay>
+        )}
+
+        {showVerifying && (
+          <Overlay>
+            <p className="text-2xl font-semibold text-white/70">{t("verifying")}</p>
+          </Overlay>
+        )}
+
+        {/* 카메라 켜진 idle = 무인 대기 상태. 손님이 폰 QR 을 비추도록 안내 + 중지 버튼. */}
+        {cameraOn && view.phase === "idle" && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-5 bg-gradient-to-t from-zinc-950/90 to-transparent px-6 pb-10 pt-16 text-center">
+            <p className="text-base font-medium text-white/80">{t("subtitle")}</p>
             <button
               type="button"
-              onClick={() => setView({ phase: "idle" })}
-              className="rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15"
+              onClick={stopCamera}
+              className="pointer-events-auto rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15"
             >
-              {t("scanAgain")}
+              {t("scanStop")}
             </button>
           </div>
         )}
 
-        {view.phase === "verifying" && (
-          <p className="text-2xl font-semibold text-white/70">{t("verifying")}</p>
-        )}
-
-        {view.phase === "idle" && (
+        {/* 수동 모드(카메라 꺼짐): HID 스캐너 입력창 + 카메라 시작 버튼. */}
+        {showIdleManual && (
           <div className="flex w-full max-w-md flex-col items-center gap-8">
             <p className="text-center text-base leading-relaxed text-white/60">
               {t("subtitle")}
@@ -234,30 +298,16 @@ export function AccessScanner({
             </button>
           </div>
         )}
-
-        {/* 카메라 프리뷰 — 켜졌을 때만 표시. ref 는 항상 마운트(detect 대상). */}
-        <div
-          className={
-            cameraOn
-              ? "absolute inset-0 flex flex-col items-center justify-center gap-6 bg-zinc-950"
-              : "hidden"
-          }
-        >
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className="max-h-[70vh] w-auto max-w-full rounded-2xl"
-          />
-          <button
-            type="button"
-            onClick={stopCamera}
-            className="rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold hover:bg-white/15"
-          >
-            {t("scanStop")}
-          </button>
-        </div>
       </main>
+    </div>
+  );
+}
+
+// 카메라 프리뷰 위에 결과/에러/검증중을 덮는 반투명 오버레이.
+function Overlay({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/80 px-6">
+      {children}
     </div>
   );
 }
