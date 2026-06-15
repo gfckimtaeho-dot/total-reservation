@@ -24,7 +24,8 @@ export type GuestVerifyReason = Extract<
 
 // 순수 판정 코어 — IO 없이 이미 조회한 값만 받아 결과를 낸다(테스트 가능).
 // 호출 측이 affiliation/Stay 를 cross-DB 로 조회해 넘긴다. 우선순위:
-// 제휴 -> gymOptIn -> 체크아웃 status -> 날짜창. checkOutDate 는 exclusive.
+// 제휴 -> gymOptIn -> 체크아웃 status -> 날짜창. checkOutDate 는 inclusive
+// (체크아웃 당일 오전 운동 허용 — 회원권 endDate 규칙과 동일).
 export function decideGuestAccess(input: {
   affiliationActive: boolean;
   gymOptIn: boolean;
@@ -41,7 +42,8 @@ export function decideGuestAccess(input: {
 
   const today = input.today.getTime();
   if (today < input.checkInDate.getTime()) return { result: "DENIED", reason: "NOT_YET" };
-  if (today >= input.checkOutDate.getTime()) return { result: "EXPIRED", reason: "CHECKED_OUT" };
+  // checkOutDate inclusive: 체크아웃 당일까지 허용, 다음 날부터 거절.
+  if (today > input.checkOutDate.getTime()) return { result: "EXPIRED", reason: "CHECKED_OUT" };
   return { result: "ALLOWED", reason: null };
 }
 

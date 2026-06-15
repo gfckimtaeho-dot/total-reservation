@@ -54,7 +54,7 @@
    - 토큰은 유효하나 `gymId` 불일치 → DENIED WRONG_GYM
    - 직원(TRAINER/MANAGER) → 회원권 불필요, 바로 ALLOWED
    - 회원(CUSTOMER) → 환불 동결(refundedAt) 제외 회원권 날짜창 검사.
-     `startDate <= 오늘 <= endDate`(endDate **inclusive**, 게스트는 exclusive)면 ALLOWED.
+     `startDate <= 오늘 <= endDate`(endDate **inclusive**, 게스트 checkOutDate 도 inclusive)면 ALLOWED.
      만료된 회원권만 있으면 EXPIRED MEMBERSHIP_EXPIRED, 없으면 DENIED NO_MEMBERSHIP
 5. `AccessLog` 작성 (성공/거절 모두 — `AccessResult` enum). 영구 accessToken 은 QrToken row 가 아니라 `qrTokenId=null`
 6. 단말에 OK/거절 응답 (스캐너 화면이 reason 머신코드를 `access.reason.*` 로 번역)
@@ -134,7 +134,7 @@
 - StayStatus 는 ACTIVE/CHECKED_OUT 둘뿐 (CANCELLED 없음). 잘못된 체크인은 체크아웃으로 무름. -> verify 는 `status==='ACTIVE'` whitelist 권고. 향후 status 추가돼도 안전.
 - 레이트 체크아웃/연장: 호텔이 `Stay.checkOutDate` 갱신 -> 헬스장 live read 로 자동 반영(재발급/동기화 불필요).
 - 게스트 QR 메일 발송 = 100% 호텔 (호텔 코드 + 호텔 SMTP). 헬스장은 READ/검증만. (호텔이 헬스장과 같은 Gmail 발신 계정을 공유할 뿐 코드 경로 독립.)
-- 테스트 데이터 (Grand Hotel, ACTIVE): `Stay.id = cmpr49kd9i3nnig13bcp2dv`, gymOptIn=true, status=ACTIVE, 2026-05-29 ~ 2026-06-03 (checkOutDate exclusive -> 06-02 까지 통과, 06-03 부터 거절).
+- 테스트 데이터 (Grand Hotel, ACTIVE): `Stay.id = cmpr49kd9i3nnig13bcp2dv`, gymOptIn=true, status=ACTIVE, 2026-05-29 ~ 2026-06-03 (checkOutDate inclusive -> 06-03 까지 통과, 06-04 부터 거절).
 
 ### 채택 아키텍처 = 모델 B (헬스장이 호텔 Stay 를 live read)
 
@@ -156,7 +156,7 @@ QR 이 인코딩하는 값은 호텔 `Stay.id` (cuid). `reservationNumber` 는 �
 4. 제휴 확인: `GymHotelAffiliation(gymId, Stay.hotelId, active)` 없거나 비활성이면 NOT_AFFILIATED
 5. `Stay.gymOptIn` 확인: false 면 NOT_OPTED_IN (게스트가 헬스장 이용 의사 표시 안 함)
 6. `Stay.status` whitelist: `ACTIVE` 만 통과. CHECKED_OUT(조기퇴실 포함) 및 향후 추가될 어떤 status 든 EXPIRED 거절 (호텔 측 권고 - blacklist 아닌 whitelist). 호텔이 status 를 live 갱신 = 동기화 0.
-7. 날짜창: `checkInDate <= 오늘 < checkOutDate` (checkOutDate exclusive 라 마지막 밤까지 커버). 체크인 전 NOT_YET, 체크아웃일 이후 CHECKED_OUT
+7. 날짜창: `checkInDate <= 오늘 <= checkOutDate` (checkOutDate inclusive 라 체크아웃 당일 오전 운동까지 커버). 체크인 전 NOT_YET, 체크아웃일 다음 날부터 CHECKED_OUT
 8. `GuestAccessLog` 기록 (제휴 컨텍스트가 잡힌 4번 이후의 모든 결과). OK/거절 응답
 
 ### 연장(late checkout) 처리

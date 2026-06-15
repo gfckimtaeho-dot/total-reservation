@@ -4,7 +4,7 @@ import { decideGuestAccess } from "./guestVerify";
 // 날짜는 @db.Date 와 동일하게 UTC 자정 Date 로 구성.
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
 
-// 숙박: checkIn 5/28 ~ checkOut 5/31 (exclusive) = 5/28,29,30 밤. 5/31 부터 거절.
+// 숙박: checkIn 5/28 ~ checkOut 5/31 (inclusive) = 5/28,29,30,31 허용. 6/1 부터 거절.
 const base = {
   affiliationActive: true,
   gymOptIn: true,
@@ -59,14 +59,21 @@ describe("decideGuestAccess", () => {
     });
   });
 
-  it("checkOut 당일은 EXPIRED (exclusive)", () => {
+  it("checkOut 당일은 허용 (inclusive — 체크아웃 당일 오전 운동)", () => {
     expect(decideGuestAccess({ ...base, today: d("2026-05-31") })).toEqual({
+      result: "ALLOWED",
+      reason: null,
+    });
+  });
+
+  it("checkOut 다음 날부터 EXPIRED", () => {
+    expect(decideGuestAccess({ ...base, today: d("2026-06-01") })).toEqual({
       result: "EXPIRED",
       reason: "CHECKED_OUT",
     });
   });
 
-  it("checkOut 이후도 EXPIRED", () => {
+  it("checkOut 한참 이후도 EXPIRED", () => {
     expect(decideGuestAccess({ ...base, today: d("2026-06-05") })).toEqual({
       result: "EXPIRED",
       reason: "CHECKED_OUT",
