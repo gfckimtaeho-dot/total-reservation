@@ -220,6 +220,68 @@ export async function createSchedule(
   return { ok: true, at: Date.now() };
 }
 
+// ─── 단체수업 스케줄 담당 트레이너 변경 ─────────────────────
+//
+// 스케줄(ScheduledClass)의 staffId 만 교체. 생성과 동일하게 새 트레이너의
+// 정기 가용성(주간 휴무·근무시간·휴게)을 재검증 — off 인 트레이너 배정 차단.
+// 감사 컬럼(updatedById)은 Prisma stamping 익스텐션이 자동 기록.
+
+export async function updateScheduleStaff(
+  slug: string,
+  scheduleId: string,
+  staffId: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const auth = await requireGymStaff(slug);
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { error: "permission" };
+  }
+  const gymId = auth.business!.id;
+
+  if (!staffId) return { error: "staffRequired" };
+
+  const sched = await prisma.scheduledClass.findUnique({
+    where: { id: scheduleId },
+    include: { service: { select: { durationMin: true } } },
+  });
+  if (!sched || sched.gymId !== gymId || !sched.active) {
+    return { error: "permission" };
+  }
+
+  const staff = await prisma.staff.findUnique({ where: { id: staffId } });
+  if (!staff || staff.gymId !== gymId) {
+    return { error: "permission" };
+  }
+
+  const startMin = sched.startMinute;
+  const endMin = startMin + sched.service.durationMin;
+
+  if (sched.kind === "RECURRING") {
+    for (const wd of sched.weekdays) {
+      const check = checkStaffAvailability({ weekday: wd, startMin, endMin, staff });
+      if (!check.ok) return { error: check.reason };
+    }
+  } else if (sched.specificDate) {
+    const check = checkStaffAvailability({
+      weekday: weekdayOfUtcDate(sched.specificDate),
+      startMin,
+      endMin,
+      staff,
+    });
+    if (!check.ok) return { error: check.reason };
+  }
+
+  await prisma.scheduledClass.update({
+    where: { id: scheduleId },
+    data: { staffId },
+  });
+
+  revalidatePath(`/ko/g/${slug}/services`);
+  revalidatePath(`/en/g/${slug}/services`);
+  revalidatePath(`/ko/g/${slug}/products`);
+  revalidatePath(`/en/g/${slug}/products`);
+  return { ok: true };
+}
+
 // ─── 단체수업 삭제 영향 검사 ─────────────────────────────────
 //
 // 미래 예약 + 잔여 권 보유 회원을 합쳐 사장에게 미리 보여줌. 같은 service에

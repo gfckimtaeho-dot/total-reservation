@@ -1,10 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { NativePickerInput } from "@/components/NativePickerInput";
 import {
   createSchedule,
+  updateScheduleStaff,
   type CreateScheduleState,
 } from "./schedule-actions";
 import { ScheduleDeleteDialog } from "./ScheduleDeleteDialog";
@@ -292,6 +294,7 @@ export function ScheduleManager({
                         slug={slug}
                         schedule={s}
                         durationMin={service.durationMin}
+                        staffOptions={staffOptions}
                         tk={tk}
                       />
                     ))}
@@ -630,20 +633,43 @@ function ScheduleRow({
   slug,
   schedule,
   durationMin,
+  staffOptions,
   tk,
 }: {
   slug: string;
   schedule: ScheduleEntry;
   durationMin: number;
+  staffOptions: StaffOption[];
   tk: ToneSet;
 }) {
   const t = useTranslations("services.schedule");
+  const te = useTranslations("services.schedule.errors");
+  const router = useRouter();
   const [showDialog, setShowDialog] = useState(false);
+
+  // 인라인 트레이너 변경 — 행마다 현재 담당을 바로 다른 트레이너로 교체.
+  const [editingStaff, setEditingStaff] = useState(false);
+  const [pickStaffId, setPickStaffId] = useState(schedule.staff?.id ?? "");
+  const [staffError, setStaffError] = useState<string | null>(null);
+  const [saving, startSave] = useTransition();
 
   const start = schedule.startMinute;
   const end = (start + durationMin) % (24 * 60);
   const timeRange = `${fmtMin(start)}~${fmtMin(end)}`;
   const staffName = schedule.staff?.user.name ?? t("staffNone");
+
+  function saveStaff() {
+    setStaffError(null);
+    startSave(async () => {
+      const res = await updateScheduleStaff(slug, schedule.id, pickStaffId);
+      if (res.error) {
+        setStaffError(te(res.error));
+        return;
+      }
+      setEditingStaff(false);
+      router.refresh();
+    });
+  }
 
   let dayLabel: string;
   let rangeLabel: string;
@@ -683,7 +709,54 @@ function ScheduleRow({
           <span className="font-medium tabular-nums">
             {dayLabel} · {timeRange}
           </span>
-          <span className={`text-xs ${tk.rowMeta}`}>{staffName}</span>
+          {editingStaff ? (
+            <span className="flex flex-wrap items-center gap-2">
+              <select
+                value={pickStaffId}
+                onChange={(e) => setPickStaffId(e.target.value)}
+                disabled={saving}
+                className={`rounded-md border px-2 py-1 text-xs transition ${tk.input}`}
+              >
+                <option value="">{t("staffPlaceholder")}</option>
+                {staffOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={saveStaff}
+                disabled={saving || !pickStaffId}
+                className={`rounded px-2 py-1 text-xs font-medium transition disabled:opacity-50 ${tk.button}`}
+              >
+                {saving ? t("savingStaff") : t("saveStaff")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingStaff(false);
+                  setPickStaffId(schedule.staff?.id ?? "");
+                  setStaffError(null);
+                }}
+                disabled={saving}
+                className={`rounded px-2 py-1 text-xs font-medium transition ${tk.trigger}`}
+              >
+                {t("cancelStaff")}
+              </button>
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <span className={`text-xs ${tk.rowMeta}`}>{staffName}</span>
+              <button
+                type="button"
+                onClick={() => setEditingStaff(true)}
+                className={`rounded px-1.5 py-0.5 text-xs font-medium transition ${tk.trigger}`}
+              >
+                {t("changeStaff")}
+              </button>
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -693,6 +766,9 @@ function ScheduleRow({
           {t("delete")}
         </button>
       </div>
+      {staffError && (
+        <div className={`mt-1 text-xs ${tk.error}`}>{staffError}</div>
+      )}
       {rangeLabel && (
         <div className={`mt-1 text-xs tabular-nums ${tk.rowMeta}`}>
           {rangeLabel}

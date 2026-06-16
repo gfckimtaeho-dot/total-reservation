@@ -95,6 +95,52 @@ function fmtDate(d: Date, lang: string): string {
   }).format(d);
 }
 
+const SCHEDULE_WEEKDAY_ORDER = [
+  "MON",
+  "TUE",
+  "WED",
+  "THU",
+  "FRI",
+  "SAT",
+  "SUN",
+] as const;
+
+function fmtMinute(m: number): string {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(
+    m % 60,
+  ).padStart(2, "0")}`;
+}
+
+// 목록에서 "언제 하는 수업인지" 한눈에 — 요일+시각(정기) 또는 날짜+시각(단발).
+function scheduleSummary(
+  sc: {
+    kind: string;
+    weekdays: string[];
+    specificDate: Date | null;
+    startMinute: number;
+  },
+  wdShort: (w: string) => string,
+  lang: string,
+): string {
+  const time = fmtMinute(sc.startMinute);
+  if (sc.kind === "RECURRING") {
+    const days = SCHEDULE_WEEKDAY_ORDER.filter((w) =>
+      sc.weekdays.includes(w),
+    )
+      .map((w) => wdShort(w))
+      .join("·");
+    return `${days} ${time}`;
+  }
+  const dateStr = sc.specificDate
+    ? new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
+        month: "numeric",
+        day: "numeric",
+        timeZone: "UTC",
+      }).format(sc.specificDate)
+    : "";
+  return `${dateStr} ${time}`.trim();
+}
+
 function promotionState(
   p: { startsAt: Date; endsAt: Date; active: boolean },
   now: Date,
@@ -424,6 +470,23 @@ export default async function GymProductsPage({
                               </td>
                               <td className="px-4 py-3 text-left font-medium">
                                 {s.name}
+                                {!isPersonal && s.schedules.length > 0 && (
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {s.schedules.map((sc) => (
+                                      <span
+                                        key={sc.id}
+                                        className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium tabular-nums text-amber-800"
+                                      >
+                                        {scheduleSummary(
+                                          sc,
+                                          (w) =>
+                                            tsr(`schedule.weekdayShort.${w}`),
+                                          lang,
+                                        )}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </td>
                               <td className="px-4 py-3 text-left">
                                 {trainerName || (

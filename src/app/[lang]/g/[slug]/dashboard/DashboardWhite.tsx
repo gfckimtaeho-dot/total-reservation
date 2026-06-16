@@ -9,6 +9,7 @@ import {
   getGymMonthInfo,
 } from "@/lib/calendar/gymTime";
 import { SidebarNav } from "./SidebarNav";
+import { RefreshButton } from "./RefreshButton";
 import { getKpiExtras } from "./kpi-data";
 import { getPendingRefundCount } from "../refunds/actions";
 import { unreadForViewer, type ChatViewer } from "@/lib/chat/queries";
@@ -175,6 +176,7 @@ export async function DashboardWhite({
               {todayDisplay}
             </h1>
           </div>
+          <RefreshButton label={t("refresh")} />
         </header>
 
         <div className="grid grid-cols-12 gap-4 p-6">
