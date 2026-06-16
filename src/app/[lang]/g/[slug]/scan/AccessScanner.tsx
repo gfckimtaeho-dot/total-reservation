@@ -3,42 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import jsQR from "jsqr";
-
-// QR 디코더 선택 — "native"=브라우저 BarcodeDetector(기본, 빠름), "jsqr"=순수 JS
-// (캔버스 프레임 디코딩, 흐릿/비스듬한 QR 에 더 관대할 수 있음). 스캐너에서 토글로
-// 런타임 비교. BarcodeDetector 미지원 기기는 자동으로 jsqr.
-type Decoder = "native" | "jsqr";
-
-// 비디오 현재 프레임을 캔버스에 그려 jsQR 로 디코딩. 캔버스는 화면 밖(offscreen).
-// darken=true 면 밝기↓·대비↑·흑백화 필터를 적용해 과노출(밝은 화면에서 QR 이
-// 하얗게 날아가는) 상황의 대비를 살린다. ctx.filter 는 drawImage 픽셀에 적용돼
-// jsQR 이 보는 데이터가 실제로 보정된다.
-function scanWithJsQR(
-  video: HTMLVideoElement,
-  canvas: HTMLCanvasElement,
-  darken: boolean,
-): string | undefined {
-  const w = video.videoWidth;
-  const h = video.videoHeight;
-  if (!w || !h) return undefined;
-  if (canvas.width !== w) canvas.width = w;
-  if (canvas.height !== h) canvas.height = h;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return undefined;
-  ctx.filter = darken ? "brightness(0.7) contrast(1.6) grayscale(1)" : "none";
-  ctx.drawImage(video, 0, 0, w, h);
-  ctx.filter = "none";
-  const img = ctx.getImageData(0, 0, w, h);
-  const result = jsQR(img.data, img.width, img.height, {
-    inversionAttempts: "dontInvert",
-  });
-  return result?.data ?? undefined;
-}
 
 // 카메라 노출 best-effort 조정 — darken 이면 노출 보정을 최소로(어둡게), 아니면
 // 자동으로 복귀. 비표준/미지원 제약이라 try/catch 로 조용히 무시. 지원 기기에선
-// native·jsqr 두 디코더 모두에 효과(하드웨어 단계 노출 변경).
+// 하드웨어 단계 노출이 바뀐다.
 function applyCameraExposure(stream: MediaStream, darken: boolean): void {
   const track = stream.getVideoTracks()[0];
   if (!track) return;
@@ -143,13 +111,7 @@ export function AccessScanner({
   //    같은 폰을 계속 들고 있어도 연타로 중복 스캔되지 않게 하는 디바운스.
   const lockRef = useRef(false);
   const clearedRef = useRef(true);
-  // QR 디코더 토글. 기본 native(기존 동작). 카메라 켠 상태에서 버튼으로 전환하면
-  // 다음 프레임부터 즉시 반영(tick 이 decoderRef 를 매 프레임 읽음).
-  const [decoder, setDecoder] = useState<Decoder>("native");
-  const decoderRef = useRef<Decoder>("native");
-  // jsQR 용 offscreen 캔버스(DOM 미부착) — 첫 사용 시 lazy 생성.
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  // 과노출 완화 — 카메라 노출↓(best-effort, 두 디코더) + jsQR 캔버스 대비 보정.
+  // 과노출 완화 — 카메라 노출을 낮춘다(best-effort, 지원 기기 한정).
   const [darken, setDarken] = useState(false);
   const darkenRef = useRef(false);
 
@@ -197,16 +159,11 @@ export function AccessScanner({
     const BarcodeDetectorCtor = (
       window as unknown as { BarcodeDetector?: new (opts?: unknown) => { detect: (s: unknown) => Promise<{ rawValue: string }[]> } }
     ).BarcodeDetector;
-    // 카메라(getUserMedia)는 필수. 디코더는 native 미지원 시 jsqr 로 대체 가능하므로
-    // BarcodeDetector 없음만으론 막지 않는다.
-    if (!navigator.mediaDevices?.getUserMedia) {
+    // BarcodeDetector + getUserMedia 둘 다 secure context(HTTPS) 전용. 미지원/HTTP
+    // 면 throw 대신 안내 문구로 fallback.
+    if (!BarcodeDetectorCtor || !navigator.mediaDevices?.getUserMedia) {
       setView({ phase: "error", message: t("cameraUnavailable") });
       return;
-    }
-    // 현재 디코더가 native 인데 미지원 기기면 jsqr 로 자동 전환.
-    if (!BarcodeDetectorCtor && decoderRef.current === "native") {
-      decoderRef.current = "jsqr";
-      setDecoder("jsqr");
     }
     // 재시작 안전장치: 직전 스트림이 남아있으면 먼저 정리(기기 점유 해제) 후 획득.
     if (streamRef.current) {
@@ -274,26 +231,13 @@ export function AccessScanner({
       }
       // 현재 어둡게 상태를 카메라에 반영(켜진 채 시작/재시작/flip 대비).
       applyCameraExposure(stream, darkenRef.current);
-      // native 디코더 — 지원 기기에서만 생성. jsqr 로 토글해도 다시 native 로
-      // 돌아올 수 있게 미리 만들어 둔다(런타임 전환).
-      const detector = BarcodeDetectorCtor
-        ? new BarcodeDetectorCtor({ formats: ["qr_code"] })
-        : null;
+      const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
       // 무인 연속 루프: 한 번 인식해도 카메라를 끄지 않고 계속 돈다.
-      // 매 프레임 decoderRef 를 읽어 선택된 디코더로 디코딩(토글 즉시 반영).
       const tick = async () => {
         if (!streamRef.current) return;
         try {
-          let value: string | undefined;
-          if (decoderRef.current === "native" && detector) {
-            const codes = await detector.detect(video);
-            value = codes[0]?.rawValue;
-          } else {
-            if (!canvasRef.current) {
-              canvasRef.current = document.createElement("canvas");
-            }
-            value = scanWithJsQR(video, canvasRef.current, darkenRef.current);
-          }
+          const codes = await detector.detect(video);
+          const value = codes[0]?.rawValue;
           if (!value) {
             // 프레임이 비었다 = 직전 손님 폰이 빠졌다. 다음 스캔 허용.
             clearedRef.current = true;
@@ -323,15 +267,7 @@ export function AccessScanner({
     startCamera();
   }, [stopCamera, startCamera]);
 
-  // QR 디코더 전환(native <-> jsqr). 카메라 재시작 없이 다음 프레임부터 반영.
-  const toggleDecoder = useCallback(() => {
-    const next: Decoder = decoderRef.current === "native" ? "jsqr" : "native";
-    decoderRef.current = next;
-    setDecoder(next);
-  }, []);
-
-  // 과노출 완화 토글. jsQR 은 다음 프레임부터 캔버스 보정 반영, 카메라 노출은
-  // 즉시 재적용(지원 기기). 켜진 스트림에 바로 효과.
+  // 과노출 완화 토글 — 카메라 노출을 즉시 재적용(지원 기기). 켜진 스트림에 바로 효과.
   const toggleDarken = useCallback(() => {
     const next = !darkenRef.current;
     darkenRef.current = next;
@@ -485,12 +421,9 @@ export function AccessScanner({
         {cameraOn && view.phase === "idle" && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-5 bg-gradient-to-t from-zinc-950/90 to-transparent px-6 pb-10 pt-16 text-center">
             <p className="text-base font-medium text-white/80">{t("subtitle")}</p>
-            <p className="text-xs text-white/50">
-              {t("decoderActive", {
-                decoder: decoder === "native" ? "Native" : "JS QR",
-              })}
-              {darken ? ` · ${t("darkenOn")}` : ""}
-            </p>
+            {darken && (
+              <p className="text-xs text-white/50">{t("darkenOn")}</p>
+            )}
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
@@ -498,15 +431,6 @@ export function AccessScanner({
                 className="pointer-events-auto rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold hover:bg-white/10"
               >
                 {facing === "environment" ? t("cameraFront") : t("cameraBack")}
-              </button>
-              <button
-                type="button"
-                onClick={toggleDecoder}
-                className="pointer-events-auto rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold hover:bg-white/10"
-              >
-                {decoder === "native"
-                  ? t("decoderToJsqr")
-                  : t("decoderToNative")}
               </button>
               <button
                 type="button"
