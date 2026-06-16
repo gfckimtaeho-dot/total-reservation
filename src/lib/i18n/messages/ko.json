@@ -787,6 +787,13 @@
     "rowSendTooltipNoEmail": "이메일 없음 — URL 복사로 전달",
     "rowSendOk": "이메일 발송 → {email}",
     "rowCopyOk": "URL 복사됨 — 카톡·SMS로 전달",
+    "rowResetEmail": "비밀번호 재설정",
+    "rowResetTooltip": "아이디는 그대로, 새 비밀번호 재설정 메일 발송 (이메일 없으면 URL 복사)",
+    "rowResetMailOk": "재설정 메일 발송 → {email}",
+    "rowResetCopyOk": "재설정 URL 복사됨 — 카톡·SMS로 전달",
+    "rowLoginUrlEmail": "로그인 URL 메일",
+    "rowLoginUrlTooltip": "로그인 화면 링크 + 아이디 안내 메일 발송",
+    "rowLoginUrlOk": "로그인 링크 발송 → {email}",
     "rowActivate": "활성화",
     "rowDeactivate": "비활성화",
     "inactivePill": "비활성"

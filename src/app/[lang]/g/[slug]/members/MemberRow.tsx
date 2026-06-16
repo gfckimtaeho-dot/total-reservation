@@ -7,6 +7,8 @@ import {
   copyActivationUrl,
   setMemberActive,
   sendActivationEmail,
+  copyPasswordResetUrl,
+  sendLoginUrlEmail,
 } from "./actions";
 import { MemberAddDialog } from "./MemberAddDialog";
 import { copyText } from "@/lib/clipboard";
@@ -100,6 +102,39 @@ export function MemberRow({
       } else {
         showFeedback("err", res.message);
       }
+    });
+  }
+
+  function onSendReset() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.append("slug", slug);
+      fd.append("memberId", member.id);
+      const res = await copyPasswordResetUrl(fd);
+      if (!res.ok) {
+        showFeedback("err", res.message);
+        return;
+      }
+      if (res.emailedTo) {
+        showFeedback("ok", t("rowResetMailOk", { email: res.emailedTo }));
+      } else {
+        // 이메일 없는 회원 — 재설정 URL 을 클립보드로 복사해 카톡/SMS 전달.
+        await copyText(res.url);
+        showFeedback("ok", t("rowResetCopyOk"));
+      }
+    });
+  }
+
+  function onSendLoginUrl() {
+    if (!member.email) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.append("slug", slug);
+      fd.append("memberId", member.id);
+      const res = await sendLoginUrlEmail(fd);
+      if (res.ok)
+        showFeedback("ok", t("rowLoginUrlOk", { email: member.email ?? "" }));
+      else showFeedback("err", res.message);
     });
   }
 
@@ -229,27 +264,60 @@ export function MemberRow({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onSendEmail}
-            disabled={pending || !member.email}
-            title={
-              member.email
-                ? t("rowSendTooltip")
-                : t("rowSendTooltipNoEmail")
-            }
-            className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${TK.btnPrimary}`}
-          >
-            {pending && member.email ? t("rowSending") : t("rowSendEmail")}
-          </button>
-          <button
-            type="button"
-            onClick={onCopyUrl}
-            disabled={pending}
-            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${TK.btn}`}
-          >
-            {copied ? t("rowCopied") : t("rowCopyUrl")}
-          </button>
+          {isActive ? (
+            // 활성 회원: 비밀번호 재설정(아이디 유지) + 로그인 URL 메일.
+            // 활성화 메일은 안 보냄 — 활성 회원에게 보내면 새 아이디를 다시
+            // 고르게 되는 함정이라.
+            <>
+              <button
+                type="button"
+                onClick={onSendReset}
+                disabled={pending}
+                title={t("rowResetTooltip")}
+                className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${TK.btnPrimary}`}
+              >
+                {pending ? t("rowSending") : t("rowResetEmail")}
+              </button>
+              <button
+                type="button"
+                onClick={onSendLoginUrl}
+                disabled={pending || !member.email}
+                title={
+                  member.email
+                    ? t("rowLoginUrlTooltip")
+                    : t("rowSendTooltipNoEmail")
+                }
+                className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${TK.btn}`}
+              >
+                {t("rowLoginUrlEmail")}
+              </button>
+            </>
+          ) : (
+            // 미활성(PENDING) 회원: 활성화 메일 + 활성화 URL 복사.
+            <>
+              <button
+                type="button"
+                onClick={onSendEmail}
+                disabled={pending || !member.email}
+                title={
+                  member.email
+                    ? t("rowSendTooltip")
+                    : t("rowSendTooltipNoEmail")
+                }
+                className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${TK.btnPrimary}`}
+              >
+                {pending && member.email ? t("rowSending") : t("rowSendEmail")}
+              </button>
+              <button
+                type="button"
+                onClick={onCopyUrl}
+                disabled={pending}
+                className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${TK.btn}`}
+              >
+                {copied ? t("rowCopied") : t("rowCopyUrl")}
+              </button>
+            </>
+          )}
           <MemberAddDialog
             slug={slug}
             lang={lang}

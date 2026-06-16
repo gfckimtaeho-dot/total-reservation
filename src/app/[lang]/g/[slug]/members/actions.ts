@@ -10,6 +10,7 @@ import { requireGymStaff } from "@/lib/auth/dal";
 import {
   sendCustomerActivationEmail,
   sendPasswordResetEmail,
+  sendMemberLoginUrlEmail,
 } from "@/lib/email/resend";
 
 const ROLE_KEY = {
@@ -300,6 +301,70 @@ export async function sendActivationEmail(
   }
   revalidatePath(`/ko/g/${slug}/members`);
   return { ok: true, url };
+}
+
+// 활성 회원에게 로그인 화면 링크 메일 — 토큰 없이 그냥 로그인 페이지 URL + 아이디
+// 안내. 회원 행의 "로그인 URL 메일" 버튼이 호출. 활성 + 이메일 보유 회원만.
+export async function sendLoginUrlEmail(
+  formData: FormData,
+): Promise<SendActivationResult> {
+  const slug = String(formData.get("slug") ?? "");
+  const memberId = String(formData.get("memberId") ?? "");
+  const auth = await requireGymStaff(slug);
+  const gymId = auth.business!.id;
+
+  const member = await prisma.user.findFirst({
+    where: { id: memberId, gymId, role: "CUSTOMER" },
+    select: {
+      name: true,
+      email: true,
+      locale: true,
+      loginId: true,
+      status: true,
+      business: { select: { name: true } },
+    },
+  });
+  if (!member) return { ok: false, message: "회원을 찾을 수 없습니다" };
+  if (member.status !== "ACTIVE" || !member.loginId) {
+    return {
+      ok: false,
+      message: "활성화된 회원에게만 로그인 링크를 보낼 수 있습니다",
+    };
+  }
+  if (!member.email) {
+    return {
+      ok: false,
+      message: "이메일이 없는 회원입니다.",
+    };
+  }
+
+  const lang = member.locale === "ko" ? "ko" : "en";
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const url = `${proto}://${host}/${lang}/g/${slug}/login`;
+
+  const result = await sendMemberLoginUrlEmail({
+    to: member.email,
+    recipientName: member.name,
+    storeName: member.business?.name ?? "",
+    loginId: member.loginId,
+    loginUrl: url,
+  });
+  if ("fallback" in result && result.fallback) {
+    return {
+      ok: false,
+      message:
+        "Gmail 자격증명 미설정 — Vercel env에 GMAIL_USER/GMAIL_APP_PASSWORD 추가하세요",
+    };
+  }
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: `발송 실패: ${"error" in result ? result.error : "unknown"}`,
+    };
+  }
+  return { ok: true, url, emailedTo: member.email };
 }
 
 // 트레이너 intake 화면에서 이메일 없는 PENDING 회원 전용 — 트레이너가 본인

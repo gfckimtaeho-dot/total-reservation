@@ -787,6 +787,13 @@
     "rowSendTooltipNoEmail": "No email — copy URL and share via chat/SMS",
     "rowSendOk": "Email sent → {email}",
     "rowCopyOk": "URL copied — share via chat/SMS",
+    "rowResetEmail": "Reset password",
+    "rowResetTooltip": "Keep the ID, send a new-password reset email (copies URL if no email)",
+    "rowResetMailOk": "Reset email sent → {email}",
+    "rowResetCopyOk": "Reset URL copied — share via chat/SMS",
+    "rowLoginUrlEmail": "Login URL email",
+    "rowLoginUrlTooltip": "Send login screen link + ID reminder",
+    "rowLoginUrlOk": "Login link sent → {email}",
     "rowActivate": "Activate",
     "rowDeactivate": "Deactivate",
     "inactivePill": "Inactive"
