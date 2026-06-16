@@ -192,7 +192,37 @@ QR 이 인코딩하는 값은 호텔 `Stay.id` (cuid). `reservationNumber` 는 �
 
 - PWA 셋업 (manifest + 홈화면 추가 안내)
 - 매장 단말 verify endpoint + AccessLog 쓰기
-- 자동 도어락 연동 (Bluetooth 또는 ESP32 등)
+- 자동 도어락 연동 — 아래 "도어락 연동 (그림 A)" 절
 - 안면인식 옵션 (QR 보완)
 - 매장 스캐너 오프라인 캐시 (네트워크 끊겨도 검증 가능)
 - 회원 본인 "QR 주기적 자동 갱신" 토글 (디폴트 OFF)
+
+## 도어락 연동 (그림 A — 설계 확정, 미구현)
+
+문 옆 마이크로컨트롤러가 QR 을 읽어 기존 `POST /api/access/verify` 를 직접
+호출하고, 응답 `result === "ALLOWED"` 면 릴레이로 전자정을 N 초 연다. 태블릿
+없이 문 단위 자기완결. 서버는 사실상 준비됨(verify + key 인증 + AccessLog).
+
+**구성(문 1개당):** 2D QR 스캐너 모듈(시리얼/HID, 모듈이 디코딩) + 컨트롤러
+(ESP32 권장 / Pi) + 릴레이(3.3V 트리거) + 전자정·마그네틱 락(12V, 별도 전원)
++ 상태 LED·부저(녹/적).
+
+**흐름:** 1) 폰 QR 댐 2) 모듈이 토큰 디코딩 3) 컨트롤러가 WiFi 로
+`POST /api/access/verify { slug, token, key:<scannerKey> }` 4) 서버 판정 +
+AccessLog 5) ALLOWED 면 릴레이 ON 3-5초(녹 LED), 아니면 적 LED·거절음.
+
+**서버 현황:** verify 디스패처(회원/게스트/당일권) + key 인증(불일치 403) +
+AccessLog + ALLOWED/DENIED/EXPIRED 응답 전부 완료 — 그림 A 는 서버 변경 0 으로
+시작 가능. (선택) 도어 전용 키 컬럼, 매장별 릴레이 개방시간은 결정 후.
+
+**미결정(사장):** 1) 컨트롤러 ESP32 vs Pi 2) 잠금 안전모드 — fail-safe
+마그네틱(정전 시 풀림)+비상버튼 권장 vs fail-secure 전자정 3) 인증키 —
+기존 scannerKey 재사용 vs 도어 전용 키(다문이면 권장, schema 컬럼 필요)
+4) 릴레이 개방시간(기본 3초) 5) 오프라인 시 fail-open vs fail-closed.
+
+**보안/안전:** firmware 에 키 박힘 = 노출돼도 "제시 QR 1건 판정"만(회원정보 X)
++ 재발급 회수 가능. HTTPS 필수. fail-safe 락 + 비상버튼으로 갇힘 방지.
+
+**구현 단계:** (필요 시) 서버 도어키·개방시간 -> ESP32 firmware(스캐너 입력 ->
+verify POST -> result -> 릴레이/LED) -> 배선·비상버튼 -> 단일 문 PoC -> 다문 확장.
+호텔 repo 미수정(헬스장 출입만).
