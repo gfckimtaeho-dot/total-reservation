@@ -81,14 +81,14 @@ function QrDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-2"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-sm rounded-3xl border border-orange-200/80 bg-white p-3 shadow-[0_30px_80px_-20px_rgba(249,115,22,0.45)]"
+        className="relative w-full max-w-md rounded-3xl border border-orange-200/80 bg-white p-3 shadow-[0_30px_80px_-20px_rgba(249,115,22,0.45)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
