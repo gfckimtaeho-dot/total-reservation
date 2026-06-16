@@ -298,7 +298,7 @@ function QrCard({ qr, t }: { qr: AccessQrResult; t: T }) {
         <img
           src={qr.qr}
           alt="Access QR"
-          className="block aspect-square w-full rounded-2xl"
+          className="mx-auto block aspect-square w-full max-w-[16rem] rounded-2xl"
         />
       ) : qr.reason === "blocked" ? (
         <div className="py-2 text-center">
