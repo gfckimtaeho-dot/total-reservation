@@ -3,6 +3,32 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import jsQR from "jsqr";
+
+// QR 디코더 선택 — "native"=브라우저 BarcodeDetector(기본, 빠름), "jsqr"=순수 JS
+// (캔버스 프레임 디코딩, 흐릿/비스듬한 QR 에 더 관대할 수 있음). 스캐너에서 토글로
+// 런타임 비교. BarcodeDetector 미지원 기기는 자동으로 jsqr.
+type Decoder = "native" | "jsqr";
+
+// 비디오 현재 프레임을 캔버스에 그려 jsQR 로 디코딩. 캔버스는 화면 밖(offscreen).
+function scanWithJsQR(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement,
+): string | undefined {
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  if (!w || !h) return undefined;
+  if (canvas.width !== w) canvas.width = w;
+  if (canvas.height !== h) canvas.height = h;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return undefined;
+  ctx.drawImage(video, 0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h);
+  const result = jsQR(img.data, img.width, img.height, {
+    inversionAttempts: "dontInvert",
+  });
+  return result?.data ?? undefined;
+}
 
 // 출입 검증 결과(서버 verifyAccess 반환 형태). reason 은 머신 코드라
 // 화면 번역은 여기서(access.reason.*).
@@ -73,6 +99,12 @@ export function AccessScanner({
   //    같은 폰을 계속 들고 있어도 연타로 중복 스캔되지 않게 하는 디바운스.
   const lockRef = useRef(false);
   const clearedRef = useRef(true);
+  // QR 디코더 토글. 기본 native(기존 동작). 카메라 켠 상태에서 버튼으로 전환하면
+  // 다음 프레임부터 즉시 반영(tick 이 decoderRef 를 매 프레임 읽음).
+  const [decoder, setDecoder] = useState<Decoder>("native");
+  const decoderRef = useRef<Decoder>("native");
+  // jsQR 용 offscreen 캔버스(DOM 미부착) — 첫 사용 시 lazy 생성.
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const stopCamera = useCallback(() => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
@@ -118,9 +150,16 @@ export function AccessScanner({
     const BarcodeDetectorCtor = (
       window as unknown as { BarcodeDetector?: new (opts?: unknown) => { detect: (s: unknown) => Promise<{ rawValue: string }[]> } }
     ).BarcodeDetector;
-    if (!BarcodeDetectorCtor || !navigator.mediaDevices?.getUserMedia) {
+    // 카메라(getUserMedia)는 필수. 디코더는 native 미지원 시 jsqr 로 대체 가능하므로
+    // BarcodeDetector 없음만으론 막지 않는다.
+    if (!navigator.mediaDevices?.getUserMedia) {
       setView({ phase: "error", message: t("cameraUnavailable") });
       return;
+    }
+    // 현재 디코더가 native 인데 미지원 기기면 jsqr 로 자동 전환.
+    if (!BarcodeDetectorCtor && decoderRef.current === "native") {
+      decoderRef.current = "jsqr";
+      setDecoder("jsqr");
     }
     // 재시작 안전장치: 직전 스트림이 남아있으면 먼저 정리(기기 점유 해제) 후 획득.
     if (streamRef.current) {
@@ -186,13 +225,26 @@ export function AccessScanner({
           // 미지원 — 무시.
         }
       }
-      const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+      // native 디코더 — 지원 기기에서만 생성. jsqr 로 토글해도 다시 native 로
+      // 돌아올 수 있게 미리 만들어 둔다(런타임 전환).
+      const detector = BarcodeDetectorCtor
+        ? new BarcodeDetectorCtor({ formats: ["qr_code"] })
+        : null;
       // 무인 연속 루프: 한 번 인식해도 카메라를 끄지 않고 계속 돈다.
+      // 매 프레임 decoderRef 를 읽어 선택된 디코더로 디코딩(토글 즉시 반영).
       const tick = async () => {
         if (!streamRef.current) return;
         try {
-          const codes = await detector.detect(video);
-          const value = codes[0]?.rawValue;
+          let value: string | undefined;
+          if (decoderRef.current === "native" && detector) {
+            const codes = await detector.detect(video);
+            value = codes[0]?.rawValue;
+          } else {
+            if (!canvasRef.current) {
+              canvasRef.current = document.createElement("canvas");
+            }
+            value = scanWithJsQR(video, canvasRef.current);
+          }
           if (!value) {
             // 프레임이 비었다 = 직전 손님 폰이 빠졌다. 다음 스캔 허용.
             clearedRef.current = true;
@@ -221,6 +273,13 @@ export function AccessScanner({
     stopCamera();
     startCamera();
   }, [stopCamera, startCamera]);
+
+  // QR 디코더 전환(native <-> jsqr). 카메라 재시작 없이 다음 프레임부터 반영.
+  const toggleDecoder = useCallback(() => {
+    const next: Decoder = decoderRef.current === "native" ? "jsqr" : "native";
+    decoderRef.current = next;
+    setDecoder(next);
+  }, []);
 
   // 브라우저 주소창 숨김(전체화면). 사용자 제스처(버튼 클릭)에서 호출해야 동작.
   // 미지원/거부는 무시. PWA "홈 화면에 추가"로 standalone 설치 시엔 불필요.
@@ -368,6 +427,11 @@ export function AccessScanner({
         {cameraOn && view.phase === "idle" && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-5 bg-gradient-to-t from-zinc-950/90 to-transparent px-6 pb-10 pt-16 text-center">
             <p className="text-base font-medium text-white/80">{t("subtitle")}</p>
+            <p className="text-xs text-white/50">
+              {t("decoderActive", {
+                decoder: decoder === "native" ? "Native" : "JS QR",
+              })}
+            </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
@@ -375,6 +439,15 @@ export function AccessScanner({
                 className="pointer-events-auto rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold hover:bg-white/10"
               >
                 {facing === "environment" ? t("cameraFront") : t("cameraBack")}
+              </button>
+              <button
+                type="button"
+                onClick={toggleDecoder}
+                className="pointer-events-auto rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold hover:bg-white/10"
+              >
+                {decoder === "native"
+                  ? t("decoderToJsqr")
+                  : t("decoderToNative")}
               </button>
               <button
                 type="button"
