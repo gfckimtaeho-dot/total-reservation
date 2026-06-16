@@ -56,10 +56,12 @@ export function AccessScanner({
   const [view, setView] = useState<View>({ phase: "idle" });
   const [inputValue, setInputValue] = useState("");
   const [cameraOn, setCameraOn] = useState(false);
-  // 전면/후면 카메라 선택. 벽걸이 키오스크는 손님이 화면을 마주보므로 보통 전면
-  // (user). 기본은 후면(environment) — 직원이 손님 폰을 찍는 경우. 버튼으로 전환.
-  const [facing, setFacing] = useState<"environment" | "user">("environment");
-  const facingRef = useRef<"environment" | "user">("environment");
+  // 전면/후면 카메라 선택. 무인 키오스크(verifyKey)는 손님이 화면을 마주보고
+  // 자기 폰 QR 을 비추는 셀프 출입이라 전면(user)이 기본. 직원 세션 스캔은 손님
+  // 폰을 찍는 경우라 후면(environment)이 기본. 둘 다 버튼으로 전환 가능.
+  const initialFacing: "environment" | "user" = verifyKey ? "user" : "environment";
+  const [facing, setFacing] = useState<"environment" | "user">(initialFacing);
+  const facingRef = useRef<"environment" | "user">(initialFacing);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -127,7 +129,14 @@ export function AccessScanner({
     }
     const constraints: MediaStreamConstraints = {
       // 문자열 facingMode 는 ideal 제약이라 해당 카메라 없으면 다른 걸로 fallback.
-      video: { facingMode: facingRef.current },
+      // 고해상도 요청 — BarcodeDetector 는 비디오 intrinsic 해상도로 검출하므로
+      // 픽셀이 많을수록 멀리 있는(프레임에서 작은) QR 도 디코딩된다. ideal 이라
+      // 미지원 기기는 가능한 최대치로 fallback.
+      video: {
+        facingMode: facingRef.current,
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
     };
     let stream: MediaStream;
     try {
@@ -160,6 +169,23 @@ export function AccessScanner({
       }
       video.srcObject = stream;
       await video.play();
+      // 연속 자동초점 — 고정초점 기기에서 거리가 바뀌어도 QR 에 초점을 맞춰
+      // 인식률을 높인다. 비표준 제약이라 미지원/거부는 조용히 무시(best-effort).
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        try {
+          const caps = (track.getCapabilities?.() ?? {}) as {
+            focusMode?: string[];
+          };
+          if (caps.focusMode?.includes("continuous")) {
+            await track.applyConstraints({
+              advanced: [{ focusMode: "continuous" }],
+            } as unknown as MediaTrackConstraints);
+          }
+        } catch {
+          // 미지원 — 무시.
+        }
+      }
       const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
       // 무인 연속 루프: 한 번 인식해도 카메라를 끄지 않고 계속 돈다.
       const tick = async () => {
