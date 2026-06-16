@@ -105,9 +105,11 @@ export async function requestAccessQr(
   }
 
   const qr = await QRCode.toDataURL(token, {
-    width: 320,
-    margin: 1,
-    color: { dark: "#0a0a0a", light: "#ffffff" },
+    // 인식률 개선 — 더 큰 해상도 + quiet zone(여백) 2모듈로 스캐너가 코드 경계를
+    // 더 안정적으로 잡게 한다. 색은 순수 흑백(#000/#fff) 최대 대비.
+    width: 512,
+    margin: 2,
+    color: { dark: "#000000", light: "#ffffff" },
   });
 
   // 표시용 유효일: 회원권 보유 시 회원권 마지막 날, 예약 임시발급이면 그날(토큰 만료일).

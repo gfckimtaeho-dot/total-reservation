@@ -11,9 +11,13 @@ import jsQR from "jsqr";
 type Decoder = "native" | "jsqr";
 
 // 비디오 현재 프레임을 캔버스에 그려 jsQR 로 디코딩. 캔버스는 화면 밖(offscreen).
+// darken=true 면 밝기↓·대비↑·흑백화 필터를 적용해 과노출(밝은 화면에서 QR 이
+// 하얗게 날아가는) 상황의 대비를 살린다. ctx.filter 는 drawImage 픽셀에 적용돼
+// jsQR 이 보는 데이터가 실제로 보정된다.
 function scanWithJsQR(
   video: HTMLVideoElement,
   canvas: HTMLCanvasElement,
+  darken: boolean,
 ): string | undefined {
   const w = video.videoWidth;
   const h = video.videoHeight;
@@ -22,12 +26,51 @@ function scanWithJsQR(
   if (canvas.height !== h) canvas.height = h;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return undefined;
+  ctx.filter = darken ? "brightness(0.7) contrast(1.6) grayscale(1)" : "none";
   ctx.drawImage(video, 0, 0, w, h);
+  ctx.filter = "none";
   const img = ctx.getImageData(0, 0, w, h);
   const result = jsQR(img.data, img.width, img.height, {
     inversionAttempts: "dontInvert",
   });
   return result?.data ?? undefined;
+}
+
+// 카메라 노출 best-effort 조정 — darken 이면 노출 보정을 최소로(어둡게), 아니면
+// 자동으로 복귀. 비표준/미지원 제약이라 try/catch 로 조용히 무시. 지원 기기에선
+// native·jsqr 두 디코더 모두에 효과(하드웨어 단계 노출 변경).
+function applyCameraExposure(stream: MediaStream, darken: boolean): void {
+  const track = stream.getVideoTracks()[0];
+  if (!track) return;
+  try {
+    const caps = (track.getCapabilities?.() ?? {}) as {
+      exposureMode?: string[];
+      exposureCompensation?: { min: number; max: number };
+      brightness?: { min: number; max: number };
+    };
+    const advanced: Record<string, unknown>[] = [];
+    if (darken) {
+      if (caps.exposureMode?.includes("manual")) {
+        advanced.push({ exposureMode: "manual" });
+      }
+      if (caps.exposureCompensation) {
+        advanced.push({ exposureCompensation: caps.exposureCompensation.min });
+      } else if (caps.brightness) {
+        advanced.push({ brightness: caps.brightness.min });
+      }
+    } else {
+      if (caps.exposureMode?.includes("continuous")) {
+        advanced.push({ exposureMode: "continuous" });
+      }
+    }
+    if (advanced.length > 0) {
+      void track.applyConstraints({
+        advanced,
+      } as unknown as MediaTrackConstraints);
+    }
+  } catch {
+    // 미지원 — 무시.
+  }
 }
 
 // 출입 검증 결과(서버 verifyAccess 반환 형태). reason 은 머신 코드라
@@ -105,6 +148,9 @@ export function AccessScanner({
   const decoderRef = useRef<Decoder>("native");
   // jsQR 용 offscreen 캔버스(DOM 미부착) — 첫 사용 시 lazy 생성.
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // 과노출 완화 — 카메라 노출↓(best-effort, 두 디코더) + jsQR 캔버스 대비 보정.
+  const [darken, setDarken] = useState(false);
+  const darkenRef = useRef(false);
 
   const stopCamera = useCallback(() => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
@@ -225,6 +271,8 @@ export function AccessScanner({
           // 미지원 — 무시.
         }
       }
+      // 현재 어둡게 상태를 카메라에 반영(켜진 채 시작/재시작/flip 대비).
+      applyCameraExposure(stream, darkenRef.current);
       // native 디코더 — 지원 기기에서만 생성. jsqr 로 토글해도 다시 native 로
       // 돌아올 수 있게 미리 만들어 둔다(런타임 전환).
       const detector = BarcodeDetectorCtor
@@ -243,7 +291,7 @@ export function AccessScanner({
             if (!canvasRef.current) {
               canvasRef.current = document.createElement("canvas");
             }
-            value = scanWithJsQR(video, canvasRef.current);
+            value = scanWithJsQR(video, canvasRef.current, darkenRef.current);
           }
           if (!value) {
             // 프레임이 비었다 = 직전 손님 폰이 빠졌다. 다음 스캔 허용.
@@ -279,6 +327,15 @@ export function AccessScanner({
     const next: Decoder = decoderRef.current === "native" ? "jsqr" : "native";
     decoderRef.current = next;
     setDecoder(next);
+  }, []);
+
+  // 과노출 완화 토글. jsQR 은 다음 프레임부터 캔버스 보정 반영, 카메라 노출은
+  // 즉시 재적용(지원 기기). 켜진 스트림에 바로 효과.
+  const toggleDarken = useCallback(() => {
+    const next = !darkenRef.current;
+    darkenRef.current = next;
+    setDarken(next);
+    if (streamRef.current) applyCameraExposure(streamRef.current, next);
   }, []);
 
   // 브라우저 주소창 숨김(전체화면). 사용자 제스처(버튼 클릭)에서 호출해야 동작.
@@ -431,6 +488,7 @@ export function AccessScanner({
               {t("decoderActive", {
                 decoder: decoder === "native" ? "Native" : "JS QR",
               })}
+              {darken ? ` · ${t("darkenOn")}` : ""}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <button
@@ -448,6 +506,13 @@ export function AccessScanner({
                 {decoder === "native"
                   ? t("decoderToJsqr")
                   : t("decoderToNative")}
+              </button>
+              <button
+                type="button"
+                onClick={toggleDarken}
+                className="pointer-events-auto rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold hover:bg-white/10"
+              >
+                {darken ? t("darkenOff") : t("darkenOnBtn")}
               </button>
               <button
                 type="button"

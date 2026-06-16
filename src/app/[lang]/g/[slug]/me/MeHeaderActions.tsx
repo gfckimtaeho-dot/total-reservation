@@ -88,7 +88,7 @@ function QrDialog({
     >
       <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-xs rounded-3xl border border-orange-200/80 bg-white p-5 shadow-[0_30px_80px_-20px_rgba(249,115,22,0.45)]"
+        className="relative w-full max-w-sm rounded-3xl border border-orange-200/80 bg-white p-5 shadow-[0_30px_80px_-20px_rgba(249,115,22,0.45)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -113,7 +113,7 @@ function QrDialog({
                 <img
                   src={result.qr}
                   alt="Access QR"
-                  className="block h-48 w-48"
+                  className="block h-72 w-72"
                 />
               </div>
               <div className="mt-3 text-center">
