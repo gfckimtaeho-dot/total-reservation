@@ -288,25 +288,18 @@ function money(php: number): string {
   return `₱${php.toLocaleString("en-PH")}`;
 }
 
-// v18 시안 사이즈 그대로 — 컨테이너 14.5rem · QR 7.25rem. 사용자명/qrHint 는
-// wireframe 에 없고 사용자 제거 지시. 유효기간만 표시.
+// QR 을 카드 폭에 거의 꽉 차게 — 스캐너 인식 거리 확보(사용자 지시). 만료문구
+// 제거. 회원명/qrHint 도 없음(이전 지시 유지).
 function QrCard({ qr, t }: { qr: AccessQrResult; t: T }) {
   return (
-    <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 shadow-[0_30px_80px_-30px_rgba(249,115,22,0.4)] backdrop-blur">
+    <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-3 shadow-[0_30px_80px_-30px_rgba(249,115,22,0.4)] backdrop-blur">
       {qr.ok ? (
-        <div className="mx-auto w-full max-w-[14.5rem]">
-          <div className="mx-auto w-[10rem] rounded-2xl bg-gradient-to-br from-orange-50 to-rose-50 p-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qr.qr}
-              alt="Access QR"
-              className="block aspect-square w-full"
-            />
-          </div>
-          <div className="mt-5 text-center text-base font-semibold tabular-nums text-orange-600">
-            {t("qrExpires", { date: qr.expiresYmd })}
-          </div>
-        </div>
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={qr.qr}
+          alt="Access QR"
+          className="block aspect-square w-full rounded-2xl"
+        />
       ) : qr.reason === "blocked" ? (
         <div className="py-2 text-center">
           <div className="font-heading text-sm tracking-tight text-rose-700">
