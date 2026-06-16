@@ -1737,7 +1737,8 @@
       "WRONG_GYM": "다른 매장 소속 QR 입니다.",
       "INACTIVE": "비활성 계정입니다.",
       "NO_MEMBERSHIP": "유효한 회원권이 없습니다.",
-      "MEMBERSHIP_EXPIRED": "회원권이 만료되었습니다."
+      "MEMBERSHIP_EXPIRED": "회원권이 만료되었습니다.",
+      "QR_EXPIRED": "QR이 만료되었습니다. 앱에서 새 QR을 받아 주세요."
     }
   }
 }

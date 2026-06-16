@@ -20,7 +20,8 @@ export type AccessReason =
   | "WRONG_GYM" // 토큰은 유효하나 다른 매장 소속 계정
   | "INACTIVE" // 계정 비활성 또는 status != ACTIVE
   | "NO_MEMBERSHIP" // 회원인데 유효 회원권 없음(미발급/미시작)
-  | "MEMBERSHIP_EXPIRED"; // 회원권 만료(만료일 다음날부터)
+  | "MEMBERSHIP_EXPIRED" // 회원권 만료(만료일 다음날부터)
+  | "QR_EXPIRED"; // 당일 출입권(QrToken) 만료 — 앱에서 새 QR 발급 필요
 
 export type AccessOutcome = {
   result: AccessResultValue;

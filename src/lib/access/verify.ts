@@ -9,7 +9,7 @@
 
 import { prisma } from "@/lib/db/client";
 import { verifyGuestAccess } from "./guestVerify";
-import { verifyMemberAccess } from "./memberVerify";
+import { verifyMemberAccess, verifyQrTokenAccess } from "./memberVerify";
 import type { AccessOutcome } from "./types";
 
 export async function verifyAccess(
@@ -46,6 +46,34 @@ export async function verifyAccess(
     return verifyMemberAccess(gym, user);
   }
 
-  // 회원 토큰이 아니면 호텔 게스트(Stay.id)로 시도.
+  // 영구 토큰이 아니면 고객 당일 출입권(QrToken /me 발급)으로 시도. QrToken.token
+  // 은 로컬 base64url 고엔트로피라 호텔 Stay.id(cuid)와 값 공간이 겹치지 않는다 —
+  // 게스트 토큰이 여기 매칭될 일 없어 게스트 경로는 영향받지 않는다.
+  const qr = await prisma.qrToken.findUnique({
+    where: { token },
+    select: {
+      id: true,
+      gymId: true,
+      expiresAt: true,
+      user: {
+        select: { id: true, name: true, status: true, active: true },
+      },
+    },
+  });
+  if (qr) {
+    // 다른 매장 토큰을 이 매장 스캐너에 댄 경우 — 회원 경로와 동일하게 WRONG_GYM.
+    if (qr.gymId !== gym.id) {
+      return {
+        result: "DENIED",
+        kind: "MEMBER",
+        name: qr.user.name,
+        hotelName: null,
+        reason: "WRONG_GYM",
+      };
+    }
+    return verifyQrTokenAccess(gym, qr);
+  }
+
+  // 회원/고객 토큰이 아니면 호텔 게스트(Stay.id)로 시도.
   return verifyGuestAccess(gym, token);
 }

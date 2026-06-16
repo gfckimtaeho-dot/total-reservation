@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decideMemberAccess } from "./memberVerify";
+import { decideMemberAccess, decideQrTokenAccess } from "./memberVerify";
 
 // 날짜는 @db.Date 와 동일하게 UTC 자정 Date 로 구성.
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
@@ -116,5 +116,41 @@ describe("decideMemberAccess", () => {
         today,
       }),
     ).toEqual({ result: "ALLOWED", reason: null });
+  });
+});
+
+describe("decideQrTokenAccess (고객 당일 출입권)", () => {
+  const now = new Date("2026-06-16T08:00:00.000Z");
+  const future = new Date("2026-06-17T00:00:00.000Z"); // 오늘 끝(유효)
+  const past = new Date("2026-06-16T00:00:00.000Z"); // 이미 지남(만료)
+
+  it("유효 토큰 + 활성 계정이면 통과", () => {
+    expect(
+      decideQrTokenAccess({ active: true, status: "ACTIVE", expiresAt: future, now }),
+    ).toEqual({ result: "ALLOWED", reason: null });
+  });
+
+  it("비활성 계정이면 최우선 거절", () => {
+    expect(
+      decideQrTokenAccess({ active: false, status: "ACTIVE", expiresAt: future, now }),
+    ).toEqual({ result: "DENIED", reason: "INACTIVE" });
+  });
+
+  it("status 가 ACTIVE 가 아니면 거절", () => {
+    expect(
+      decideQrTokenAccess({ active: true, status: "WITHDRAWN", expiresAt: future, now }),
+    ).toEqual({ result: "DENIED", reason: "INACTIVE" });
+  });
+
+  it("만료된 당일권은 EXPIRED/QR_EXPIRED", () => {
+    expect(
+      decideQrTokenAccess({ active: true, status: "ACTIVE", expiresAt: past, now }),
+    ).toEqual({ result: "EXPIRED", reason: "QR_EXPIRED" });
+  });
+
+  it("만료 경계(expiresAt === now)는 만료 처리", () => {
+    expect(
+      decideQrTokenAccess({ active: true, status: "ACTIVE", expiresAt: now, now }),
+    ).toEqual({ result: "EXPIRED", reason: "QR_EXPIRED" });
   });
 });

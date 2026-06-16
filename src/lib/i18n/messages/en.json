@@ -1737,7 +1737,8 @@
       "WRONG_GYM": "QR belongs to another gym.",
       "INACTIVE": "Account is inactive.",
       "NO_MEMBERSHIP": "No valid membership.",
-      "MEMBERSHIP_EXPIRED": "Membership has expired."
+      "MEMBERSHIP_EXPIRED": "Membership has expired.",
+      "QR_EXPIRED": "QR has expired. Please get a new QR in the app."
     }
   }
 }

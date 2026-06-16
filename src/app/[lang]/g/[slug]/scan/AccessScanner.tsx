@@ -16,7 +16,8 @@ type Reason =
   | "WRONG_GYM"
   | "INACTIVE"
   | "NO_MEMBERSHIP"
-  | "MEMBERSHIP_EXPIRED";
+  | "MEMBERSHIP_EXPIRED"
+  | "QR_EXPIRED";
 
 type Outcome = {
   result: "ALLOWED" | "DENIED" | "EXPIRED";

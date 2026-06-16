@@ -45,6 +45,55 @@ export function decideMemberAccess(input: {
   return { result: "DENIED", reason: "NO_MEMBERSHIP" };
 }
 
+// ─── 고객 당일 출입권(QrToken) 경로 ─────────────────────────
+//
+// 회원 /me 화면은 영구 User.accessToken 이 아니라 당일 한정 QrToken 을 발급한다
+// (requestAccessQr: 계정 활성 + (유효 회원권 OR 오늘 예약) 일 때만 발급, Manila
+// 당일 끝까지 유효). 따라서 유효(미만료) QrToken 의 존재 자체가 "오늘 출입 자격
+// 있음"의 증거다 — 스캐너는 토큰 유효성 + 계정 활성만 재확인하면 된다.
+
+export type QrTokenVerifyReason = Extract<AccessReason, "INACTIVE" | "QR_EXPIRED">;
+
+// 순수 판정 코어 — 이미 조회한 값만 받아 결과를 낸다(테스트 가능).
+export function decideQrTokenAccess(input: {
+  active: boolean;
+  status: string; // UserStatus. ACTIVE 만 통과.
+  expiresAt: Date; // QrToken 만료(Manila 당일 끝).
+  now: Date;
+}): { result: AccessResultValue; reason: QrTokenVerifyReason | null } {
+  if (!input.active || input.status !== "ACTIVE") {
+    return { result: "DENIED", reason: "INACTIVE" };
+  }
+  // 만료된 당일권 = 보통 어제 화면 캡처. 회원권은 살아있을 수 있으니 회원권 만료와
+  // 구분해 QR_EXPIRED 로 안내(앱에서 새 QR 받기).
+  if (input.expiresAt.getTime() <= input.now.getTime()) {
+    return { result: "EXPIRED", reason: "QR_EXPIRED" };
+  }
+  return { result: "ALLOWED", reason: null };
+}
+
+// 디스패처가 token 으로 QrToken(+user)을 조회해 넘긴다. AccessLog 에 qrTokenId 기록
+// (자유 운동 방문 통계의 단일 소스).
+export async function verifyQrTokenAccess(
+  gym: { id: string },
+  qr: {
+    id: string;
+    expiresAt: Date;
+    user: { id: string; name: string; status: string; active: boolean };
+  },
+): Promise<AccessOutcome> {
+  const { result, reason } = decideQrTokenAccess({
+    active: qr.user.active,
+    status: qr.user.status,
+    expiresAt: qr.expiresAt,
+    now: new Date(),
+  });
+  await prisma.accessLog.create({
+    data: { gymId: gym.id, userId: qr.user.id, qrTokenId: qr.id, result },
+  });
+  return { kind: "MEMBER", name: qr.user.name, hotelName: null, result, reason };
+}
+
 // gym 은 디스패처가 이미 조회해 넘긴다. user 도 디스패처가 accessToken 으로 조회.
 export async function verifyMemberAccess(
   gym: { id: string; timeZone: string },
