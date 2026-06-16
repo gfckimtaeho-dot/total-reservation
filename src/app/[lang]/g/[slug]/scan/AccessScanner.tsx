@@ -76,6 +76,9 @@ export function AccessScanner({
     rafRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    // 비디오 엘리먼트가 죽은 스트림을 붙들지 않게 해제 — 재시작 시 기기 점유 방지.
+    const video = videoRef.current;
+    if (video) video.srcObject = null;
     lockRef.current = false;
     clearedRef.current = true;
     setCameraOn(false);
@@ -116,11 +119,35 @@ export function AccessScanner({
       setView({ phase: "error", message: t("cameraUnavailable") });
       return;
     }
+    // 재시작 안전장치: 직전 스트림이 남아있으면 먼저 정리(기기 점유 해제) 후 획득.
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((tr) => tr.stop());
+      streamRef.current = null;
+    }
+    const constraints: MediaStreamConstraints = {
+      // 문자열 facingMode 는 ideal 제약이라 해당 카메라 없으면 다른 걸로 fallback.
+      video: { facingMode: facingRef.current },
+    };
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        // 문자열 facingMode 는 ideal 제약이라 해당 카메라 없으면 다른 걸로 fallback.
-        video: { facingMode: facingRef.current },
-      });
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      // 카메라 stop 직후 재획득이 기기 점유(NotReadableError/AbortError)로 일시
+      // 실패하는 태블릿이 있어 한 번 더 시도. 그래도 실패면 원인(에러명)을 표기.
+      const name = (err as DOMException)?.name ?? "";
+      if (name === "NotReadableError" || name === "AbortError") {
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err2) {
+        const n2 = (err2 as DOMException)?.name ?? "unknown";
+        setView({ phase: "error", message: `${t("cameraError")} (${n2})` });
+        stopCamera();
+        return;
+      }
+    }
+    try {
       streamRef.current = stream;
       lockRef.current = false;
       clearedRef.current = true;
