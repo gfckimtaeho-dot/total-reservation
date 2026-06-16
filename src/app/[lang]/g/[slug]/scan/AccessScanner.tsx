@@ -102,8 +102,9 @@ type View =
   | { phase: "result"; outcome: Outcome }
   | { phase: "error"; message: string };
 
-// 결과/에러 화면 자동 복귀(연속 스캔). 결과는 짧게, 안내성 에러는 조금 길게.
-const RESULT_MS = 4000;
+// 결과/에러 화면 자동 복귀(연속 스캔). 결과는 1초로 짧게(다음 손님 빠른 처리),
+// 안내성 에러는 조금 길게.
+const RESULT_MS = 1000;
 const ERROR_MS = 5000;
 
 export function AccessScanner({

@@ -88,7 +88,7 @@ function QrDialog({
     >
       <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-sm rounded-3xl border border-orange-200/80 bg-white p-5 shadow-[0_30px_80px_-20px_rgba(249,115,22,0.45)]"
+        className="relative w-full max-w-sm rounded-3xl border border-orange-200/80 bg-white p-3 shadow-[0_30px_80px_-20px_rgba(249,115,22,0.45)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -105,26 +105,22 @@ function QrDialog({
           </button>
         </div>
 
-        <div className="mt-3 flex flex-col items-center">
+        <div className="mt-2 flex flex-col items-center">
           {result.ok ? (
             <>
-              <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-rose-50 p-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={result.qr}
-                  alt="Access QR"
-                  className="block h-72 w-72"
-                />
-              </div>
-              <div className="mt-3 text-center">
+              {/* QR 을 카드 폭에 거의 꽉 차게 — 스캐너 인식 거리 확보. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={result.qr}
+                alt="Access QR"
+                className="block w-full rounded-xl"
+              />
+              <div className="mt-2 text-center">
                 <div className="font-heading text-lg font-bold tracking-tight text-zinc-900">
                   {memberName}
                 </div>
-                <div className="mt-1 text-[11px] text-zinc-500">
+                <div className="mt-0.5 text-[11px] text-zinc-500">
                   {t("qrHint")}
-                </div>
-                <div className="mt-0.5 text-[10px] tabular-nums text-orange-600">
-                  {t("qrExpires", { date: result.expiresYmd })}
                 </div>
               </div>
             </>
