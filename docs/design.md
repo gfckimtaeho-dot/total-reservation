@@ -1,7 +1,8 @@
 # 디자인 시스템 — 사장 운영 영역 (hybrid-c "Cool Indigo")
 
 > 2026-06-19 채택. 사장(OWNER/MANAGER) 운영 영역의 디자인 표준.
-> 고객 영역(`/me`)은 별도(V18 Sunset Peach), 트레이너 영역은 다크 테마로 분리.
+> 고객 영역(`/me`)은 별도(V18 Sunset Peach · A Glass Depth — 아래 "고객 영역 디자인" 절),
+> 트레이너 영역은 다크 테마로 분리.
 
 ## 컨셉
 
@@ -52,11 +53,36 @@ design/references/design.md(Bold Outline/뉴 브루탈리즘)는 영감 referenc
 - 제외: 출입 스캔(`/scan`, AccessScanner). 의도적 풀스크린 다크 키오스크(카메라 단말)이고 무인 공개 키오스크(`/scan/[key]`)와 공유 — violet 레거시 아님, 이미 의미색(허용=emerald/만료=amber/거절=rose). OwnerShell 안 씌움, hybrid-c 전환 대상 아님(2026-06-19 사용자 "그대로 둠" 결정).
 - 완료: 채팅 OWNER/MANAGER 영역(StaffChatList 목록 + chat/[threadId] 스레드 + chat/audit + ChatWindow `indigo` 톤). 내 말풍선=indigo, 받은=흰 카드, 시스템(front desk)=amber, unread 점=indigo. 트레이너 채팅(dark)·고객 채팅(light V18)은 그대로.
 - 완료: 설정(settings page + account 상세 + HotelGuestPriceForm/ScannerLinkCard/AccountForm). hero band/footer 폐지 -> OwnerShell, SettingCard 흰 카드 유지, bg-ink 버튼/ink focus -> indigo.
-- **사장 운영 영역 hybrid-c 롤아웃 완료.** 제외: 출입 스캔(다크 키오스크), 트레이너 대시보드(다크 테마 별도 유지 — 사용자 지시), 고객 영역(V18).
+- **사장 운영 영역 hybrid-c 롤아웃 완료.** 제외: 출입 스캔(다크 키오스크), 트레이너 대시보드(다크 테마 별도 유지 — 사용자 지시). 고객 영역(`/me`)은 hybrid-c 가 아니라 자체 컨셉(아래 절).
 
 ### 화면 전환 규칙
 - 리스트만 바꾸지 말 것 — 그 화면에서 진입하는 연관 페이지(상세 `[id]`, 신규 `new`, 수정 `[id]/edit`)도 같은 라운드에 전환.
 - 공유 컴포넌트가 `tone` 시스템(normal/black/white)을 쓰면, 기존 톤을 건드리지 말고 새 `indigo` 톤을 추가해 적용 — 아직 안 바뀐 다른 화면(다크 트레이너 영역 등)에 색이 번지지 않게.
+
+## 고객 영역 디자인 (V18 Sunset Peach · A Glass Depth)
+
+> 2026-06-20 다듬음. 고객(`/me` 전체 트리)은 사장 hybrid-c 와 **별개 컨셉**.
+> 따뜻한 Sunset Peach 유지하되 "밋밋함"을 보완해 유리감(Glass Depth)으로 정제.
+> (Bold Outline 시안 시도 → "밋밋" 반려 → A·Glass Depth 채택.)
+
+### 토큰
+- 페이지 배경: `bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50` + blur 블롭 3개
+  (`bg-orange-300/40` 좌상, `bg-rose-300/40` 우중, `bg-amber-300/30` 좌하 — 각 26/22/20rem).
+- 카드: **유리감** `bg-white/70 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]`
+  + `rounded-[26px]`(주요 카드)/`rounded-2xl`(내부). 헤더엔 하단 테두리 없음(blur로 구분).
+- 헤더: 작은 uppercase 매장 라벨(`text-orange-500/80`) + 이름 `text-[26px] font-extrabold`.
+- 포인트: 오렌지/로즈/앰버. 주 CTA = `bg-gradient-to-br from-orange-500 to-rose-500` + 아이콘 + 장식 원.
+  보조 CTA = 흰 유리 + `ring-orange-200` + 아이콘. 상태색: 완료 emerald / 그룹 amber / 개인(PT) orange.
+- QR 카드: 그라데 프레임(`from-orange-100 to-rose-100`) 안에 흰 박스 + QR. 위에 "출입 QR" 라벨(`me.qrLabel`). 스캔 위해 크게(`max-w-[15rem]`).
+
+### 오늘의 일정 행 규칙 (사용자 확정)
+- 한 줄 고정(2줄 금지). 좌측 색막대/아이콘 없음.
+- **시간 맨 앞 + `text-3xl` 크게** → 서비스명 가운데(`flex-1` truncate) → **트레이너 이름 맨 끝**.
+- 상태색 = 칩 배경(완료 `bg-emerald-50` / 그룹 `bg-amber-50` / 개인 `bg-orange-50`) + 시간·트레이너 글자색(emerald/amber/orange-700).
+
+### 적용 범위
+- 전 `/me` 트리 통일: 홈 대시보드, 캘린더(MeFortnight), 보유상품(+환불/리북/트레이너 변경), 예약(신규/변경), 공유 로딩셸·PWA카드, 채팅 스레드.
+- 카드 크기/너비/정보구조는 기존 유지(디자인 토큰만 교체). 달력 셀 색·picker 슬롯 로직·ChatWindow(`tone="light"`)는 그대로.
 
 ## 작업 주의 (Windows)
 
