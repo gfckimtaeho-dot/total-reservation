@@ -1,25 +1,17 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { logout } from "@/lib/auth/actions";
 import { listVisibleThreads, type ChatViewer } from "@/lib/chat/queries";
-import { SidebarNav } from "../dashboard/SidebarNav";
+import { OwnerShell } from "../OwnerShell";
 
-// OWNER/MANAGER 전용 — sidebar. STORE thread 발신 + TRAINER audit 진입.
+// OWNER/MANAGER 전용 — OwnerShell. STORE thread 발신 + TRAINER audit 진입.
 
 const TK = {
-  page: "bg-violet-50/40",
-  aside: "bg-violet-50",
-  border: "border-violet-100",
-  eyebrow: "text-ink/60",
-  name: "text-ink",
-  sub: "text-ink/50",
-  logout: "text-zinc-700 hover:bg-zinc-50",
-  h1: "text-ink",
-  card: "bg-white ring-1 ring-violet-100 hover:ring-orange-300",
-  cardLabel: "text-ink",
-  cardSub: "text-ink/60",
-  badge: "bg-orange-500 text-white",
-  auditBtn: "bg-white text-ink ring-ink/10 hover:bg-orange-50",
+  sub: "text-zinc-500",
+  card: "bg-white border border-zinc-200 hover:border-indigo-300",
+  cardLabel: "text-zinc-900",
+  cardSub: "text-zinc-500",
+  badge: "bg-indigo-600 text-white",
+  auditBtn: "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50",
 } as const;
 
 type Props = {
@@ -63,48 +55,21 @@ export async function StaffChatList({ lang, slug, businessName, viewer }: Props)
   });
 
   return (
-    <div className={`flex min-h-screen ${TK.page}`}>
-      <aside
-        className={`hidden w-60 shrink-0 flex-col border-r ${TK.border} ${TK.aside} lg:flex`}
-      >
-        <div className={`border-b ${TK.border} px-6 py-6`}>
-          <span
-            className={`text-xs font-semibold uppercase tracking-[0.22em] ${TK.eyebrow}`}
-          >
-            {tn("studio")}
-          </span>
-          <div className={`mt-1 font-heading text-lg tracking-tight ${TK.name}`}>
-            {businessName}
-          </div>
-          <div className={`mt-0.5 text-xs ${TK.sub}`}>/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className={`border-t ${TK.border} px-3 py-4`}>
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button
-              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${TK.logout}`}
-            >
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 px-5 py-6 sm:px-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h1
-            className={`font-heading text-xl tracking-tight sm:text-2xl ${TK.h1}`}
-          >
-            {t("title")}
-          </h1>
-          <Link
-            href={`/${lang}/g/${slug}/chat/audit`}
-            className={`rounded-full px-3 py-1.5 text-xs ring-1 ${TK.auditBtn}`}
-          >
-            {tn("chatAudit")} →
-          </Link>
-        </div>
-
+    <OwnerShell
+      lang={lang}
+      slug={slug}
+      businessName={businessName}
+      subtitle={t("title")}
+      action={
+        <Link
+          href={`/${lang}/g/${slug}/chat/audit`}
+          className={`inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold ring-1 ${TK.auditBtn}`}
+        >
+          {tn("chatAudit")}
+        </Link>
+      }
+    >
+      <main className="px-5 py-6 sm:px-8">
         {items.length === 0 ? (
           <p className={`mt-12 text-center text-sm ${TK.sub}`}>
             {t("emptyList")}
@@ -141,7 +106,7 @@ export async function StaffChatList({ lang, slug, businessName, viewer }: Props)
           </ul>
         )}
       </main>
-    </div>
+    </OwnerShell>
   );
 }
 

@@ -7,11 +7,11 @@ import { ChatWindow } from "../ChatWindow";
 import { TrainerChatThreadView } from "../TrainerChatThreadView";
 
 const TK = {
-  page: "bg-violet-50/40",
-  header: "bg-white border-b border-violet-100",
-  title: "text-ink",
-  back: "text-ink/60 hover:text-ink",
-  sub: "text-ink/50",
+  page: "bg-zinc-50",
+  header: "bg-white border-b border-zinc-200",
+  title: "text-zinc-900",
+  back: "text-zinc-500 hover:text-zinc-900",
+  sub: "text-zinc-500",
 } as const;
 
 export default async function ChatThreadPage({
@@ -87,7 +87,7 @@ export default async function ChatThreadPage({
           </div>
           <Link
             href={`/${lang}/g/${slug}/dashboard`}
-            className="shrink-0 rounded-full px-3 py-1.5 text-xs ring-1 transition bg-white text-ink ring-ink/10 hover:bg-orange-50"
+            className="shrink-0 rounded-full px-3 py-1.5 text-xs ring-1 transition bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50"
           >
             {t("home")}
           </Link>
@@ -102,7 +102,7 @@ export default async function ChatThreadPage({
           myUserId={auth.id}
           canSend={data.canSend}
           closedAt={closedAt}
-          tone="light"
+          tone="indigo"
           channelLabel={t("auditNotice")}
         />
       </div>

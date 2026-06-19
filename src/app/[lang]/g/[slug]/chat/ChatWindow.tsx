@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { sendMessage, markRead } from "@/lib/chat/actions";
 
-type Tone = "dark" | "light";
+type Tone = "dark" | "light" | "indigo";
 
 type Msg = {
   id: string;
@@ -395,6 +395,23 @@ const TONE: Record<
     system: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
     bubbleMine: "bg-gradient-to-br from-orange-500 to-rose-500 text-white",
     bubbleOther: "bg-white text-zinc-900 ring-1 ring-orange-200",
+    time: "text-zinc-400",
+  },
+  // 사장 운영 영역(hybrid-c) — 흰 배경 + indigo 말풍선.
+  indigo: {
+    shell: "bg-white text-zinc-900",
+    scrollbg: "bg-zinc-50",
+    empty: "text-zinc-400",
+    error: "bg-rose-50 text-rose-700",
+    notice: "border-zinc-200 bg-zinc-50 text-zinc-600",
+    noticeAside: "text-zinc-400",
+    formBorder: "border-zinc-200 bg-white",
+    input:
+      "bg-zinc-50 text-zinc-900 ring-1 ring-zinc-300 placeholder:text-zinc-400 focus:ring-indigo-400",
+    send: "bg-indigo-600 text-white shadow-sm hover:bg-indigo-700",
+    system: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+    bubbleMine: "bg-indigo-600 text-white",
+    bubbleOther: "bg-white text-zinc-900 ring-1 ring-zinc-200",
     time: "text-zinc-400",
   },
 };
