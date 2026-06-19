@@ -49,7 +49,8 @@ design/references/design.md(Bold Outline/뉴 브루탈리즘)는 영감 referenc
 - 완료: 매출현황(revenue page + RevenueChart). KPI 카드 흰색+zinc, 차트 탭 활성 indigo, 순수익=emerald/트레이너 지급=sky 막대 유지, 기본급=amber/세션=indigo 누적바.
 - 완료: 방문 통계(visits page + VisitsChart). 자유운동=indigo/PT=sky/단체=amber 누적 막대, 탭 활성 indigo.
 - 완료: 환불 요청(refunds page + RefundsTable). 흰 카드+zinc, 탭/검색 활성 indigo, 환불완료 버튼=emerald, 매장귀책 사유 칩=amber 유지.
-- 남음(다음): 출입 스캔 → 채팅 → 설정 + 각 상세 페이지. 같은 `OwnerShell` + 토큰 패턴으로 화면 단위 진행.
+- 제외: 출입 스캔(`/scan`, AccessScanner). 의도적 풀스크린 다크 키오스크(카메라 단말)이고 무인 공개 키오스크(`/scan/[key]`)와 공유 — violet 레거시 아님, 이미 의미색(허용=emerald/만료=amber/거절=rose). OwnerShell 안 씌움, hybrid-c 전환 대상 아님(2026-06-19 사용자 "그대로 둠" 결정).
+- 남음(다음): 채팅 → 설정 + 각 상세 페이지. 같은 `OwnerShell` + 토큰 패턴으로 화면 단위 진행.
 
 ### 화면 전환 규칙
 - 리스트만 바꾸지 말 것 — 그 화면에서 진입하는 연관 페이지(상세 `[id]`, 신규 `new`, 수정 `[id]/edit`)도 같은 라운드에 전환.
