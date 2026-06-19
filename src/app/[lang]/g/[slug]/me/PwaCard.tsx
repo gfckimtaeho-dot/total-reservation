@@ -36,7 +36,7 @@ export function PwaCard() {
   if (!show) return null;
 
   return (
-    <div className="relative rounded-3xl border border-orange-200/60 bg-white/90 p-6 backdrop-blur">
+    <div className="relative rounded-3xl bg-white/70 p-6 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
       <button
         type="button"
         onClick={dismiss}

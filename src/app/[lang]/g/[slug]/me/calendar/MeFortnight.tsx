@@ -118,7 +118,7 @@ export function MeFortnight({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-3 backdrop-blur">
+      <section className="rounded-3xl bg-white/70 p-3 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
         <FortnightStrip
           cells={fortnight.cells}
           weekdays={WD}
@@ -130,7 +130,7 @@ export function MeFortnight({
 
       {/* 선택일 옵션 — 가로 strip 바로 아래 배치 (2주간 내 예약 위). 일자
           탭하면 즉시 보이도록. */}
-      <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+      <section className="rounded-3xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
         <div className="flex items-baseline justify-between">
           <h3 className="text-lg font-bold text-orange-600">
             {t("fnOptions")}
@@ -289,7 +289,7 @@ export function MeFortnight({
         {error && <p className="mt-3 text-xs text-rose-700">{error}</p>}
       </section>
 
-      <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+      <section className="rounded-3xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
         <h3 className="text-lg font-bold text-orange-600">{t("fnMyResv")}</h3>
         {myUpcoming.length === 0 ? (
           <div className="mt-3 rounded-2xl bg-zinc-50 p-4 text-center text-sm text-zinc-500">

@@ -127,10 +127,11 @@ export default async function HoldingsPage({
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 font-sans text-zinc-900">
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-[28rem] w-[28rem] rounded-full bg-orange-200/60 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 right-0 h-[24rem] w-[28rem] rounded-full bg-rose-200/50 blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 left-1/3 h-[26rem] w-[26rem] rounded-full bg-orange-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 -right-10 h-[22rem] w-[22rem] rounded-full bg-rose-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-16 left-0 h-[20rem] w-[24rem] rounded-full bg-amber-300/30 blur-3xl" />
 
-      <header className="relative border-b border-orange-100">
+      <header className="relative">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-6 py-3">
           <div className="text-2xl font-bold tracking-tight text-zinc-900">
             {t("holdingsTitle")}
@@ -148,7 +149,7 @@ export default async function HoldingsPage({
       <main className="relative">
         <div className="mx-auto max-w-3xl space-y-5 px-6 py-6">
           {empty && (
-            <div className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+            <div className="rounded-3xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
               <div className="font-heading text-sm tracking-tight text-zinc-900">
                 {t("noActiveTitle")}
               </div>
@@ -175,7 +176,7 @@ export default async function HoldingsPage({
                 return (
                   <li
                     key={m.id}
-                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur"
+                    className="rounded-2xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]"
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="truncate text-2xl font-bold tracking-tight text-zinc-900">
@@ -219,7 +220,7 @@ export default async function HoldingsPage({
                 return (
                   <li
                     key={p.id}
-                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur"
+                    className="rounded-2xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]"
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="truncate text-2xl font-bold tracking-tight text-zinc-900">
@@ -273,7 +274,7 @@ export default async function HoldingsPage({
                 return (
                   <li
                     key={p.id}
-                    className="rounded-2xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur"
+                    className="rounded-2xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]"
                   >
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="truncate text-2xl font-bold tracking-tight text-zinc-900">

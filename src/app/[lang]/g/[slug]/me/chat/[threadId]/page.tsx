@@ -46,7 +46,7 @@ export default async function CustomerChatThreadPage({
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <header className="border-b border-orange-200 bg-white px-4 py-3">
+      <header className="bg-white px-4 py-3">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <Link
             href={`/${lang}/g/${slug}/me/chat`}

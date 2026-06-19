@@ -73,7 +73,7 @@ export function RefundFlow({
   return (
     <div className="space-y-4">
       {/* 환불 내역 + 산정 방식 */}
-      <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+      <section className="rounded-3xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
         <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
           {t("refundBreakdownTitle")}
         </div>
@@ -145,7 +145,7 @@ export function RefundFlow({
         </section>
       ) : (
         <>
-          <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+          <section className="rounded-3xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
             <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
               {t("refundPayoutTitle")}
             </div>
@@ -182,7 +182,7 @@ export function RefundFlow({
             )}
           </section>
 
-          <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
+          <section className="rounded-3xl bg-white/70 p-5 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
             <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-orange-600">
               {t("refundAgreeTitle")}
             </div>

@@ -184,7 +184,7 @@ function DayBlock({
   ).format(new Date(Date.UTC(d.year, d.month - 1, d.day, 12, 0, 0)));
 
   return (
-    <div className="rounded-2xl border border-orange-200/60 bg-white/90 p-4 backdrop-blur">
+    <div className="rounded-2xl bg-white/70 p-4 ring-1 ring-white/80 backdrop-blur-xl shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)]">
       <div className="px-1 text-2xl font-bold tracking-tight text-zinc-900">
         {dateLabel}
       </div>
