@@ -11,7 +11,7 @@ import {
 import { PhotoUploader } from "./PhotoUploader";
 import { DobPicker } from "../../members/DobPicker";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 type Specialty = "HEALTH" | "YOGA" | "PILATES" | "DANCE";
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
@@ -72,6 +72,23 @@ const TONE = {
     cancel:
       "border border-zinc-300 bg-white text-zinc-700 hover:border-violet-500",
     weekdayOn: "bg-violet-600 text-white",
+    weekdayOff: "bg-zinc-200 text-zinc-500",
+  },
+  indigo: {
+    section: "rounded-2xl border border-zinc-200 bg-white p-6",
+    sectionLabel: "text-zinc-500",
+    sectionTitle: "text-zinc-900",
+    field:
+      "border-zinc-300 bg-white text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500/20",
+    text: "text-zinc-900",
+    subtext: "text-zinc-500",
+    pillActive: "bg-indigo-600 text-white ring-1 ring-indigo-600",
+    pillInactive:
+      "bg-white text-zinc-600 ring-1 ring-zinc-300 hover:ring-zinc-400",
+    submit: "bg-indigo-600 text-white hover:bg-indigo-700",
+    cancel:
+      "border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400",
+    weekdayOn: "bg-indigo-600 text-white",
     weekdayOff: "bg-zinc-200 text-zinc-500",
   },
 } as const;
@@ -623,7 +640,7 @@ function SectionHead({
         {eyebrow}
       </span>
       <h2
-        className={`font-heading text-lg tracking-tight ${tk.sectionTitle}`}
+        className={`text-lg font-semibold tracking-tight ${tk.sectionTitle}`}
       >
         {title}
       </h2>

@@ -42,9 +42,13 @@ design/references/design.md(Bold Outline/뉴 브루탈리즘)는 영감 referenc
 
 ## 롤아웃 상태
 
-- 완료: 대시보드(사장 홈), 회원관리(+ MemberRow/MembersSearch/MemberAddDialog).
+- 완료: 대시보드(사장 홈), 회원관리(리스트 + 회원 상세 + OwnerIssuePanel/MemberRow/MembersSearch/MemberAddDialog), 트레이너 관리(리스트 + 트레이너 상세 + 신규/수정 + TrainerRow/TrainersSearch/AttendanceMatrix/TrainerForm/PhotoUploader/LeaveManager/RegenerateQrButton), DobPicker.
 - 공용: `OwnerShell`, `SidebarNav`(top 모드 indigo), `RefreshButton`(indigo), 로딩 셸(top-nav 스켈레톤).
-- 남음(다음): 트레이너 관리 → 영업일 → 상품 → 매출현황 → 방문 통계 → 환불 요청 → 출입 스캔 → 채팅 → 설정 + 각 상세 페이지. 같은 `OwnerShell` + 토큰 패턴으로 화면 단위 진행.
+- 남음(다음): 영업일 → 상품 → 매출현황 → 방문 통계 → 환불 요청 → 출입 스캔 → 채팅 → 설정 + 각 상세 페이지. 같은 `OwnerShell` + 토큰 패턴으로 화면 단위 진행.
+
+### 화면 전환 규칙
+- 리스트만 바꾸지 말 것 — 그 화면에서 진입하는 연관 페이지(상세 `[id]`, 신규 `new`, 수정 `[id]/edit`)도 같은 라운드에 전환.
+- 공유 컴포넌트가 `tone` 시스템(normal/black/white)을 쓰면, 기존 톤을 건드리지 말고 새 `indigo` 톤을 추가해 적용 — 아직 안 바뀐 다른 화면(다크 트레이너 영역 등)에 색이 번지지 않게.
 
 ## 작업 주의 (Windows)
 

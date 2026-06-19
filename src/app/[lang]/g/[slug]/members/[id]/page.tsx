@@ -2,10 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { differenceInYears } from "date-fns";
 import { getTranslations } from "next-intl/server";
-import { logout } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { SidebarNav } from "../../dashboard/SidebarNav";
+import { OwnerShell } from "../../OwnerShell";
 import { MemberAddDialog } from "../MemberAddDialog";
 import { OwnerIssuePanel } from "./OwnerIssuePanel";
 import { HandoverDialog } from "../../handover/HandoverDialog";
@@ -13,18 +12,12 @@ import { PasswordResetButton } from "@/components/PasswordResetButton";
 import { copyPasswordResetUrl } from "../actions";
 
 const TK = {
-  page: "bg-violet-50/40",
-  sidebar: "border-r border-violet-100 bg-violet-50",
-  border: "border-violet-100",
-  label: "text-ink/60",
-  name: "text-ink",
-  headerBorder: "border-violet-100",
-  section: "rounded-2xl bg-white ring-1 ring-violet-100 p-6",
-  title: "text-ink",
-  subtle: "text-zinc-600",
-  pillActive: "bg-violet-100 text-violet-800",
+  section: "rounded-2xl border border-zinc-200 bg-white p-6",
+  title: "text-zinc-900",
+  subtle: "text-zinc-500",
+  pillActive: "bg-indigo-100 text-indigo-800",
   pillPending: "bg-amber-100 text-amber-800",
-  rowBorder: "border-violet-100",
+  rowBorder: "border-zinc-200",
 } as const;
 
 export default async function MemberDetailPage({
@@ -36,7 +29,6 @@ export default async function MemberDetailPage({
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
   const t = await getTranslations("memberDetail");
-  const tn = await getTranslations("nav");
   const tc = await getTranslations("trainerCal");
 
   const [u, membershipPlans, packagePlans, comboPlans, promotionsRaw] =
@@ -234,96 +226,65 @@ export default async function MemberDetailPage({
   const handoverGroups = Array.from(handoverGroupsMap.values());
 
   return (
-    <div className={`flex min-h-screen ${TK.page}`}>
-      <aside
-        className={`hidden w-60 shrink-0 flex-col lg:flex ${TK.sidebar}`}
-      >
-        <div className={`border-b px-6 py-6 ${TK.border}`}>
+    <OwnerShell
+      lang={lang}
+      slug={slug}
+      businessName={business.name}
+      subtitle={
+        <span className="inline-flex items-center gap-2">
+          <span className="font-semibold text-zinc-900">{u.name}</span>
           <span
-            className={`text-xs font-semibold uppercase tracking-[0.22em] ${TK.label}`}
+            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusPill}`}
           >
-            {tn("studio")}
+            {statusLabel}
           </span>
-          <div
-            className={`mt-1 font-heading text-lg tracking-tight ${TK.name}`}
-          >
-            {business.name}
-          </div>
-          <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className={`border-t px-3 py-4 ${TK.border}`}>
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-x-hidden">
-        <header
-          className={`flex items-center justify-between border-b px-8 py-5 ${TK.headerBorder}`}
-        >
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-              {t("eyebrow")}
-            </span>
-            <h1
-              className={`font-heading text-xl tracking-tight ${TK.title}`}
-            >
-              {u.name}{" "}
-              <span
-                className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium align-middle ${statusPill}`}
-              >
-                {statusLabel}
-              </span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            {u.status === "ACTIVE" && (
-              <PasswordResetButton
-                slug={slug}
-                id={u.id}
-                idField="memberId"
-                action={copyPasswordResetUrl}
-                label={tc("passwordResetBtn")}
-                copyLabel={tc("passwordResetCopy")}
-                copiedLabel={tc("passwordResetCopied")}
-                hint={tc("passwordResetHint")}
-                sentLabel={tc("passwordResetSent")}
-              />
-            )}
-            <MemberAddDialog
+        </span>
+      }
+      action={
+        <>
+          {u.status === "ACTIVE" && (
+            <PasswordResetButton
               slug={slug}
-              lang={lang}
-              mode="edit"
-              member={{
-                id: u.id,
-                name: u.name,
-                gender: u.gender as "MALE" | "FEMALE" | null,
-                phone: u.phone,
-                email: u.email,
-                dob: dobStr,
-                emergencyContactPhone: u.emergencyContactPhone,
-                note: u.note,
-                locale: u.locale as "en" | "ko",
-              }}
+              id={u.id}
+              idField="memberId"
+              action={copyPasswordResetUrl}
+              label={tc("passwordResetBtn")}
+              copyLabel={tc("passwordResetCopy")}
+              copiedLabel={tc("passwordResetCopied")}
+              hint={tc("passwordResetHint")}
+              sentLabel={tc("passwordResetSent")}
             />
-            <Link
-              href={`/${lang}/g/${slug}/members`}
-              className="text-sm transition text-zinc-600 hover:text-ink"
-            >
-              {t("back")}
-            </Link>
-          </div>
-        </header>
-
-        <div className="mx-auto w-full max-w-5xl space-y-5 p-6">
+          )}
+          <MemberAddDialog
+            slug={slug}
+            lang={lang}
+            mode="edit"
+            member={{
+              id: u.id,
+              name: u.name,
+              gender: u.gender as "MALE" | "FEMALE" | null,
+              phone: u.phone,
+              email: u.email,
+              dob: dobStr,
+              emergencyContactPhone: u.emergencyContactPhone,
+              note: u.note,
+              locale: u.locale as "en" | "ko",
+            }}
+          />
+          <Link
+            href={`/${lang}/g/${slug}/members`}
+            className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-50"
+          >
+            {t("back")}
+          </Link>
+        </>
+      }
+    >
+      <div className="mx-auto w-full max-w-5xl space-y-5 p-6">
           {/* Basic */}
           <section className={TK.section}>
             <h2
-              className={`font-heading text-2xl tracking-tight ${TK.title}`}
+              className={`text-2xl font-semibold tracking-tight ${TK.title}`}
             >
               {t("basicHeading")}
             </h2>
@@ -375,7 +336,7 @@ export default async function MemberDetailPage({
           {/* 보유 상품 — 회원권 + 1:1 수업권 + 단체 수업권 통합 */}
           <section className={TK.section}>
             <h2
-              className={`font-heading text-2xl tracking-tight ${TK.title}`}
+              className={`text-2xl font-semibold tracking-tight ${TK.title}`}
             >
               {t("holdingsHeading")}
             </h2>
@@ -433,7 +394,7 @@ export default async function MemberDetailPage({
           {/* 트레이너 담당 — 1:1 서비스만 양도. 단체 수업 제외. */}
           <section className={TK.section}>
             <h2
-              className={`font-heading text-2xl tracking-tight ${TK.title}`}
+              className={`text-2xl font-semibold tracking-tight ${TK.title}`}
             >
               {t("handoverHeading")}
             </h2>
@@ -449,7 +410,7 @@ export default async function MemberDetailPage({
                 {handoverGroups.map((g) => (
                   <li
                     key={g.serviceId}
-                    className="flex items-center justify-between gap-3 rounded-lg px-4 py-3 bg-white ring-1 ring-ink/10"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3"
                   >
                     <div className="min-w-0">
                       <div className={`truncate text-sm font-semibold ${TK.title}`}>
@@ -483,7 +444,7 @@ export default async function MemberDetailPage({
           {/* 회원권 발급 — 회원관리 → 회원 row → 상세 → 그 자리에서 발급 완결 */}
           <section className={TK.section}>
             <h2
-              className={`font-heading text-2xl tracking-tight ${TK.title}`}
+              className={`text-2xl font-semibold tracking-tight ${TK.title}`}
             >
               {t("issueHeading")}
             </h2>
@@ -517,8 +478,7 @@ export default async function MemberDetailPage({
             </div>
           </section>
         </div>
-      </main>
-    </div>
+    </OwnerShell>
   );
 }
 

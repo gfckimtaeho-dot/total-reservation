@@ -33,33 +33,33 @@ type Combo = {
 };
 
 const TK = {
-  subCard: "rounded-xl bg-violet-50/60 ring-1 ring-violet-100 p-4",
-  title: "text-ink",
-  subtle: "text-zinc-600",
-  eyebrow: "text-violet-700/80",
-  rowCard: "rounded-lg bg-white ring-1 ring-violet-100 p-3",
-  tabActive: "bg-violet-500 text-white",
+  subCard: "rounded-xl border border-zinc-200 bg-zinc-50 p-4",
+  title: "text-zinc-900",
+  subtle: "text-zinc-500",
+  eyebrow: "text-indigo-600",
+  rowCard: "rounded-lg border border-zinc-200 bg-white p-3",
+  tabActive: "bg-indigo-600 text-white",
   tabInactive:
-    "bg-white text-zinc-700 ring-1 ring-violet-100 hover:bg-violet-50",
+    "bg-white text-zinc-700 ring-1 ring-zinc-300 hover:bg-zinc-50",
   addBtn:
-    "rounded-md bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-40",
-  price: "text-ink",
+    "rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-40",
+  price: "text-zinc-900",
   priceSale: "text-emerald-600",
   priceStrike: "text-zinc-400 line-through",
-  cartCard: "rounded-xl bg-white ring-2 ring-violet-300 p-4",
-  cartLine: "rounded-lg bg-violet-50/60 ring-1 ring-violet-100 p-2.5",
+  cartCard: "rounded-xl border-2 border-indigo-300 bg-white p-4",
+  cartLine: "rounded-lg border border-zinc-200 bg-zinc-50 p-2.5",
   issueBtn:
-    "w-full rounded-lg bg-violet-500 py-3 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-40",
+    "w-full rounded-lg bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40",
   issueBarMobile:
-    "rounded-lg bg-violet-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40",
-  mobileBar: "bg-white/95 border-t border-violet-100",
+    "rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40",
+  mobileBar: "bg-white/95 border-t border-zinc-200",
   removeBtn:
-    "rounded-md ring-1 ring-violet-100 px-2 py-1 text-xs text-zinc-600 hover:text-rose-600 hover:ring-rose-300",
+    "rounded-md ring-1 ring-zinc-300 px-2 py-1 text-xs text-zinc-600 hover:text-rose-600 hover:ring-rose-300",
   clearLink: "text-xs text-zinc-500 hover:text-rose-500",
   doneCard: "rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-5 text-center",
   doneText: "text-emerald-700",
   againBtn:
-    "rounded-md bg-violet-100 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-200",
+    "rounded-md bg-indigo-100 px-4 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-200",
 } as const;
 
 type CartLine = {
@@ -382,7 +382,7 @@ export function OwnerIssuePanel({
                   );
                 })}
               </ul>
-              <div className="mt-3 border-t pt-3 border-violet-100">
+              <div className="mt-3 border-t pt-3 border-zinc-200">
                 {cartSaved > 0 && (
                   <div className={`mb-1 flex items-center justify-between text-xs ${TK.priceSale}`}>
                     <span>{t("cartSavedLabel")}</span>

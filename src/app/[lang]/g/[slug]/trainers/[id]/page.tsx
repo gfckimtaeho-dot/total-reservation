@@ -3,23 +3,22 @@ import { notFound } from "next/navigation";
 import { differenceInYears } from "date-fns";
 import QRCode from "qrcode";
 import { getTranslations } from "next-intl/server";
-import { logout } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import { ensureAccessToken } from "@/lib/auth/accessToken";
 import { PasswordResetButton } from "@/components/PasswordResetButton";
 import { copyTrainerPasswordResetUrl } from "../actions";
-import { SidebarNav } from "../../dashboard/SidebarNav";
+import { OwnerShell } from "../../OwnerShell";
 import { RegenerateQrButton } from "./RegenerateQrButton";
 import { LeaveManager } from "./LeaveManager";
 
 const TK = {
-  section: "rounded-2xl bg-white ring-1 ring-violet-100 p-6",
-  title: "text-ink",
-  subtle: "text-zinc-600",
-  pillTrainer: "bg-violet-100 text-violet-800",
+  section: "rounded-2xl border border-zinc-200 bg-white p-6",
+  title: "text-zinc-900",
+  subtle: "text-zinc-500",
+  pillTrainer: "bg-indigo-100 text-indigo-800",
   pillManager: "bg-amber-100 text-amber-800",
-  weekdayOn: "bg-violet-600 text-white",
+  weekdayOn: "bg-indigo-600 text-white",
   weekdayOff: "bg-zinc-200 text-zinc-500",
 } as const;
 
@@ -42,7 +41,6 @@ export default async function TrainerDetailPage({
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
   const t = await getTranslations("trainers");
-  const tn = await getTranslations("nav");
   const tc = await getTranslations("trainerCal");
 
   const staff = await prisma.staff.findFirst({
@@ -87,71 +85,50 @@ export default async function TrainerDetailPage({
   });
 
   return (
-    <div className="flex min-h-screen bg-violet-50/40">
-      <aside className="hidden w-60 shrink-0 flex-col lg:flex border-r border-violet-100 bg-violet-50">
-        <div className="border-b px-6 py-6 border-violet-100">
-          <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-            {tn("studio")}
+    <OwnerShell
+      lang={lang}
+      slug={slug}
+      businessName={business.name}
+      subtitle={
+        <span className="inline-flex items-center gap-2">
+          <span className="font-semibold text-zinc-900">{u.name}</span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              staff.role === "MANAGER" ? TK.pillManager : TK.pillTrainer
+            }`}
+          >
+            {t(staff.role === "MANAGER" ? "roleManager" : "roleTrainer")}
           </span>
-          <div className="mt-1 font-heading text-lg tracking-tight text-ink">
-            {business.name}
-          </div>
-          <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className="border-t px-3 py-4 border-violet-100">
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-x-hidden">
-        <header className="flex items-center justify-between border-b px-8 py-5 border-violet-100">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-              TRAINERS
-            </span>
-            <h1 className={`font-heading text-xl tracking-tight ${TK.title}`}>
-              {u.name}{" "}
-              <span
-                className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium align-middle ${
-                  staff.role === "MANAGER" ? TK.pillManager : TK.pillTrainer
-                }`}
-              >
-                {t(staff.role === "MANAGER" ? "roleManager" : "roleTrainer")}
-              </span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-4">
-            {u.status === "ACTIVE" && (
-              <PasswordResetButton
-                slug={slug}
-                id={staff.id}
-                idField="staffId"
-                action={copyTrainerPasswordResetUrl}
-                label={tc("passwordResetBtn")}
-                copyLabel={tc("passwordResetCopy")}
-                copiedLabel={tc("passwordResetCopied")}
-                hint={tc("passwordResetHint")}
-                sentLabel={tc("passwordResetSent")}
-              />
-            )}
-            <Link
-              href={`/${lang}/g/${slug}/trainers`}
-              className="text-sm transition text-zinc-600 hover:text-ink"
-            >
-              {t("detailBack")}
-            </Link>
-          </div>
-        </header>
-
+        </span>
+      }
+      action={
+        <>
+          {u.status === "ACTIVE" && (
+            <PasswordResetButton
+              slug={slug}
+              id={staff.id}
+              idField="staffId"
+              action={copyTrainerPasswordResetUrl}
+              label={tc("passwordResetBtn")}
+              copyLabel={tc("passwordResetCopy")}
+              copiedLabel={tc("passwordResetCopied")}
+              hint={tc("passwordResetHint")}
+              sentLabel={tc("passwordResetSent")}
+            />
+          )}
+          <Link
+            href={`/${lang}/g/${slug}/trainers`}
+            className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-50"
+          >
+            {t("detailBack")}
+          </Link>
+        </>
+      }
+    >
         <div className="mx-auto w-full max-w-5xl space-y-5 p-6">
           {/* Access QR */}
           <section className={TK.section}>
-            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
+            <h2 className={`text-lg font-semibold tracking-tight ${TK.title}`}>
               {t("detailQr")}
             </h2>
             <p className={`mt-1 text-xs ${TK.subtle}`}>{t("detailQrHint")}</p>
@@ -171,7 +148,7 @@ export default async function TrainerDetailPage({
                 <RegenerateQrButton
                   slug={slug}
                   staffId={staff.id}
-                  tone="white"
+                  tone="indigo"
                 />
               </div>
             </div>
@@ -179,7 +156,7 @@ export default async function TrainerDetailPage({
 
           {/* Photos */}
           <section className={TK.section}>
-            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
+            <h2 className={`text-lg font-semibold tracking-tight ${TK.title}`}>
               {t("detailPhotos")}
             </h2>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-5">
@@ -206,7 +183,7 @@ export default async function TrainerDetailPage({
 
           {/* Basic */}
           <section className={TK.section}>
-            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
+            <h2 className={`text-lg font-semibold tracking-tight ${TK.title}`}>
               {t("detailBasic")}
             </h2>
             <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
@@ -246,7 +223,7 @@ export default async function TrainerDetailPage({
 
           {/* Specialties + Schedule */}
           <section className={TK.section}>
-            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
+            <h2 className={`text-lg font-semibold tracking-tight ${TK.title}`}>
               {t("detailRoleSpec")}
             </h2>
             <p className={`mt-2 text-sm ${TK.title}`}>
@@ -317,7 +294,7 @@ export default async function TrainerDetailPage({
 
           {/* Bio + Career */}
           <section className={TK.section}>
-            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
+            <h2 className={`text-lg font-semibold tracking-tight ${TK.title}`}>
               {t("detailBio")}
             </h2>
             <p className={`mt-3 whitespace-pre-wrap text-sm leading-relaxed ${TK.title}`}>
@@ -335,7 +312,7 @@ export default async function TrainerDetailPage({
 
           {/* Memo */}
           <section className={TK.section}>
-            <h2 className={`font-heading text-lg tracking-tight ${TK.title}`}>
+            <h2 className={`text-lg font-semibold tracking-tight ${TK.title}`}>
               {t("detailMemo")}
             </h2>
             <p className={`mt-3 whitespace-pre-wrap text-sm leading-relaxed ${TK.title}`}>
@@ -349,7 +326,7 @@ export default async function TrainerDetailPage({
               lang={lang}
               slug={slug}
               staffId={staff.id}
-              tone="white"
+              tone="indigo"
               leaves={staff.leaves.map((l) => ({
                 id: l.id,
                 startDate: l.startDate.toISOString().slice(0, 10),
@@ -359,8 +336,7 @@ export default async function TrainerDetailPage({
             />
           </section>
         </div>
-      </main>
-    </div>
+    </OwnerShell>
   );
 }
 

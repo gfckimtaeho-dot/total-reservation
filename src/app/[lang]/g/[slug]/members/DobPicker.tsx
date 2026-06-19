@@ -61,7 +61,7 @@ export function DobPicker({
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="h-11 rounded-md px-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-ink/20 border border-violet-200 bg-white text-ink hover:border-violet-500"
+          className="h-11 rounded-md px-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/20 border border-zinc-300 bg-white text-zinc-900 hover:border-indigo-500"
         >
           <span className={date ? "" : "text-zinc-400"}>{display}</span>
         </button>
@@ -69,7 +69,7 @@ export function DobPicker({
       </label>
 
       {open && (
-        <div className="absolute left-0 top-full z-[60] mt-1 rounded-lg p-2 shadow-xl bg-white ring-1 ring-violet-100 [--rdp-accent-color:#7c3aed]">
+        <div className="absolute left-0 top-full z-[60] mt-1 rounded-lg p-2 shadow-xl bg-white ring-1 ring-zinc-200 [--rdp-accent-color:#4f46e5]">
 
           <DayPicker
             mode="single"

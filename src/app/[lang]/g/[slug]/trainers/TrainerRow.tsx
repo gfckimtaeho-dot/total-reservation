@@ -11,7 +11,7 @@ import {
 } from "./actions";
 import { copyText } from "@/lib/clipboard";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 
 const TONE = {
@@ -20,6 +20,7 @@ const TONE = {
     rowHover: "hover:bg-amber-50/40",
     text: "text-ink",
     subtext: "text-zinc-600",
+    pillPending: "bg-amber-100 text-amber-900/80",
     pillTrainer: "bg-band/60 text-ink",
     pillManager: "bg-amber-100 text-amber-900/80",
     statusWorking: "bg-emerald-100 text-emerald-800",
@@ -39,6 +40,7 @@ const TONE = {
     rowHover: "hover:bg-white/5",
     text: "text-white",
     subtext: "text-zinc-400",
+    pillPending: "bg-amber-300/20 text-amber-300",
     pillTrainer: "bg-lime-300/20 text-lime-300",
     pillManager: "bg-amber-300/20 text-amber-300",
     statusWorking: "bg-lime-300/20 text-lime-300",
@@ -59,6 +61,7 @@ const TONE = {
     rowHover: "hover:bg-violet-50",
     text: "text-ink",
     subtext: "text-zinc-600",
+    pillPending: "bg-rose-100 text-rose-800",
     pillTrainer: "bg-violet-100 text-violet-800",
     pillManager: "bg-amber-100 text-amber-800",
     statusWorking: "bg-emerald-100 text-emerald-800",
@@ -72,6 +75,26 @@ const TONE = {
     successText: "text-emerald-700",
     errorText: "text-rose-600",
     photoFallback: "bg-violet-100 text-violet-700",
+  },
+  indigo: {
+    rowBorder: "border-zinc-100",
+    rowHover: "hover:bg-zinc-50",
+    text: "text-zinc-900",
+    subtext: "text-zinc-500",
+    pillPending: "bg-amber-100 text-amber-800",
+    pillTrainer: "bg-indigo-100 text-indigo-800",
+    pillManager: "bg-amber-100 text-amber-800",
+    statusWorking: "bg-emerald-100 text-emerald-800",
+    statusOff: "bg-rose-100 text-rose-800",
+    statusLeave: "bg-rose-100 text-rose-700",
+    weekdayOn: "bg-indigo-600 text-white",
+    weekdayOff: "bg-zinc-200 text-zinc-500",
+    btn: "border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400",
+    btnPrimary: "bg-indigo-600 text-white hover:bg-indigo-700",
+    btnDanger: "border border-rose-300 bg-white text-rose-600 hover:bg-rose-50",
+    successText: "text-emerald-700",
+    errorText: "text-rose-600",
+    photoFallback: "bg-indigo-100 text-indigo-700",
   },
 } as const;
 
@@ -222,7 +245,7 @@ export function TrainerRow({
         <span className={`font-medium ${tk.text}`}>{trainer.name}</span>
         {!isActive && (
           <span
-            className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${tk.statusOff}`}
+            className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] ${tk.pillPending}`}
           >
             PEND
           </span>

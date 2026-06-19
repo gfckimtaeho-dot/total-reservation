@@ -12,7 +12,7 @@ type Leave = {
   reason: string | null;
 };
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 const TONE = {
   normal: {
@@ -55,6 +55,20 @@ const TONE = {
       "h-10 rounded-md border border-violet-200 bg-white px-3 text-sm text-zinc-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20",
     cancelBtn: "text-zinc-600 hover:text-violet-600",
     submitBtn: "bg-violet-600 text-white hover:bg-violet-700",
+    error: "text-red-600",
+  },
+  indigo: {
+    addBtn: "bg-indigo-600 text-white hover:bg-indigo-700",
+    deleteBtn: "text-zinc-500 hover:text-red-600",
+    modalBg: "bg-white",
+    modalRing: "ring-zinc-200",
+    title: "text-zinc-900",
+    label: "text-zinc-900",
+    subtle: "text-zinc-500",
+    input:
+      "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20",
+    cancelBtn: "text-zinc-600 hover:text-indigo-600",
+    submitBtn: "bg-indigo-600 text-white hover:bg-indigo-700",
     error: "text-red-600",
   },
 } as const;
@@ -124,7 +138,7 @@ export function LeaveManager({
   return (
     <>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className={`font-heading text-lg tracking-tight ${tk.title}`}>
+        <h2 className={`text-lg font-semibold tracking-tight ${tk.title}`}>
           {t("detailLeaves")}
         </h2>
         <button
@@ -173,7 +187,7 @@ export function LeaveManager({
           <div
             className={`w-full max-w-md rounded-2xl p-6 ring-1 ${tk.modalBg} ${tk.modalRing}`}
           >
-            <h3 className={`font-heading text-lg tracking-tight ${tk.title}`}>
+            <h3 className={`text-lg font-semibold tracking-tight ${tk.title}`}>
               {t("leaveModalTitle")}
             </h3>
 

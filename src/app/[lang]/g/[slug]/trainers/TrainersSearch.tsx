@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 type RoleFilter = "all" | "TRAINER" | "MANAGER";
 type Specialty = "HEALTH" | "YOGA" | "PILATES" | "DANCE";
 
@@ -32,12 +32,21 @@ const TONE = {
     submit: "bg-violet-600 text-white hover:bg-violet-700",
     reset: "border-violet-200 bg-white text-zinc-600 hover:border-violet-500",
   },
+  indigo: {
+    wrap: "bg-white border border-zinc-200",
+    label: "text-zinc-500",
+    field:
+      "border-zinc-300 bg-white text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500/20",
+    submit: "bg-indigo-600 text-white hover:bg-indigo-700",
+    reset: "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400",
+  },
 } as const;
 
 const PILL_ACTIVE = {
   normal: "bg-band/40 text-ink ring-1 ring-ink",
   black: "bg-lime-300/20 text-lime-300 ring-1 ring-lime-300",
   white: "bg-violet-100 text-violet-800 ring-1 ring-violet-600",
+  indigo: "bg-indigo-600 text-white",
 } as const;
 
 const PILL_INACTIVE = {
@@ -46,12 +55,14 @@ const PILL_INACTIVE = {
     "bg-zinc-800 text-zinc-400 ring-1 ring-white/10 hover:ring-lime-300/40",
   white:
     "bg-white text-zinc-600 ring-1 ring-violet-200 hover:ring-violet-500/40",
+  indigo: "bg-white text-zinc-600 ring-1 ring-zinc-300 hover:ring-zinc-400",
 } as const;
 
 const CHECK_ACTIVE = {
   normal: "border-ink bg-band/40 text-ink",
   black: "border-lime-300 bg-lime-300/10 text-lime-300",
   white: "border-violet-600 bg-violet-100 text-violet-800",
+  indigo: "border-indigo-600 bg-indigo-50 text-indigo-700",
 } as const;
 
 const CHECK_INACTIVE = {
@@ -59,6 +70,7 @@ const CHECK_INACTIVE = {
   black: "border-white/10 bg-zinc-800 text-zinc-400 hover:border-lime-300/40",
   white:
     "border-violet-200 bg-white text-zinc-600 hover:border-violet-500/40",
+  indigo: "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400",
 } as const;
 
 export function TrainersSearch({

@@ -31,8 +31,8 @@ export async function AttendanceMatrix({
 
   if (attendance.length === 0) {
     return (
-      <section className="mt-6 rounded-2xl bg-violet-50 p-2 ring-1 ring-violet-200/50">
-        <div className="overflow-hidden rounded-xl bg-white p-8 text-center text-sm text-zinc-500 ring-1 ring-violet-100">
+      <section className="mt-6">
+        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
           {t("attendanceEmpty")}
         </div>
       </section>
@@ -40,26 +40,26 @@ export async function AttendanceMatrix({
   }
 
   return (
-    <section className="mt-6 rounded-2xl bg-violet-50 p-2 ring-1 ring-violet-200/50">
-      <div className="flex items-center justify-between px-3 pb-2 pt-1">
-        <h2 className="font-heading text-base tracking-tight text-ink">
+    <section className="mt-6">
+      <div className="flex items-center justify-between px-1 pb-2 pt-1">
+        <h2 className="text-base font-semibold tracking-tight text-zinc-900">
           {t("attendanceTitle")}
         </h2>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/55">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
           {t("attendanceWeekRange")}
         </span>
       </div>
-      <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-violet-100">
+      <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-violet-100 bg-violet-50/60">
-              <th className="sticky left-0 z-10 bg-violet-50/60 px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/60">
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="sticky left-0 z-10 bg-zinc-50 px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                 {t("attendanceColName")}
               </th>
               {weekdays.map((w) => (
                 <th
                   key={w}
-                  className="px-3 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/60"
+                  className="px-3 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500"
                 >
                   {w}
                 </th>
@@ -70,9 +70,9 @@ export async function AttendanceMatrix({
             {attendance.map((row) => (
               <tr
                 key={row.userId}
-                className="border-b border-violet-100 last:border-b-0"
+                className="border-b border-zinc-100 last:border-b-0"
               >
-                <td className="sticky left-0 z-10 whitespace-nowrap bg-white px-4 py-3 text-left text-sm font-medium text-ink">
+                <td className="sticky left-0 z-10 whitespace-nowrap bg-white px-4 py-3 text-left text-sm font-medium text-zinc-900">
                   {row.name}
                 </td>
                 {row.cells.map((c, i) => (

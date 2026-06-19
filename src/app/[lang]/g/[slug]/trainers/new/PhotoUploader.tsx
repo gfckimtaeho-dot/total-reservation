@@ -55,7 +55,7 @@ export function PhotoUploader({
   slug: string;
   urls: string[];
   onChange: (urls: string[]) => void;
-  tone: "normal" | "black" | "white";
+  tone: "normal" | "black" | "white" | "indigo";
 }) {
   const t = useTranslations("trainerAdd");
   const [errors, setErrors] = useState<(string | null)[]>(
@@ -124,7 +124,9 @@ export function PhotoUploader({
       ? "border-white/10 bg-zinc-800 hover:border-lime-300/40"
       : tone === "white"
         ? "border-zinc-300 bg-white hover:border-violet-400"
-        : "border-amber-200/60 bg-white hover:border-ink/40";
+        : tone === "indigo"
+          ? "border-zinc-300 bg-white hover:border-indigo-400"
+          : "border-amber-200/60 bg-white hover:border-ink/40";
   const labelText = tone === "black" ? "text-zinc-400" : "text-zinc-600";
 
   return (
