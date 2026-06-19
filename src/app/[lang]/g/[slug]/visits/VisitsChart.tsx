@@ -8,23 +8,23 @@ type View = "day" | "month" | "year";
 // 한 막대(버킷)의 방문 건수 — 자유운동 / PT / 단체. visit-day 단위.
 type Bar = { label: string; free: number; pt: number; cls: number };
 
-// 화이트 테마 고정 — revenue 차트와 동일 톤.
+// hybrid-c indigo 고정 — revenue 차트와 동일 톤.
 const TK = {
-  card: "border-violet-100 bg-white",
-  text: "text-ink",
-  sub: "text-ink/50",
-  track: "bg-violet-100/60",
-  tabActive: "bg-ink text-white",
-  tabIdle: "text-ink/55 hover:bg-violet-50",
-  chipOff: "border-violet-200 text-ink/35",
+  card: "border-zinc-200 bg-white",
+  text: "text-zinc-900",
+  sub: "text-zinc-500",
+  track: "bg-zinc-100",
+  tabActive: "bg-indigo-600 text-white",
+  tabIdle: "text-zinc-500 hover:bg-zinc-100",
+  chipOff: "border-zinc-300 text-zinc-400",
 } as const;
 
-// 세그먼트 색 — 자유운동(헤드라인)=바이올렛, PT=스카이, 단체=앰버. 셋 다
+// 세그먼트 색 — 자유운동(헤드라인)=indigo, PT=스카이, 단체=앰버. 셋 다
 // 긍정 카테고리라 회색 안 씀([[feedback_grey_is_negative]]).
-const C_FREE = "bg-violet-500";
+const C_FREE = "bg-indigo-500";
 const C_PT = "bg-sky-400";
 const C_CLS = "bg-amber-400";
-const C_FREE_TEXT = "text-violet-600";
+const C_FREE_TEXT = "text-indigo-600";
 const C_PT_TEXT = "text-sky-500";
 const C_CLS_TEXT = "text-amber-500";
 
@@ -264,7 +264,7 @@ function SumCell({
         {label}
       </div>
       <div
-        className={`mt-0.5 truncate font-heading text-base tabular-nums ${valueClass}`}
+        className={`mt-0.5 truncate text-base font-semibold tabular-nums ${valueClass}`}
       >
         {value.toLocaleString()}
       </div>

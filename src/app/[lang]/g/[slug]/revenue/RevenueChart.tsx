@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 type View = "day" | "month" | "year";
 type Bar = { label: string; total: number; owner: number };
 
@@ -35,6 +35,15 @@ const TONE = {
     tabActive: "bg-ink text-white",
     tabIdle: "text-ink/55 hover:bg-violet-50",
     chipOff: "border-violet-200 text-ink/35",
+  },
+  indigo: {
+    card: "border-zinc-200 bg-white",
+    text: "text-zinc-900",
+    sub: "text-zinc-500",
+    track: "bg-zinc-100",
+    tabActive: "bg-indigo-600 text-white",
+    tabIdle: "text-zinc-500 hover:bg-zinc-100",
+    chipOff: "border-zinc-300 text-zinc-400",
   },
 } as const;
 
@@ -327,7 +336,7 @@ function SumCell({
         {label}
       </div>
       <div
-        className={`mt-0.5 truncate font-heading text-base tabular-nums ${
+        className={`mt-0.5 truncate text-base font-semibold tabular-nums ${
           valueClass ?? tk.text
         }`}
       >

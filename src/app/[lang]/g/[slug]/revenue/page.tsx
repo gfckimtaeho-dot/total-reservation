@@ -2,9 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { logout } from "@/lib/auth/actions";
 import { loadTrainerMonthPerf } from "@/lib/perf/trainerMonth";
-import { SidebarNav } from "../dashboard/SidebarNav";
+import { OwnerShell } from "../OwnerShell";
 import { RevenueChart } from "./RevenueChart";
 
 const MS_DAY = 86400000;
@@ -32,18 +31,11 @@ function gymYesterday(tz: string): string {
 }
 
 const TK = {
-  page: "bg-violet-50/40",
-  aside: "bg-violet-50",
-  border: "border-violet-100",
-  eyebrow: "text-ink/60",
-  name: "text-ink",
-  sub: "text-ink/50",
-  logout: "text-zinc-700 hover:bg-zinc-50",
-  h1: "text-ink",
-  card: "border-violet-100 bg-white",
-  num: "text-ink",
-  rowBorder: "border-violet-50",
-  segSession: "bg-violet-600",
+  sub: "text-zinc-500",
+  card: "border-zinc-200 bg-white",
+  num: "text-zinc-900",
+  rowBorder: "border-zinc-100",
+  segSession: "bg-indigo-600",
   segBase: "bg-amber-500",
   segTrack: "bg-zinc-100",
 } as const;
@@ -63,7 +55,6 @@ export default async function RevenuePage({
   const business = auth.business!;
   const tz = business.timeZone;
   const t = await getTranslations("revenue");
-  const tn = await getTranslations("nav");
 
   const money = (n: number) => `₱${n.toLocaleString()}`;
 
@@ -342,42 +333,13 @@ export default async function RevenuePage({
   const maxPay = Math.max(1, ...trainerPay.map((x) => x.totalPhp));
 
   return (
-    <div className={`flex min-h-screen ${TK.page}`}>
-      <aside
-        className={`hidden w-60 shrink-0 flex-col border-r ${TK.border} ${TK.aside} lg:flex`}
-      >
-        <div className={`border-b ${TK.border} px-6 py-6`}>
-          <span
-            className={`text-xs font-semibold uppercase tracking-[0.22em] ${TK.eyebrow}`}
-          >
-            {tn("studio")}
-          </span>
-          <div
-            className={`mt-1 font-heading text-lg tracking-tight ${TK.name}`}
-          >
-            {business.name}
-          </div>
-          <div className={`mt-0.5 text-xs ${TK.sub}`}>/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className={`border-t ${TK.border} px-3 py-4`}>
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button
-              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${TK.logout}`}
-            >
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 px-5 py-6 sm:px-8">
-        <h1
-          className={`font-heading text-xl tracking-tight sm:text-2xl ${TK.h1}`}
-        >
-          {t("title")}
-        </h1>
-
+    <OwnerShell
+      lang={lang}
+      slug={slug}
+      businessName={business.name}
+      subtitle={t("title")}
+    >
+      <main className="px-5 py-6 sm:px-8">
         {/* KPI 3장 — 매출(환불 차감 net) + 사장몫(net) + 환불 정보.
             산식: 매출 = sales - 환불, 사장 몫 = ownerRevenue - 환불. 둘 다
             환불을 한 번만 빼서 트레이너 지급(=매출-사장몫)은 변동 없음. */}
@@ -408,7 +370,7 @@ export default async function RevenuePage({
                 )}
               </div>
               <div
-                className={`mt-1 font-heading text-2xl tracking-tight tabular-nums ${TK.num}`}
+                className={`mt-1 text-2xl font-semibold tracking-tight tabular-nums ${TK.num}`}
               >
                 {money(k.total)}
               </div>
@@ -431,7 +393,7 @@ export default async function RevenuePage({
 
         {/* 매출 차트 — 순수익 / 트레이너 지급 토글 누적 막대 */}
         <RevenueChart
-          tone="white"
+          tone="indigo"
           lang={lang}
           slug={slug}
           view={view}
@@ -489,7 +451,7 @@ export default async function RevenuePage({
                       {t("guestDays", { n: g.days })}
                     </div>
                     <div
-                      className={`text-right font-heading text-base tabular-nums ${TK.num}`}
+                      className={`text-right text-base font-semibold tabular-nums ${TK.num}`}
                     >
                       {money(g.revenue)}
                     </div>
@@ -509,7 +471,7 @@ export default async function RevenuePage({
                   {t("guestDays", { n: guestDaysTotal })}
                 </div>
                 <div
-                  className={`text-right font-heading text-base font-semibold tabular-nums ${TK.num}`}
+                  className={`text-right text-base font-semibold tabular-nums ${TK.num}`}
                 >
                   {money(guestRevenueTotal)}
                 </div>
@@ -599,7 +561,7 @@ export default async function RevenuePage({
                           {money(tp.sessionPhp)}
                         </div>
                         <div
-                          className={`font-heading text-base ${TK.num}`}
+                          className={`text-base font-semibold ${TK.num}`}
                         >
                           {money(tp.totalPhp)}
                         </div>
@@ -619,7 +581,7 @@ export default async function RevenuePage({
                 <div className="grid grid-cols-3 gap-2 text-right tabular-nums">
                   <div className={`text-sm ${TK.sub}`}>{money(baseTotal)}</div>
                   <div className={`text-sm ${TK.sub}`}>{money(sessionTotal)}</div>
-                  <div className={`font-heading text-base font-semibold ${TK.num}`}>
+                  <div className={`text-base font-semibold ${TK.num}`}>
                     {money(payTotal)}
                   </div>
                 </div>
@@ -628,7 +590,7 @@ export default async function RevenuePage({
           )}
         </div>
       </main>
-    </div>
+    </OwnerShell>
   );
 }
 

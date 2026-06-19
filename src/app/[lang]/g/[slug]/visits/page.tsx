@@ -1,8 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { logout } from "@/lib/auth/actions";
-import { SidebarNav } from "../dashboard/SidebarNav";
+import { OwnerShell } from "../OwnerShell";
 import { VisitsChart } from "./VisitsChart";
 
 const MS_DAY = 86400000;
@@ -29,17 +28,10 @@ function gymYesterday(tz: string): string {
 }
 
 const TK = {
-  page: "bg-violet-50/40",
-  aside: "bg-violet-50",
-  border: "border-violet-100",
-  eyebrow: "text-ink/60",
-  name: "text-ink",
-  sub: "text-ink/50",
-  logout: "text-zinc-700 hover:bg-zinc-50",
-  h1: "text-ink",
-  card: "border-violet-100 bg-white",
-  num: "text-ink",
-  rowBorder: "border-violet-50",
+  sub: "text-zinc-500",
+  card: "border-zinc-200 bg-white",
+  num: "text-zinc-900",
+  rowBorder: "border-zinc-100",
 } as const;
 
 type Cat = "free" | "pt" | "cls";
@@ -103,7 +95,6 @@ export default async function VisitsPage({
   const business = auth.business!;
   const tz = business.timeZone;
   const t = await getTranslations("visits");
-  const tn = await getTranslations("nav");
 
   const todayYmd = gymToday(tz);
   const ty = Number(todayYmd.slice(0, 4));
@@ -267,38 +258,14 @@ export default async function VisitsPage({
   });
 
   return (
-    <div className={`flex min-h-screen ${TK.page}`}>
-      <aside
-        className={`hidden w-60 shrink-0 flex-col border-r ${TK.border} ${TK.aside} lg:flex`}
-      >
-        <div className={`border-b ${TK.border} px-6 py-6`}>
-          <span
-            className={`text-xs font-semibold uppercase tracking-[0.22em] ${TK.eyebrow}`}
-          >
-            {tn("studio")}
-          </span>
-          <div className={`mt-1 font-heading text-lg tracking-tight ${TK.name}`}>
-            {business.name}
-          </div>
-          <div className={`mt-0.5 text-xs ${TK.sub}`}>/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className={`border-t ${TK.border} px-3 py-4`}>
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button
-              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${TK.logout}`}
-            >
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 px-5 py-6 sm:px-8">
-        <h1 className={`font-heading text-xl tracking-tight sm:text-2xl ${TK.h1}`}>
-          {t("title")}
-        </h1>
-        <p className={`mt-1 text-xs ${TK.sub}`}>{t("subtitle")}</p>
+    <OwnerShell
+      lang={lang}
+      slug={slug}
+      businessName={business.name}
+      subtitle={t("title")}
+    >
+      <main className="px-5 py-6 sm:px-8">
+        <p className={`text-xs ${TK.sub}`}>{t("subtitle")}</p>
 
         {/* KPI 3장 — 자유운동 방문 건수(큰 숫자) + PT/단체 보조 라인. */}
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -321,7 +288,7 @@ export default async function VisitsPage({
                 )}
               </div>
               <div
-                className={`mt-1 font-heading text-2xl tracking-tight tabular-nums ${TK.num}`}
+                className={`mt-1 text-2xl font-semibold tracking-tight tabular-nums ${TK.num}`}
               >
                 {t("freeCount", { n: k.counts.free })}
               </div>
@@ -346,7 +313,7 @@ export default async function VisitsPage({
           series={series}
         />
       </main>
-    </div>
+    </OwnerShell>
   );
 }
 
