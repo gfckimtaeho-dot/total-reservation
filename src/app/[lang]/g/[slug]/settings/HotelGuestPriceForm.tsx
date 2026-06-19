@@ -33,13 +33,13 @@ export function HotelGuestPriceForm({
           inputMode="numeric"
           defaultValue={current ?? ""}
           placeholder={t("hotelGuestPrice.placeholder")}
-          className="w-40 rounded-md border border-zinc-300 px-3 py-2 text-sm tabular-nums focus:border-ink focus:outline-none"
+          className="w-40 rounded-md border border-zinc-300 px-3 py-2 text-sm tabular-nums focus:border-indigo-500 focus:outline-none"
         />
         <span className="text-xs text-zinc-500">{t("hotelGuestPrice.unit")}</span>
         <button
           type="submit"
           disabled={pending}
-          className="ml-2 rounded-md bg-ink px-4 py-2 text-xs font-medium text-white transition hover:bg-ink/90 disabled:opacity-50"
+          className="ml-2 rounded-md bg-indigo-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
         >
           {pending ? t("hotelGuestPrice.saving") : t("hotelGuestPrice.save")}
         </button>

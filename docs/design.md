@@ -51,7 +51,8 @@ design/references/design.md(Bold Outline/뉴 브루탈리즘)는 영감 referenc
 - 완료: 환불 요청(refunds page + RefundsTable). 흰 카드+zinc, 탭/검색 활성 indigo, 환불완료 버튼=emerald, 매장귀책 사유 칩=amber 유지.
 - 제외: 출입 스캔(`/scan`, AccessScanner). 의도적 풀스크린 다크 키오스크(카메라 단말)이고 무인 공개 키오스크(`/scan/[key]`)와 공유 — violet 레거시 아님, 이미 의미색(허용=emerald/만료=amber/거절=rose). OwnerShell 안 씌움, hybrid-c 전환 대상 아님(2026-06-19 사용자 "그대로 둠" 결정).
 - 완료: 채팅 OWNER/MANAGER 영역(StaffChatList 목록 + chat/[threadId] 스레드 + chat/audit + ChatWindow `indigo` 톤). 내 말풍선=indigo, 받은=흰 카드, 시스템(front desk)=amber, unread 점=indigo. 트레이너 채팅(dark)·고객 채팅(light V18)은 그대로.
-- 남음(다음): 설정 + 각 상세 페이지. 같은 `OwnerShell` + 토큰 패턴으로 화면 단위 진행.
+- 완료: 설정(settings page + account 상세 + HotelGuestPriceForm/ScannerLinkCard/AccountForm). hero band/footer 폐지 -> OwnerShell, SettingCard 흰 카드 유지, bg-ink 버튼/ink focus -> indigo.
+- **사장 운영 영역 hybrid-c 롤아웃 완료.** 제외: 출입 스캔(다크 키오스크), 트레이너 대시보드(다크 테마 별도 유지 — 사용자 지시), 고객 영역(V18).
 
 ### 화면 전환 규칙
 - 리스트만 바꾸지 말 것 — 그 화면에서 진입하는 연관 페이지(상세 `[id]`, 신규 `new`, 수정 `[id]/edit`)도 같은 라운드에 전환.

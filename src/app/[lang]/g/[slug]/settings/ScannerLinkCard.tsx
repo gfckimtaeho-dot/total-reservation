@@ -63,7 +63,7 @@ export function ScannerLinkCard({
                 readOnly
                 value={scanUrl}
                 onFocus={(e) => e.currentTarget.select()}
-                className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 focus:border-ink focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 focus:border-indigo-500 focus:outline-none"
               />
               <button
                 type="button"
@@ -83,12 +83,12 @@ export function ScannerLinkCard({
                 name="email"
                 defaultValue={defaultEmail}
                 placeholder="tablet@example.com"
-                className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-ink focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={emailPending}
-                className="shrink-0 rounded-md bg-ink px-4 py-2 text-xs font-medium text-white transition hover:bg-ink/90 disabled:opacity-50"
+                className="shrink-0 rounded-md bg-indigo-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 {emailPending ? t("scannerLink.sending") : t("scannerLink.sendEmail")}
               </button>
@@ -126,7 +126,7 @@ export function ScannerLinkCard({
           <button
             type="submit"
             disabled={regenPending}
-            className="w-fit rounded-md bg-ink px-4 py-2 text-xs font-medium text-white transition hover:bg-ink/90 disabled:opacity-50"
+            className="w-fit rounded-md bg-indigo-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
           >
             {regenPending ? t("scannerLink.generating") : t("scannerLink.generate")}
           </button>

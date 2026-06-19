@@ -68,7 +68,7 @@ export function AccountForm({
       <form action={basicAction} className="space-y-5">
         <input type="hidden" name="slug" value={slug} />
 
-        <h2 className="font-heading text-xl tracking-tight text-ink">
+        <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
           {t("sectionBasic")}
         </h2>
 
@@ -78,7 +78,7 @@ export function AccountForm({
             <dt className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
               {t("fName")}
             </dt>
-            <dd className="mt-1 text-sm font-medium text-ink">
+            <dd className="mt-1 text-sm font-medium text-zinc-900">
               {initial.name}
             </dd>
           </div>
@@ -86,7 +86,7 @@ export function AccountForm({
             <dt className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
               {t("fLoginId")}
             </dt>
-            <dd className="mt-1 text-sm font-medium text-ink">
+            <dd className="mt-1 text-sm font-medium text-zinc-900">
               {initial.loginId}
             </dd>
           </div>
@@ -118,7 +118,7 @@ export function AccountForm({
             {(["en", "ko"] as const).map((lc) => (
               <label
                 key={lc}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm transition has-[:checked]:border-ink has-[:checked]:bg-zinc-50"
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm transition has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50"
               >
                 <input
                   type="radio"
@@ -127,7 +127,7 @@ export function AccountForm({
                   checked={locale === lc}
                   onChange={() => setLocale(lc)}
                   required
-                  className="h-4 w-4 accent-ink"
+                  className="h-4 w-4 accent-indigo-600"
                 />
                 {lc === "en" ? t("langEnglish") : t("langKorean")}
               </label>
@@ -139,7 +139,7 @@ export function AccountForm({
           <button
             type="submit"
             disabled={basicPending}
-            className="inline-flex h-11 items-center justify-center rounded-md bg-ink px-5 text-sm font-medium text-white transition hover:bg-ink/90 disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center rounded-md bg-indigo-600 px-5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {basicPending ? t("savingBasic") : t("saveBasic")}
           </button>
@@ -158,7 +158,7 @@ export function AccountForm({
       <form action={pwAction} className="space-y-5">
         <input type="hidden" name="slug" value={slug} />
 
-        <h2 className="font-heading text-xl tracking-tight text-ink">
+        <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
           {t("sectionPassword")}
         </h2>
 
@@ -191,7 +191,7 @@ export function AccountForm({
           <button
             type="submit"
             disabled={pwPending}
-            className="inline-flex h-11 items-center justify-center rounded-md bg-ink px-5 text-sm font-medium text-white transition hover:bg-ink/90 disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center rounded-md bg-indigo-600 px-5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
             {pwPending ? t("savingPassword") : t("savePassword")}
           </button>
@@ -240,7 +240,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="h-11 rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
+        className="h-11 rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
       />
       {hint && !errors && <span className="text-xs text-zinc-500">{hint}</span>}
       {errors && (
@@ -277,7 +277,7 @@ function PasswordField({
         autoComplete="new-password"
         required={required}
         minLength={minLength}
-        className="h-11 rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/20"
+        className="h-11 rounded-md border border-zinc-300 bg-white px-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
       />
       {hint && !errors && <span className="text-xs text-zinc-500">{hint}</span>}
       {errors && (
