@@ -1056,6 +1056,7 @@
     "qrButton": "출입 QR",
     "qrTitle": "출입 QR",
     "qrHint": "입구 스캐너에 비춰 주세요",
+    "qrLabel": "출입 QR",
     "qrExpires": "{date} 까지 유효",
     "qrNoAccessTitle": "출입 QR을 발급할 수 없습니다",
     "qrNoAccessBody": "유효한 회원권이 없고 오늘 예약도 없습니다. 프런트에 문의해 주세요.",

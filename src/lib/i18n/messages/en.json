@@ -1056,6 +1056,7 @@
     "qrButton": "Access QR",
     "qrTitle": "Access QR",
     "qrHint": "Hold up to the entrance scanner",
+    "qrLabel": "Access QR",
     "qrExpires": "Valid until {date}",
     "qrNoAccessTitle": "Cannot issue access QR",
     "qrNoAccessBody": "No valid membership and no reservation today. Please ask the front desk.",

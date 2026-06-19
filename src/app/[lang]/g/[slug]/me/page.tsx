@@ -10,11 +10,35 @@ import { CustomerChatCard } from "./CustomerChatCard";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 
-// V18 Sunset Peach 채택 — 화이트 + 오렌지/로즈/앰버. 모바일 상태바도 흰색 매칭.
-// 부모 [lang]/layout.tsx 의 themeColor(#000)를 이 페이지에서만 override.
+// V18 Sunset Peach (A · Glass Depth 다듬기) — 화이트 + 오렌지/로즈/앰버 그라데이션
+// + 유리감 카드(반투명/blur/다층 그림자). 모바일 상태바도 흰색 매칭.
 export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
+
+// 라인 아이콘 (CTA 용).
+function Icon({ d, className = "" }: { d: string; className?: string }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+const I_CAL =
+  "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z";
+const I_USER =
+  "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z";
 
 // v18 wireframe 정보구조 — QR 큰 카드 / 오늘의 일정 / [예약 하기][마이 페이지]
 // / 대표번호. 캘린더는 /me/calendar 로, 보유는 /me/holdings 로 분리.
@@ -81,10 +105,10 @@ export default async function CustomerHomePage({
       12,
     ),
   );
-  const todayWd = new Intl.DateTimeFormat(
-    lang === "en" ? "en-US" : "ko-KR",
-    { weekday: "short", timeZone: "UTC" },
-  ).format(todayNoon);
+  const todayWd = new Intl.DateTimeFormat(lang === "en" ? "en-US" : "ko-KR", {
+    weekday: "short",
+    timeZone: "UTC",
+  }).format(todayNoon);
   const todayMonthDay = new Intl.DateTimeFormat(
     lang === "en" ? "en-US" : "ko-KR",
     { month: "long", day: "numeric", timeZone: "UTC" },
@@ -93,16 +117,17 @@ export default async function CustomerHomePage({
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-orange-50 via-rose-50 to-amber-50 font-sans text-zinc-900">
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-[28rem] w-[28rem] rounded-full bg-orange-200/60 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 right-0 h-[24rem] w-[28rem] rounded-full bg-rose-200/50 blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 left-1/3 h-[26rem] w-[26rem] rounded-full bg-orange-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 -right-10 h-[22rem] w-[22rem] rounded-full bg-rose-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-16 left-0 h-[20rem] w-[24rem] rounded-full bg-amber-300/30 blur-3xl" />
 
-      <header className="relative border-b border-orange-100">
-        <div className="mx-auto flex max-w-md items-center justify-between gap-3 px-5 py-4">
+      <header className="relative px-5 pt-6 pb-3">
+        <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-sm font-medium text-orange-600">
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500/80">
               {business.name}
             </div>
-            <div className="mt-0.5 text-2xl font-bold tracking-tight text-zinc-900">
+            <div className="mt-0.5 text-[26px] font-extrabold tracking-tight text-zinc-900">
               {user.name}
             </div>
           </div>
@@ -111,7 +136,7 @@ export default async function CustomerHomePage({
       </header>
 
       <main className="relative flex-1">
-        <div className="mx-auto w-full max-w-md space-y-5 px-5 py-5">
+        <div className="mx-auto w-full max-w-md space-y-4 px-5 pb-5">
           {closureToday && (
             <ClosureBanner
               reason={closureToday.reason}
@@ -140,37 +165,40 @@ export default async function CustomerHomePage({
           <section className="grid grid-cols-2 gap-3">
             <Link
               href={`/${lang}/g/${slug}/me/calendar`}
-              className="flex min-h-[112px] items-center justify-center rounded-3xl bg-gradient-to-br from-orange-500 to-rose-500 p-5 text-white shadow-[0_15px_40px_-15px_rgba(249,115,22,0.55)] active:scale-[0.98]"
+              className="relative flex min-h-[112px] flex-col justify-between overflow-hidden rounded-[24px] bg-gradient-to-br from-orange-500 to-rose-500 p-4 text-white shadow-[0_18px_44px_-16px_rgba(244,63,94,0.6)] active:scale-[0.98]"
             >
-              <div className="text-xl font-bold">{t("ctaBook")}</div>
+              <Icon d={I_CAL} className="opacity-90" />
+              <div className="text-xl font-extrabold">{t("ctaBook")}</div>
+              <span className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/15" />
             </Link>
             <Link
               href={`/${lang}/g/${slug}/me/holdings`}
-              className="flex min-h-[112px] items-center justify-center rounded-3xl border-2 border-orange-200 bg-white p-5 text-zinc-900 active:scale-[0.98]"
+              className="flex min-h-[112px] flex-col justify-between rounded-[24px] bg-white/80 p-4 ring-1 ring-orange-200 backdrop-blur active:scale-[0.98]"
             >
-              <div className="text-xl font-bold">{t("ctaMyPage")}</div>
+              <Icon d={I_USER} className="text-orange-500" />
+              <div className="text-xl font-extrabold text-zinc-900">
+                {t("ctaMyPage")}
+              </div>
             </Link>
           </section>
         </div>
       </main>
 
-      <footer className="relative border-t border-orange-100 bg-white/60 py-5 backdrop-blur">
-        {/* 좌측 대표번호 / 우측 logout — 두 요소 같은 줄, leading 통일로
-            baseline 어긋남 방지. */}
-        <div className="flex items-center justify-center gap-5 text-base leading-none">
+      <footer className="relative px-5 pb-6 pt-2">
+        <div className="flex items-center justify-center gap-5 text-sm leading-none">
           {business.phone && (
-            <div className="text-zinc-600">
+            <div className="text-zinc-500">
               {t("frontDeskCall")}{" "}
               <a
                 href={`tel:${business.phone}`}
-                className="tabular-nums font-medium text-orange-600 underline-offset-2 hover:underline"
+                className="tabular-nums font-bold text-orange-600 underline-offset-2 hover:underline"
               >
                 {business.phone}
               </a>
             </div>
           )}
           <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="text-base leading-none text-zinc-500 hover:text-zinc-900">
+            <button className="text-sm leading-none text-zinc-400 hover:text-zinc-700">
               {t("logout")}
             </button>
           </form>
@@ -191,8 +219,8 @@ function ClosureBanner({
 }) {
   if (kindShortened) return null;
   return (
-    <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
-      <div className="font-heading text-sm tracking-tight text-amber-700">
+    <div className="rounded-[20px] bg-amber-50/80 p-4 ring-1 ring-amber-200 backdrop-blur">
+      <div className="text-sm font-semibold tracking-tight text-amber-800">
         {t("closureTitle")}
       </div>
       {reason && (
@@ -218,8 +246,7 @@ type RefundNoticeItem = {
 };
 
 // 매장 귀책 환불 알림 — 알림 인박스 시스템 미구축 동안 임시 카드 형태.
-// 본문에 잔여·환불액 명시(영수증 역할) + 카운터 방문 안내. 사장이 /refunds
-// 에서 "지급 완료(카운터)" 처리하면 status=COMPLETED 로 자동 사라짐.
+// 본문에 잔여·환불액 명시(영수증 역할) + 카운터 방문 안내.
 function RefundNoticeCard({
   refunds,
   phone,
@@ -231,8 +258,8 @@ function RefundNoticeCard({
 }) {
   const total = refunds.reduce((sum, r) => sum + r.refundPhp, 0);
   return (
-    <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
-      <div className="font-heading text-sm tracking-tight text-amber-800">
+    <section className="rounded-[20px] bg-amber-50/80 p-4 ring-1 ring-amber-200 backdrop-blur">
+      <div className="text-sm font-semibold tracking-tight text-amber-800">
         {t("refundNoticeTitle")}
       </div>
       <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
@@ -242,7 +269,7 @@ function RefundNoticeCard({
         {refunds.map((r) => (
           <li
             key={r.id}
-            className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 rounded-lg bg-white/60 px-3 py-2 text-xs"
+            className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-3 rounded-xl bg-white/70 px-3 py-2 text-xs ring-1 ring-amber-100"
           >
             <span className="truncate font-medium text-zinc-900">
               {r.serviceName}
@@ -266,7 +293,7 @@ function RefundNoticeCard({
           </span>
         </div>
       )}
-      <div className="mt-3 rounded-lg bg-white/60 px-3 py-2 text-xs text-amber-900">
+      <div className="mt-3 rounded-xl bg-white/70 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-100">
         {t("refundNoticeVisit")}
         {phone && (
           <>
@@ -288,21 +315,30 @@ function money(php: number): string {
   return `₱${php.toLocaleString("en-PH")}`;
 }
 
-// QR 을 카드 폭에 거의 꽉 차게 — 스캐너 인식 거리 확보(사용자 지시). 만료문구
-// 제거. 회원명/qrHint 도 없음(이전 지시 유지).
+// 출입 QR — 유리감 카드 + 라벨 + 그라데 프레임. 스캔 거리 위해 QR 크게.
 function QrCard({ qr, t }: { qr: AccessQrResult; t: T }) {
   return (
-    <section className="rounded-3xl border border-orange-200/60 bg-white/90 p-3 shadow-[0_30px_80px_-30px_rgba(249,115,22,0.4)] backdrop-blur">
+    <section className="rounded-[26px] bg-white/70 p-4 shadow-[0_24px_60px_-28px_rgba(249,115,22,0.55)] ring-1 ring-white/80 backdrop-blur-xl">
       {qr.ok ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          src={qr.qr}
-          alt="Access QR"
-          className="mx-auto block aspect-square w-full max-w-[16rem] rounded-2xl"
-        />
+        <>
+          <div className="mb-3 flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-orange-500/80">
+            <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+            {t("qrLabel")}
+          </div>
+          <div className="rounded-2xl bg-gradient-to-br from-orange-100 to-rose-100 p-3">
+            <div className="rounded-xl bg-white p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qr.qr}
+                alt="Access QR"
+                className="mx-auto block aspect-square w-full max-w-[15rem]"
+              />
+            </div>
+          </div>
+        </>
       ) : qr.reason === "blocked" ? (
-        <div className="py-2 text-center">
-          <div className="font-heading text-sm tracking-tight text-rose-700">
+        <div className="py-4 text-center">
+          <div className="text-sm font-semibold tracking-tight text-rose-700">
             {t("qrBlockedTitle")}
           </div>
           <p className="mt-2 text-xs leading-relaxed text-zinc-600">
@@ -310,8 +346,8 @@ function QrCard({ qr, t }: { qr: AccessQrResult; t: T }) {
           </p>
         </div>
       ) : (
-        <div className="py-2 text-center">
-          <div className="font-heading text-sm tracking-tight text-amber-700">
+        <div className="py-4 text-center">
+          <div className="text-sm font-semibold tracking-tight text-amber-700">
             {t("qrNoAccessTitle")}
           </div>
           <p className="mt-2 text-xs leading-relaxed text-zinc-600">
@@ -344,15 +380,17 @@ function TodayHero({
   t: T;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-orange-200/60 bg-white/90 p-5 backdrop-blur">
-      <div className="flex items-baseline justify-between px-3">
-        <h3 className="text-lg font-bold text-orange-600">
+    <section className="rounded-[26px] bg-white/70 p-4 shadow-[0_24px_60px_-30px_rgba(249,115,22,0.45)] ring-1 ring-white/80 backdrop-blur-xl">
+      <div className="flex items-baseline justify-between px-1">
+        <h3 className="text-base font-extrabold text-zinc-900">
           {t("todayTitle")}
         </h3>
-        <span className="text-base text-zinc-500">{dateLabel}</span>
+        <span className="text-xs font-medium text-orange-500/80">
+          {dateLabel}
+        </span>
       </div>
       {reservations.length === 0 ? (
-        <div className="mt-3 rounded-2xl bg-zinc-50 p-4 text-center text-sm text-zinc-500">
+        <div className="mt-3 rounded-2xl bg-white/60 p-4 text-center text-sm text-zinc-500 ring-1 ring-black/5">
           {t("todayEmpty")}
         </div>
       ) : (
@@ -362,53 +400,42 @@ function TodayHero({
               r.scheduledClassId !== null || r.service.capacity !== 1;
             const done = r.status === "COMPLETED";
             const time = formatTime(r.startAt, lang);
-            const trainerLabel = "Tr";
-            // v18 시안 row 그대로 — grid 3열 [시간 좌 3xl][서비스 중 2xl][트레이너 우 컬럼].
-            // 사용자 변경: 트레이너 컬럼 내부 정렬 text-right → text-left, 트레이너
-            // 이름 폰트 base → xl(좀 더 크게). 라벨("Tr"/"트레이너")은 그대로 작게.
-            const rowCls = done
-              ? "bg-emerald-100"
+            // 시간(맨 앞, 크게) - 서비스명(가운데, 한 줄) - 트레이너(맨 끝).
+            // 좌측 막대/아이콘 없음, 2줄 처리 없음. 상태색은 칩 배경 + 시간/트레이너 글자.
+            const tint = done
+              ? "bg-emerald-50"
               : isGroup
-                ? "bg-amber-100"
-                : "bg-gradient-to-r from-orange-200 to-rose-200";
-            const timeCls = done
-              ? "text-emerald-800"
-              : isGroup
-                ? "text-amber-800"
-                : "text-orange-800";
-            const trainerNameCls = done
+                ? "bg-amber-50"
+                : "bg-orange-50";
+            const accent = done
               ? "text-emerald-700"
               : isGroup
                 ? "text-amber-700"
                 : "text-orange-700";
             return (
-              <li key={r.id}>
-                <div
+              <li
+                key={r.id}
+                className={
+                  "flex items-center gap-3 rounded-2xl p-3 ring-1 ring-black/5 " +
+                  tint
+                }
+              >
+                <span
                   className={
-                    "grid grid-cols-3 items-baseline gap-2 rounded-2xl p-3 " +
-                    rowCls
+                    "shrink-0 text-3xl font-bold tabular-nums " + accent
                   }
                 >
-                  <div
-                    className={
-                      "text-left text-3xl font-bold tabular-nums " + timeCls
-                    }
-                  >
-                    {time}
-                  </div>
-                  <div className="truncate text-center text-2xl font-bold text-zinc-900">
-                    {done && "✓ "}
-                    {r.service.name}
-                  </div>
-                  <div className="text-left text-xs">
-                    <span
-                      className={"text-xl font-semibold " + trainerNameCls}
-                    >
-                      {r.staff.user.name}
-                    </span>{" "}
-                    <span className="text-zinc-600">{trainerLabel}</span>
-                  </div>
-                </div>
+                  {time}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-lg font-semibold text-zinc-800">
+                  {done && "✓ "}
+                  {r.service.name}
+                </span>
+                <span
+                  className={"shrink-0 text-base font-semibold " + accent}
+                >
+                  {r.staff.user.name}
+                </span>
               </li>
             );
           })}
