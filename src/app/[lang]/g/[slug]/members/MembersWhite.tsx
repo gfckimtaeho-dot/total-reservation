@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { logout } from "@/lib/auth/actions";
-import { SidebarNav } from "../dashboard/SidebarNav";
+import { OwnerShell } from "../OwnerShell";
 import { MemberAddDialog } from "./MemberAddDialog";
 import { MemberRow, type MemberView } from "./MemberRow";
 import { MembersSearch } from "./MembersSearch";
@@ -30,129 +28,83 @@ export async function MembersWhite({
   expireMonthCount,
 }: Props) {
   const t = await getTranslations("members");
-  const tn = await getTranslations("nav");
   const filtered = Boolean(q) || gender !== "all" || expiringSoon;
 
   return (
-    <div className="flex min-h-screen bg-violet-50/40">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-violet-100 bg-violet-50 lg:flex">
-        <div className="border-b border-violet-100 px-6 py-6">
-          <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-            {tn("studio")}
-          </span>
-          <div className="mt-1 font-heading text-lg tracking-tight text-ink">
-            {businessName}
-          </div>
-          <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className="border-t border-violet-100 px-3 py-4">
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-x-hidden">
-        <header className="flex items-center justify-between border-b border-violet-100 px-8 py-5">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-              {t("eyebrow")}
+    <OwnerShell
+      lang={lang}
+      slug={slug}
+      businessName={businessName}
+      subtitle={
+        <>
+          {t("titleCount", { count: members.length })}
+          {filtered && (
+            <span className="ml-1 text-zinc-400">{t("filtered")}</span>
+          )}
+        </>
+      }
+      action={<MemberAddDialog slug={slug} lang={lang} />}
+    >
+      <div className="p-6">
+        <div className="mb-4 grid grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-zinc-200 p-4">
+            <span className="mb-2 block w-fit rounded-md bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">
+              {t("expireWeekLabel")}
             </span>
-            <h1 className="font-heading text-xl tracking-tight text-ink">
-              {t("titleCount", { count: members.length })}
-              {filtered && (
-                <span className="ml-2 text-sm font-normal text-zinc-500">
-                  {t("filtered")}
-                </span>
-              )}
-            </h1>
-          </div>
-          <MemberAddDialog slug={slug} lang={lang} />
-        </header>
-
-        <div className="p-6">
-          <div className="mb-4 grid grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-rose-700/80">
-                {t("expireWeekLabel")}
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-4xl font-bold tabular-nums tracking-tight text-rose-600">
+                {expireWeekCount}
               </span>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="font-heading text-4xl tabular-nums tracking-tight text-rose-700">
-                  {expireWeekCount}
-                </span>
-                <span className="text-sm text-rose-700/70">{t("peopleUnit")}</span>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-800/80">
-                {t("expireMonthLabel")}
-              </span>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="font-heading text-4xl tabular-nums tracking-tight text-amber-800">
-                  {expireMonthCount}
-                </span>
-                <span className="text-sm text-amber-800/70">{t("peopleUnit")}</span>
-              </div>
+              <span className="text-base text-zinc-400">{t("peopleUnit")}</span>
             </div>
           </div>
-          <MembersSearch
-            q={q}
-            gender={gender}
-            expiringSoon={expiringSoon}
-          />
-          <div className="overflow-hidden rounded-2xl bg-violet-50 p-2 ring-1 ring-violet-200/50">
-            <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-violet-100">
-              {members.length === 0 ? (
-                <EmptyState filtered={filtered} t={t} />
-              ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-violet-100 bg-violet-50/60">
-                      <Th>{t("colName")}</Th>
-                      <Th>{t("colAge")}</Th>
-                      <Th>{t("colPhone")}</Th>
-                      <Th>{t("colEmail")}</Th>
-                      <Th>{t("colExpiry")}</Th>
-                      <Th>{t("colRemaining")}</Th>
-                      <Th>{t("colActions")}</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {members.map((m) => (
-                      <MemberRow
-                        key={m.id}
-                        slug={slug}
-                        member={m}
-                        lang={lang}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              )}
+          <div className="rounded-2xl border border-zinc-200 p-4">
+            <span className="mb-2 block w-fit rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
+              {t("expireMonthLabel")}
+            </span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-4xl font-bold tabular-nums tracking-tight text-amber-600">
+                {expireMonthCount}
+              </span>
+              <span className="text-base text-zinc-400">{t("peopleUnit")}</span>
             </div>
           </div>
         </div>
-
-        <footer className="border-t border-violet-100 px-8 py-5 text-xs text-zinc-500">
-          예약가즈아 · /g/{slug} ·{" "}
-          <Link
-            href={`/${lang}/g/${slug}/dashboard`}
-            className="hover:text-ink"
-          >
-            {t("footerLink")}
-          </Link>
-        </footer>
-      </main>
-    </div>
+        <MembersSearch q={q} gender={gender} expiringSoon={expiringSoon} />
+        <div className="overflow-hidden rounded-2xl border border-zinc-200">
+          <div className="overflow-x-auto">
+            {members.length === 0 ? (
+              <EmptyState filtered={filtered} t={t} />
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-200 bg-zinc-50">
+                    <Th>{t("colName")}</Th>
+                    <Th>{t("colAge")}</Th>
+                    <Th>{t("colPhone")}</Th>
+                    <Th>{t("colEmail")}</Th>
+                    <Th>{t("colExpiry")}</Th>
+                    <Th>{t("colRemaining")}</Th>
+                    <Th>{t("colActions")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map((m) => (
+                    <MemberRow key={m.id} slug={slug} member={m} lang={lang} />
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    </OwnerShell>
   );
 }
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/60">
+    <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
       {children}
     </th>
   );
@@ -167,7 +119,7 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
-      <div className="font-heading text-2xl tracking-tight text-ink">
+      <div className="text-2xl font-semibold tracking-tight text-zinc-900">
         {filtered ? t("emptyNoMatch") : t("emptyNoMembers")}
       </div>
       <p className="max-w-md text-center text-sm text-zinc-600">

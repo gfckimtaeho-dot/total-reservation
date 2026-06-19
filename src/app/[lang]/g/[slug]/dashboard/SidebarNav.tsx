@@ -93,7 +93,12 @@ function keyFromHref(href: string): ActiveKey | null {
   return null;
 }
 
-export function SidebarNav() {
+export function SidebarNav({
+  orientation = "side",
+}: {
+  // "side" = 세로 사이드바(기존, 사장 영역 공용). "top" = 상단 가로 메뉴바(대시보드).
+  orientation?: "side" | "top";
+} = {}) {
   const t = useTranslations("nav");
   const locale = useLocale();
   const pathname = usePathname() ?? "";
@@ -196,17 +201,28 @@ export function SidebarNav() {
   const dashHref = `/${lang}/g/${slug}/dashboard`;
   const dashActive = effectiveKey === "dashboard";
 
+  const isTop = orientation === "top";
+  // 상단 가로 모드는 한 줄 wrap 알약(indigo 활성), 세로 모드는 기존 사이드바 리스트.
+  const navCls = isTop
+    ? "flex flex-wrap items-center gap-2"
+    : "flex-1 px-3 py-4";
+  const btnBase = isTop
+    ? "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm transition"
+    : "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition";
+  const activeCls = isTop
+    ? "bg-indigo-600 text-white font-medium"
+    : "bg-zinc-100 text-ink font-medium";
+  const idleCls = isTop
+    ? "text-zinc-600 hover:bg-indigo-50"
+    : "text-zinc-700 hover:bg-zinc-50";
+
   return (
-    <nav className="flex-1 px-3 py-4">
+    <nav className={navCls}>
       <button
         type="button"
         onClick={() => navigate(dashHref)}
         disabled={pending}
-        className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${
-          dashActive
-            ? "bg-zinc-100 text-ink font-medium"
-            : "text-zinc-700 hover:bg-zinc-50"
-        } ${dimWhilePending(dashActive)}`}
+        className={`${btnBase} ${dashActive ? activeCls : idleCls} ${dimWhilePending(dashActive)}`}
       >
         <span>{t("dashboard")}</span>
         {pendingKey === "dashboard" && pending && (
@@ -251,11 +267,7 @@ export function SidebarNav() {
             type="button"
             onClick={() => navigate(href)}
             disabled={pending}
-            className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${
-              isActive
-                ? "bg-zinc-100 text-ink font-medium"
-                : "text-zinc-700 hover:bg-zinc-50"
-            } ${dimWhilePending(isActive)}`}
+            className={`${btnBase} ${isActive ? activeCls : idleCls} ${dimWhilePending(isActive)}`}
           >
             <span>{t(n.key)}</span>
             <span className="flex items-center gap-1.5">

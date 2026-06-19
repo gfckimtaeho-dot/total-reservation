@@ -25,14 +25,14 @@ export type EditMember = {
 
 const TK = {
   overlay: "bg-zinc-900/40",
-  panel: "bg-white ring-1 ring-violet-100",
-  primaryBtn: "bg-violet-600 text-white hover:bg-violet-700",
+  panel: "bg-white border border-zinc-200",
+  primaryBtn: "bg-indigo-600 text-white hover:bg-indigo-700",
   cancelBtn:
-    "border border-violet-200 bg-white text-zinc-700 hover:border-violet-500",
-  fieldBorder: "border-violet-200",
-  fieldFocus: "focus:border-violet-500 focus:ring-violet-500/20",
-  radioActive: "border-violet-600 bg-violet-100",
-  radioInactive: "border-violet-200 bg-white",
+    "border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400",
+  fieldBorder: "border-zinc-300",
+  fieldFocus: "focus:border-indigo-500 focus:ring-indigo-500/20",
+  radioActive: "border-indigo-600 bg-indigo-50",
+  radioInactive: "border-zinc-300 bg-white",
 } as const;
 
 export function MemberAddDialog({
@@ -89,8 +89,8 @@ export function MemberAddDialog({
           <div
             className={`relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 ${TK.panel}`}
           >
-            <h2 className="font-heading text-xl tracking-tight">
-              <span className="text-ink">
+            <h2 className="text-xl font-semibold tracking-tight">
+              <span className="text-zinc-900">
                 {isEdit ? t("editTitle") : t("title")}
               </span>
             </h2>

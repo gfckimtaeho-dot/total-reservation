@@ -46,6 +46,22 @@ export type OwnerKpi = {
 
 const DEAD = ["CANCELLED", "REJECTED"] as const;
 
+// 타임라인 표시 상태를 "지금 시각" 기준으로 도출.
+// 수동 완료(stored COMPLETED)는 그대로 완료. 그 외엔 현재 매장 시각이
+// [시작, 시작+소요) 안이면 진행중, 지났으면 완료, 아직이면 예정.
+function deriveTimelineStatus(
+  startMin: number,
+  durationMin: number,
+  nowMin: number,
+  stored: string,
+): string {
+  if (stored === "COMPLETED") return "COMPLETED";
+  const endMin = startMin + Math.max(durationMin, 1);
+  if (nowMin >= startMin && nowMin < endMin) return "IN_PROGRESS";
+  if (nowMin >= endMin) return "COMPLETED";
+  return "CONFIRMED";
+}
+
 export async function getKpiExtras(gymId: string): Promise<OwnerKpi> {
   const now = new Date();
   const todayUtc = new Date(
@@ -66,6 +82,17 @@ export async function getKpiExtras(gymId: string): Promise<OwnerKpi> {
     now,
   );
   const todayEnd = new Date(todayMid.getTime() + 86400000);
+  // 매장 타임존 기준 현재 분(minute-of-day) — 타임라인 진행중/완료 판정용.
+  const nowParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: biz?.timeZone ?? DEFAULT_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const nowH =
+    Number(nowParts.find((p) => p.type === "hour")?.value ?? "0") % 24;
+  const nowM = Number(nowParts.find((p) => p.type === "minute")?.value ?? "0");
+  const nowMin = nowH * 60 + nowM;
 
   const [
     businessHours,
@@ -109,7 +136,7 @@ export async function getKpiExtras(gymId: string): Promise<OwnerKpi> {
         startAt: true,
         status: true,
         scheduledClassId: true,
-        service: { select: { name: true, capacity: true } },
+        service: { select: { name: true, capacity: true, durationMin: true } },
         staff: { select: { user: { select: { name: true } } } },
         customer: { select: { name: true } },
       },
@@ -187,7 +214,12 @@ export async function getKpiExtras(gymId: string): Promise<OwnerKpi> {
         serviceType: "PT",
         capacity: null,
         enrolled: null,
-        status: r.status === "COMPLETED" ? "COMPLETED" : "CONFIRMED",
+        status: deriveTimelineStatus(
+          startMin,
+          r.service?.durationMin ?? 60,
+          nowMin,
+          r.status,
+        ),
       });
     } else {
       groupParticipants++;
@@ -207,7 +239,12 @@ export async function getKpiExtras(gymId: string): Promise<OwnerKpi> {
             serviceType: "GROUP",
             capacity: r.service?.capacity ?? null,
             enrolled: 0,
-            status: "CONFIRMED",
+            status: deriveTimelineStatus(
+              startMin,
+              r.service?.durationMin ?? 60,
+              nowMin,
+              r.status,
+            ),
           },
         });
       }

@@ -6,21 +6,21 @@ import { useTranslations } from "next-intl";
 type Gender = "all" | "MALE" | "FEMALE";
 
 const TK = {
-  wrap: "bg-white ring-1 ring-violet-100",
-  label: "text-ink/70",
+  wrap: "bg-white border border-zinc-200",
+  label: "text-zinc-500",
   field:
-    "border-violet-200 bg-white text-ink focus:border-violet-500 focus:ring-violet-500/20",
-  submit: "bg-violet-600 text-white hover:bg-violet-700",
-  reset: "border-violet-200 bg-white text-zinc-600 hover:border-violet-500",
+    "border-zinc-300 bg-white text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500/20",
+  submit: "bg-indigo-600 text-white hover:bg-indigo-700",
+  reset: "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400",
 } as const;
 
-const RADIO_ACTIVE = "bg-violet-100 text-violet-800 ring-1 ring-violet-600";
+const RADIO_ACTIVE = "bg-indigo-600 text-white";
 const RADIO_INACTIVE =
-  "bg-white text-zinc-600 ring-1 ring-violet-200 hover:ring-violet-500/40";
+  "bg-white text-zinc-600 ring-1 ring-zinc-300 hover:ring-zinc-400";
 
-const CHECK_ACTIVE = "border-violet-600 bg-violet-100 text-violet-800";
+const CHECK_ACTIVE = "border-indigo-600 bg-indigo-50 text-indigo-700";
 const CHECK_INACTIVE =
-  "border-violet-200 bg-white text-zinc-600 hover:border-violet-500/40";
+  "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400";
 
 export function MembersSearch({
   q,

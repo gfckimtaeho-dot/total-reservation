@@ -16,7 +16,7 @@ export function RefreshButton({ label }: { label: string }) {
       type="button"
       onClick={() => startTransition(() => router.refresh())}
       disabled={isPending}
-      className="inline-flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-violet-200 transition hover:bg-violet-100 disabled:opacity-60"
+      className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
     >
       <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
       {label}

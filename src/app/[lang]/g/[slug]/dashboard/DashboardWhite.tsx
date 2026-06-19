@@ -18,7 +18,6 @@ import {
   expandSchedulesToMonth,
   type ScheduleInput,
 } from "@/lib/booking/schedule-expand";
-import type { ReactNode } from "react";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -145,125 +144,89 @@ export async function DashboardWhite({
   };
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-violet-100 bg-violet-50 lg:flex">
-        <div className="border-b border-violet-100 px-6 py-6">
-          <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-            {tn("studio")}
-          </span>
-          <div className="mt-1 font-heading text-lg tracking-tight text-ink">
-            {businessName}
-          </div>
-          <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className="border-t border-violet-100 px-3 py-4">
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-x-hidden">
-        <header className="flex items-center justify-between border-b border-zinc-100 px-8 py-5">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-              {t("eyebrow")}
+    <div className="min-h-screen bg-white">
+      {/* 상단 바: 매장명 + 가로 메뉴 + 새로고침/로그아웃 (좌측 사이드바 폐지) */}
+      <header className="border-b border-zinc-200 px-6 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-baseline gap-3">
+            <span className="text-lg font-semibold tracking-tight text-zinc-900">
+              {businessName}
             </span>
-            <h1 className="font-heading text-xl tracking-tight text-ink">
-              {todayDisplay}
-            </h1>
+            <span className="text-sm text-zinc-500">{todayDisplay}</span>
           </div>
-          <RefreshButton label={t("refresh")} />
-        </header>
+          <div className="flex shrink-0 items-center gap-2">
+            <RefreshButton label={t("refresh")} />
+            <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
+              <button className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-50">
+                {tn("logout")}
+              </button>
+            </form>
+          </div>
+        </div>
+        <div className="mt-3">
+          <SidebarNav orientation="top" />
+        </div>
+      </header>
 
+      <main className="overflow-x-hidden">
         <div className="grid grid-cols-12 gap-4 p-6">
-          <div className="col-span-12 grid grid-cols-2 gap-4 xl:col-span-4">
-            <div className="flex flex-col rounded-2xl bg-lime-50 p-5 ring-1 ring-lime-200/60">
-              <span className="text-base font-bold uppercase tracking-[0.18em] text-ink/70">
-                {t("kpiTodayBookings")}
+          <div className="col-span-6 flex flex-col rounded-2xl border border-zinc-200 p-3 xl:col-span-3">
+            <span className="mb-2 w-fit rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+              {t("kpiTodayBookings")}
+            </span>
+            <div className="flex flex-1 items-baseline justify-center gap-1.5">
+              <span className="text-4xl font-bold tabular-nums tracking-tight text-emerald-600">
+                {kpi.ptCount + kpi.groupParticipants}
               </span>
-              <div className="mt-3 flex flex-1 items-center gap-8">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-heading text-6xl tabular-nums tracking-tight text-ink">
-                    {kpi.ptCount + kpi.groupParticipants}
-                  </span>
-                  <span className="text-xl text-zinc-500">{t("unitCount")}</span>
-                </div>
-                <div className="space-y-1 text-base text-zinc-700">
-                  {kpi.ptCount > 0 && (
-                    <div>{t("kpiBreakdownPt", { pt: kpi.ptCount })}</div>
-                  )}
-                  {kpi.groupParticipants > 0 && (
-                    <div>{t("kpiBreakdownGroup", { group: kpi.groupParticipants })}</div>
-                  )}
-                </div>
-              </div>
+              <span className="text-base text-zinc-400">{t("unitCount")}</span>
             </div>
-            <div className="flex flex-col rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200/60">
-              <span className="text-base font-bold uppercase tracking-[0.18em] text-ink/70">
-                {t("kpiActiveMembers")}
-              </span>
-              <div className="mt-3 flex flex-1 items-center justify-center gap-2">
-                <span className="font-heading text-6xl tabular-nums tracking-tight text-ink">
-                  {kpi.activeMembers}/{kpi.totalCustomers}
-                </span>
-                <span className="text-xl text-zinc-500">{t("unitPeople")}</span>
-              </div>
+            <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-zinc-500">
+              {kpi.ptCount > 0 && (
+                <span>{t("kpiBreakdownPt", { pt: kpi.ptCount })}</span>
+              )}
+              {kpi.groupParticipants > 0 && (
+                <span>{t("kpiBreakdownGroup", { group: kpi.groupParticipants })}</span>
+              )}
             </div>
           </div>
-          <div className="col-span-12 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-6">
-            <TodoCard
-              tone="orange"
-              label={t("todoRefundsLabel")}
-              count={pendingRefunds}
-              unit={t("unitCount")}
-              href={`/${lang}/g/${slug}/refunds`}
-            />
-            <TodoCard
-              tone="rose"
-              label={t("todoChatLabel")}
-              count={chatUnread}
-              unit={t("unitCount")}
-              href={`/${lang}/g/${slug}/chat`}
-            />
+          <div className="col-span-6 flex flex-col rounded-2xl border border-zinc-200 p-3 xl:col-span-3">
+            <span className="mb-2 w-fit rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-bold text-indigo-700">
+              {t("kpiActiveMembers")}
+            </span>
+            <div className="flex flex-1 items-baseline justify-center gap-1.5">
+              <span className="text-4xl font-bold tabular-nums tracking-tight text-indigo-600">
+                {kpi.activeMembers}/{kpi.totalCustomers}
+              </span>
+              <span className="text-base text-zinc-400">{t("unitPeople")}</span>
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">{t("kpiActiveMembersSub")}</div>
           </div>
-          <section className="col-span-12 flex flex-col rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200/60 xl:col-span-2 xl:row-span-2">
-            <SectionHead title={t("accessTitle")} />
-            <ul className="mt-4 flex-1 divide-y divide-amber-200/50 overflow-y-auto">
-              {kpi.accessToday.map((e) => (
-                <li key={e.id} className="py-2 first:pt-0 last:pb-0">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-base font-medium text-ink">
-                      {e.name}
-                    </span>
-                    <span className="shrink-0 text-sm tabular-nums text-zinc-700">
-                      {String(e.hour).padStart(2, "0")}:
-                      {String(e.min).padStart(2, "0")}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink/55">
-                    {t(`accessRole.${e.role}`)}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <input type="hidden" data-lang={lang} data-slug={slug} />
-
-          <section className="col-span-12 rounded-2xl bg-lime-50 p-6 ring-1 ring-lime-200/50 xl:col-span-4">
-            <SectionHead
-              title={t("timelineTitle")}
-            />
+          <TodoCard
+            tone="orange"
+            label={t("todoRefundsLabel")}
+            count={pendingRefunds}
+            unit={t("unitCount")}
+            sub={t("todoRefundsSub")}
+            href={`/${lang}/g/${slug}/refunds`}
+          />
+          <TodoCard
+            tone="rose"
+            label={t("todoChatLabel")}
+            count={chatUnread}
+            unit={t("unitCount")}
+            sub={t("todoChatSub")}
+            href={`/${lang}/g/${slug}/chat`}
+          />
+          {/* 오늘의 일정 — 오늘 예약 카드 아래 */}
+          <section className="col-span-12 rounded-2xl border border-zinc-200 p-5 xl:col-span-3">
+            <SectionHead dot="bg-emerald-500" title={t("timelineTitle")} />
             <ol className="mt-5 space-y-4">
               {buckets.map((b) => (
                 <li
                   key={b.startMin}
-                  className="grid grid-cols-[72px_1fr] gap-4"
+                  className="grid grid-cols-[64px_1fr] gap-3"
                 >
-                  <div className="pt-2 text-xl font-semibold tabular-nums text-zinc-700">
+                  <div className="pt-2 text-lg font-semibold tabular-nums text-zinc-700">
                     {fmtTime(b.startMin)}
                   </div>
                   <div className="grid gap-2 grid-cols-1">
@@ -274,28 +237,38 @@ export async function DashboardWhite({
                       return (
                         <div
                           key={r.id}
-                          className={`relative rounded-xl px-4 py-3 ${
+                          className={`relative overflow-hidden rounded-lg border py-2 pl-4 pr-3 ${
                             isActive
-                              ? "bg-lime-300 ring-1 ring-lime-500"
+                              ? "border-amber-200 bg-amber-50"
                               : isPast
-                                ? "bg-white text-zinc-500 opacity-70 ring-1 ring-zinc-100"
-                                : isGroup
-                                  ? "bg-rose-100 ring-1 ring-rose-200"
-                                  : "bg-white ring-1 ring-zinc-200"
+                                ? "border-emerald-200 bg-emerald-50"
+                                : "border-zinc-200 bg-white"
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex min-w-0 items-baseline gap-2 truncate">
-                              <span className="truncate text-base font-semibold text-ink">
+                          <span
+                            className={`absolute left-0 top-0 h-full w-1.5 ${
+                              isGroup ? "bg-rose-500" : "bg-indigo-500"
+                            }`}
+                          />
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate text-sm font-semibold text-zinc-900">
                                 {r.customer}
                               </span>
-                              <span className="truncate text-sm text-zinc-600">
-                                {isGroup ? r.staff : `${r.service} · ${r.staff}`}
+                              <span className="truncate text-xs text-zinc-600">
+                                {isGroup
+                                  ? t("instructorLabel", { name: r.staff })
+                                  : `${r.service} · ${r.staff}`}
                               </span>
                             </div>
                             {isActive && (
-                              <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-lime-300">
+                              <span className="shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
                                 {t("live")}
+                              </span>
+                            )}
+                            {isPast && (
+                              <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
+                                {t("completedBadge")}
                               </span>
                             )}
                             {isGroup && (
@@ -321,10 +294,11 @@ export async function DashboardWhite({
             )}
           </section>
 
-          <section className="col-span-12 rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-200/50 xl:col-span-6">
-            <SectionHead
-              title={t("calendarTitle", { month: monthLabel })}
-            />
+          <input type="hidden" data-lang={lang} data-slug={slug} />
+
+          {/* 달력 — 가운데 */}
+          <section className="col-span-12 rounded-2xl border border-zinc-200 p-4 xl:col-span-6">
+            <SectionHead dot="bg-sky-500" title={t("calendarTitle", { month: monthLabel })} />
             <CalendarMonth
               weekdays={weekdays}
               monthInfo={monthInfo}
@@ -334,13 +308,40 @@ export async function DashboardWhite({
             />
           </section>
 
+          {/* 출입 현황 — 고객 메시지 카드 아래 */}
+          <section className="col-span-12 flex flex-col rounded-2xl border border-zinc-200 p-4 xl:col-span-3">
+            <SectionHead dot="bg-amber-500" title={t("accessTitle")} />
+            <ul className="mt-3 max-h-72 divide-y divide-zinc-100 overflow-y-auto">
+              {kpi.accessToday.map((e) => (
+                <li key={e.id} className="flex items-center gap-2 py-2 first:pt-0">
+                  <span className="w-11 shrink-0 text-xs tabular-nums text-zinc-400">
+                    {String(e.hour).padStart(2, "0")}:
+                    {String(e.min).padStart(2, "0")}
+                  </span>
+                  <span className="flex-1 truncate text-sm font-medium text-zinc-900">
+                    {e.name}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      e.role === "CUSTOMER"
+                        ? "bg-zinc-100 text-zinc-600"
+                        : "bg-indigo-100 text-indigo-700"
+                    }`}
+                  >
+                    {t(`accessRole.${e.role}`)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
         </div>
 
-        <footer className="border-t border-zinc-100 px-8 py-5 text-xs text-zinc-500">
+        <footer className="border-t border-zinc-200 px-6 py-4 text-xs text-zinc-400">
           예약가즈아 · /g/{slug} ·{" "}
           <Link
             href={`/${lang}/g/${slug}/settings`}
-            className="hover:text-ink"
+            className="hover:text-zinc-900"
           >
             {t("themeLink")}
           </Link>
@@ -350,124 +351,52 @@ export async function DashboardWhite({
   );
 }
 
-function SectionHead({ eyebrow, title }: { eyebrow?: string; title: string }) {
+function SectionHead({ dot = "bg-zinc-400", title }: { dot?: string; title: string }) {
   return (
-    <div>
-      {eyebrow && (
-        <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-          {eyebrow}
-        </span>
-      )}
-      <h2 className="font-heading text-lg tracking-tight text-ink">
-        {title}
-      </h2>
+    <div className="flex items-center gap-2">
+      <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+      <h2 className="text-base font-semibold tracking-tight text-zinc-900">{title}</h2>
     </div>
   );
 }
-
-const TONES = {
-  lime: "bg-lime-50 ring-lime-200/60",
-  amber: "bg-amber-50 ring-amber-200/60",
-  sky: "bg-sky-50 ring-sky-200/60",
-} as const;
-const TONE_BADGE = {
-  lime: "bg-lime-300 text-ink",
-  amber: "bg-amber-300 text-ink",
-  sky: "bg-sky-300 text-ink",
-} as const;
-
-const TODO_TONE = {
-  orange: {
-    active: "bg-orange-50 ring-orange-200 hover:ring-orange-400",
-    activeText: "text-orange-700",
-    activeBadge: "bg-orange-500 text-white",
-    idleText: "text-zinc-500",
-    idleBadge: "bg-zinc-200 text-zinc-500",
-  },
-  rose: {
-    active: "bg-rose-50 ring-rose-200 hover:ring-rose-400",
-    activeText: "text-rose-700",
-    activeBadge: "bg-rose-500 text-white",
-    idleText: "text-zinc-500",
-    idleBadge: "bg-zinc-200 text-zinc-500",
-  },
-} as const;
 
 function TodoCard({
   tone,
   label,
   count,
   unit,
+  sub,
   href,
 }: {
   tone: "orange" | "rose";
   label: string;
   count: number;
   unit: string;
+  sub: string;
   href: string;
 }) {
   const has = count > 0;
-  const tk = TODO_TONE[tone];
-  const wrap = has
-    ? `flex flex-col rounded-2xl p-5 ring-1 transition ${tk.active}`
-    : "flex flex-col rounded-2xl bg-zinc-50 p-5 ring-1 ring-zinc-200 transition hover:ring-zinc-300";
+  const c =
+    tone === "orange"
+      ? { chip: "bg-amber-100 text-amber-700", num: "text-amber-600" }
+      : { chip: "bg-rose-100 text-rose-700", num: "text-rose-600" };
   return (
-    <Link href={href} className={wrap}>
-      <div className="flex items-center justify-between gap-2">
-        <span className={`text-base font-bold uppercase tracking-[0.18em] ${has ? tk.activeText : "text-ink/70"}`}>
-          {label}
-        </span>
-        <span className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-full px-2 text-sm font-bold ${has ? tk.activeBadge : tk.idleBadge}`}>
-          →
-        </span>
-      </div>
-      <div className="mt-3 flex flex-1 items-center justify-center gap-2">
-        <span className={`font-heading text-6xl tabular-nums tracking-tight ${has ? "text-ink" : "text-zinc-400"}`}>
+    <Link
+      href={href}
+      className="col-span-6 flex flex-col rounded-2xl border border-zinc-200 p-3 transition hover:border-zinc-300 xl:col-span-3"
+    >
+      <span className={`mb-2 w-fit rounded-md px-2 py-0.5 text-xs font-bold ${c.chip}`}>
+        {label}
+      </span>
+      <div className="flex flex-1 items-baseline justify-center gap-1.5">
+        <span className={`text-4xl font-bold tabular-nums tracking-tight ${c.num}`}>
           {count}
         </span>
-        <span className={`text-xl ${has ? tk.idleText : "text-zinc-400"}`}>
-          {unit}
-        </span>
+        <span className="text-base text-zinc-400">{unit}</span>
       </div>
+      <div className="mt-1 text-xs text-zinc-500">{has ? sub : " "}</div>
     </Link>
   );
 }
 
-function PastelKpi({
-  tone,
-  label,
-  value,
-  sub,
-  span = "lg:col-span-4",
-  cellOnly,
-  extra,
-}: {
-  tone: "lime" | "amber" | "sky";
-  label: string;
-  value: string | number;
-  sub: string;
-  span?: string;
-  cellOnly?: boolean;
-  extra?: ReactNode;
-}) {
-  const wrap = cellOnly
-    ? `rounded-2xl p-5 ring-1 ${TONES[tone]}`
-    : `col-span-12 rounded-2xl p-5 ring-1 sm:col-span-6 ${span} ${TONES[tone]}`;
-  return (
-    <div className={wrap}>
-      <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-        {label}
-      </span>
-      <div className="mt-3 flex items-start justify-between gap-4">
-        <div className="flex items-baseline gap-1.5 shrink-0">
-          <span className="font-heading text-5xl tabular-nums tracking-tight text-ink">
-            {value}
-          </span>
-          <span className="text-base text-zinc-500">{sub}</span>
-        </div>
-        {extra && <div className="min-w-0 flex-1 pl-2">{extra}</div>}
-      </div>
-    </div>
-  );
-}
 
