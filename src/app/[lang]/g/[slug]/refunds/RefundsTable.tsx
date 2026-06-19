@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { completeRefund } from "./actions";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 export type RefundRow = {
   id: string;
@@ -65,6 +65,17 @@ const TONE = {
     tabActive: "bg-ink text-white",
     tabIdle: "text-ink/55 hover:bg-violet-50",
     btn: "bg-ink text-white hover:brightness-110",
+  },
+  indigo: {
+    card: "border-zinc-200 bg-white",
+    th: "text-zinc-500",
+    td: "text-zinc-900",
+    rowBorder: "border-zinc-100",
+    muted: "text-zinc-500",
+    input: "border-zinc-300 bg-white text-zinc-900",
+    tabActive: "bg-indigo-600 text-white",
+    tabIdle: "text-zinc-500 hover:bg-zinc-100",
+    btn: "bg-indigo-600 text-white hover:bg-indigo-700",
   },
 } as const;
 

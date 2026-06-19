@@ -2,8 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { logout } from "@/lib/auth/actions";
-import { SidebarNav } from "../dashboard/SidebarNav";
+import { OwnerShell } from "../OwnerShell";
 import { RefundsTable } from "./RefundsTable";
 
 const PAGE_SIZE = 20;
@@ -14,14 +13,7 @@ function one(v: SP): string {
 }
 
 const TK = {
-  page: "bg-violet-50/40",
-  aside: "bg-violet-50",
-  border: "border-violet-100",
-  eyebrow: "text-ink/60",
-  name: "text-ink",
-  sub: "text-ink/50",
-  logout: "text-zinc-700 hover:bg-zinc-50",
-  h1: "text-ink",
+  sub: "text-zinc-500",
 } as const;
 
 export default async function RefundsPage({
@@ -36,7 +28,6 @@ export default async function RefundsPage({
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
   const t = await getTranslations("refunds");
-  const tn = await getTranslations("nav");
 
   // ── 필터 파싱 ──
   const statusParam = one(sp.status); // pending | completed | all
@@ -127,45 +118,17 @@ export default async function RefundsPage({
   }));
 
   return (
-    <div className={`flex min-h-screen ${TK.page}`}>
-      <aside
-        className={`hidden w-60 shrink-0 flex-col border-r ${TK.border} ${TK.aside} lg:flex`}
-      >
-        <div className={`border-b ${TK.border} px-6 py-6`}>
-          <span
-            className={`text-xs font-semibold uppercase tracking-[0.22em] ${TK.eyebrow}`}
-          >
-            {tn("studio")}
-          </span>
-          <div
-            className={`mt-1 font-heading text-lg tracking-tight ${TK.name}`}
-          >
-            {business.name}
-          </div>
-          <div className={`mt-0.5 text-xs ${TK.sub}`}>/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className={`border-t ${TK.border} px-3 py-4`}>
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button
-              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${TK.logout}`}
-            >
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 px-5 py-6 sm:px-8">
-        <h1
-          className={`font-heading text-xl tracking-tight sm:text-2xl ${TK.h1}`}
-        >
-          {t("title")}
-        </h1>
-        <p className={`mt-1 text-xs ${TK.sub}`}>{t("subtitle")}</p>
+    <OwnerShell
+      lang={lang}
+      slug={slug}
+      businessName={business.name}
+      subtitle={t("title")}
+    >
+      <main className="px-5 py-6 sm:px-8">
+        <p className={`text-xs ${TK.sub}`}>{t("subtitle")}</p>
 
         <RefundsTable
-          tone="white"
+          tone="indigo"
           lang={lang}
           slug={slug}
           rows={data}
@@ -184,6 +147,6 @@ export default async function RefundsPage({
           pendingSum={pendingAgg._sum.refundPhp ?? 0}
         />
       </main>
-    </div>
+    </OwnerShell>
   );
 }
