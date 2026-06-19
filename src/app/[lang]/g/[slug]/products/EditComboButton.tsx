@@ -9,18 +9,20 @@ import {
   type ComboPackageOption,
 } from "./ComboPlanForm";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 const TONE_BTN = {
   normal: "text-ink/70 hover:text-ink",
   black: "text-zinc-400 hover:text-lime-300",
   white: "text-zinc-600 hover:text-violet-700",
+  indigo: "text-zinc-700 hover:text-indigo-700",
 } as const;
 
 const TONE_PANEL = {
   normal: "bg-white border-amber-200/60",
   black: "bg-zinc-900 border-white/10",
   white: "bg-lime-50 border-lime-200/50",
+  indigo: "bg-white border-zinc-200",
 } as const;
 
 export function EditComboButton({
@@ -59,7 +61,7 @@ export function EditComboButton({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b border-current/10 px-5 py-4">
-              <h3 className="font-heading text-base tracking-tight">
+              <h3 className="font-semibold text-base tracking-tight">
                 {t("editHeading")}
               </h3>
             </div>

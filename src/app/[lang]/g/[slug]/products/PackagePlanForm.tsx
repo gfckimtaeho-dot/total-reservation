@@ -14,7 +14,7 @@ import {
   type MembershipPlanState,
 } from "./actions";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 export type PackageServiceOption = {
   id: string;
@@ -79,6 +79,22 @@ const TONE = {
     notice: "bg-amber-50 border-amber-200 text-amber-800",
     calcCard: "bg-white border-lime-200/60",
     calcRow: "border-lime-200/40",
+    marginPos: "text-emerald-600",
+    marginNeg: "text-rose-600",
+  },
+  indigo: {
+    card: "bg-white border-zinc-200",
+    label: "text-zinc-500",
+    input:
+      "bg-white border-zinc-300 text-zinc-900 focus:border-indigo-500 focus:outline-none",
+    button: "bg-indigo-600 text-white hover:bg-indigo-700",
+    preset: "bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-50",
+    presetActive: "bg-indigo-600 text-white border-indigo-600",
+    hint: "text-zinc-500",
+    error: "text-rose-600",
+    notice: "bg-amber-50 border-amber-200 text-amber-800",
+    calcCard: "bg-white border-zinc-200",
+    calcRow: "border-zinc-200",
     marginPos: "text-emerald-600",
     marginNeg: "text-rose-600",
   },
@@ -213,7 +229,7 @@ export function PackagePlanForm({
   return (
     <section className={wrapperClass}>
       {!hideCard && (
-        <h2 className="font-heading text-lg tracking-tight">{t("heading")}</h2>
+        <h2 className="font-semibold text-lg tracking-tight">{t("heading")}</h2>
       )}
 
       <form
@@ -445,7 +461,7 @@ export function PackagePlanForm({
                 name="active"
                 checked={active}
                 onChange={(e) => setActive(e.target.checked)}
-                className="h-4 w-4 accent-violet-600"
+                className="h-4 w-4 accent-indigo-600"
               />
               <span className={tk.label}>{t("active")}</span>
             </label>

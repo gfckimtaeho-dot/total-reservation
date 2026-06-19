@@ -9,7 +9,7 @@ import {
   type UpdateServiceState,
 } from "./actions";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 export type ServiceInitial = {
   id: string;
@@ -63,6 +63,22 @@ const TONE = {
       "bg-white text-zinc-700 border-lime-200 hover:bg-lime-100",
     preset: "bg-white text-zinc-700 border-lime-200 hover:bg-lime-100",
     presetActive: "bg-lime-600 text-white border-lime-600",
+    hint: "text-zinc-500",
+    error: "text-rose-600",
+  },
+  indigo: {
+    card: "bg-white border-zinc-200",
+    label: "text-zinc-500",
+    input:
+      "bg-white border-zinc-300 text-zinc-900 focus:border-indigo-500 focus:outline-none",
+    inputDisabled:
+      "bg-zinc-50 text-zinc-400 border-zinc-200 cursor-not-allowed",
+    button: "bg-indigo-600 text-white hover:bg-indigo-700",
+    radioActive: "bg-indigo-600 text-white border-indigo-600",
+    radioInactive:
+      "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-400",
+    preset: "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-400",
+    presetActive: "bg-indigo-600 text-white border-indigo-600",
     hint: "text-zinc-500",
     error: "text-rose-600",
   },
@@ -165,7 +181,7 @@ export function ServiceForm({
   return (
     <section className={wrapperClass}>
       {!hideCard && (
-        <h2 className="font-heading text-lg tracking-tight">{t("heading")}</h2>
+        <h2 className="font-semibold text-lg tracking-tight">{t("heading")}</h2>
       )}
 
       <form

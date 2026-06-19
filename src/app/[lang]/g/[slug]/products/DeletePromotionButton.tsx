@@ -4,12 +4,13 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { deletePromotion } from "./actions";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 const TONE_BTN = {
   normal: "text-rose-600 hover:text-rose-700",
   black: "text-rose-400 hover:text-rose-300",
   white: "text-rose-600 hover:text-rose-700",
+  indigo: "text-rose-600 hover:text-rose-700",
 } as const;
 
 export function DeletePromotionButton({

@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { logout } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
-import { SidebarNav } from "../dashboard/SidebarNav";
+import { OwnerShell } from "../OwnerShell";
 import { MembershipPlanForm } from "./MembershipPlanForm";
 import { EditMembershipButton } from "./EditMembershipButton";
 import { DeleteMembershipButton } from "./DeleteMembershipButton";
@@ -31,33 +30,32 @@ const TAB_KEYS: TabKey[] = [
   "promotion",
 ];
 
-const TAB_ACTIVE = "bg-violet-600 text-white";
+const TAB_ACTIVE = "bg-indigo-600 text-white";
 const TAB_INACTIVE = "text-zinc-600 hover:bg-zinc-100";
 
-// 탭별 목록 카드 색 — dashboard 멀티 파스텔 패턴. 각 카탈로그가 자기 정체성을 가짐.
-// 회원권=violet-100, 수업=amber-50, 수업권=sky-50, 콤보=violet-50, 이벤트=lime-50.
+// hybrid-c: 흰 카드 + 또렷한 zinc 테두리. 탭별 파스텔 정체성(폐기)을 평탄화.
 const LIST_CARD = {
-  membership: "bg-sky-50 border-sky-200/60",
-  service: "bg-amber-50 border-amber-200/60",
-  package: "bg-sky-50 border-sky-200/60",
-  combo: "bg-violet-50 border-violet-200/60",
-  promotion: "bg-lime-50 border-lime-200/60",
+  membership: "bg-white border-zinc-200",
+  service: "bg-white border-zinc-200",
+  package: "bg-white border-zinc-200",
+  combo: "bg-white border-zinc-200",
+  promotion: "bg-white border-zinc-200",
 } as const;
 
 const LIST_HEAD = {
-  membership: "text-sky-800 border-sky-200/60",
-  service: "text-amber-800 border-amber-200/60",
-  package: "text-sky-800 border-sky-200/60",
-  combo: "text-violet-800 border-violet-200/60",
-  promotion: "text-lime-800 border-lime-200/60",
+  membership: "text-zinc-900 border-zinc-200",
+  service: "text-zinc-900 border-zinc-200",
+  package: "text-zinc-900 border-zinc-200",
+  combo: "text-zinc-900 border-zinc-200",
+  promotion: "text-zinc-900 border-zinc-200",
 } as const;
 
 const LIST_ROW = {
-  membership: "border-sky-200/40",
-  service: "border-amber-200/40",
-  package: "border-sky-200/40",
-  combo: "border-violet-200/40",
-  promotion: "border-lime-200/40",
+  membership: "border-zinc-100",
+  service: "border-zinc-100",
+  package: "border-zinc-100",
+  combo: "border-zinc-100",
+  promotion: "border-zinc-100",
 } as const;
 
 const PILL_ACTIVE = "bg-emerald-100 text-emerald-700";
@@ -164,7 +162,6 @@ export default async function GymProductsPage({
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
   const t = await getTranslations("products");
-  const tn = await getTranslations("nav");
   const tsr = await getTranslations("services");
 
   const [
@@ -223,45 +220,12 @@ export default async function GymProductsPage({
   const now = new Date();
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <aside className="hidden w-60 shrink-0 flex-col lg:flex border-r border-violet-100 bg-violet-50">
-        <div className="border-b px-6 py-6 border-violet-100">
-          <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-            {tn("studio")}
-          </span>
-          <div className="mt-1 font-heading text-lg tracking-tight text-ink">
-            {business.name}
-          </div>
-          <div className="mt-0.5 text-xs text-zinc-500">/g/{slug}</div>
-        </div>
-        <SidebarNav />
-        <div className="border-t px-3 py-4 border-violet-100">
-          <form action={logout.bind(null, `/${lang}/g/${slug}/login`)}>
-            <button className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50">
-              {tn("logout")}
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-x-hidden">
-        <header className="flex items-center justify-between border-b px-8 py-5 border-violet-100">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-ink/60">
-              {t("eyebrow")}
-            </span>
-            <h1 className="font-heading text-xl tracking-tight text-ink">
-              {t("pageTitle")}
-            </h1>
-          </div>
-          <Link
-            href={`/${lang}/g/${slug}/dashboard`}
-            className="text-sm transition text-zinc-600 hover:text-ink"
-          >
-            {t("back")}
-          </Link>
-        </header>
-
+    <OwnerShell
+      lang={lang}
+      slug={slug}
+      businessName={business.name}
+      subtitle={t("pageTitle")}
+    >
         <div className="mx-auto w-full max-w-6xl space-y-6 p-6">
           {/* 탭 nav */}
           <nav className="flex flex-wrap gap-1.5">
@@ -284,7 +248,7 @@ export default async function GymProductsPage({
           {/* === 회원권 탭 === */}
           {activeTab === "membership" && (
             <>
-              <MembershipPlanForm slug={slug} tone="white" />
+              <MembershipPlanForm slug={slug} tone="indigo" />
 
               <section
                 className={`rounded-2xl border ${LIST_CARD.membership}`}
@@ -292,7 +256,7 @@ export default async function GymProductsPage({
                 <div
                   className={`flex items-center justify-between border-b px-6 py-4 ${LIST_HEAD.membership}`}
                 >
-                  <h2 className="font-heading text-base tracking-tight">
+                  <h2 className="text-base font-semibold tracking-tight">
                     {t("membership.listHeading")}
                   </h2>
                   <span className="text-xs">
@@ -368,13 +332,13 @@ export default async function GymProductsPage({
                                     pricePhp: p.pricePhp,
                                     active: p.active,
                                   }}
-                                  tone="white"
+                                  tone="indigo"
                                 />
                                 <DeleteMembershipButton
                                   slug={slug}
                                   planId={p.id}
                                   planName={p.name}
-                                  tone="white"
+                                  tone="indigo"
                                 />
                               </div>
                             </td>
@@ -391,13 +355,13 @@ export default async function GymProductsPage({
           {/* === 수업 서비스 탭 === */}
           {activeTab === "service" && (
             <>
-              <ServiceForm slug={slug} tone="white" />
+              <ServiceForm slug={slug} tone="indigo" />
 
               <section className={`rounded-2xl border ${LIST_CARD.service}`}>
                 <div
                   className={`flex items-center justify-between border-b px-6 py-4 ${LIST_HEAD.service}`}
                 >
-                  <h2 className="font-heading text-base tracking-tight">
+                  <h2 className="text-base font-semibold tracking-tight">
                     {tsr("list.heading")}
                   </h2>
                   <span className="text-xs">
@@ -539,7 +503,7 @@ export default async function GymProductsPage({
                                           : null,
                                       }))}
                                       staffOptions={staffOptions}
-                                      tone="white"
+                                      tone="indigo"
                                       lang={lang}
                                     />
                                   )}
@@ -553,13 +517,13 @@ export default async function GymProductsPage({
                                       pricePhp: s.pricePhp,
                                       payoutPhp: s.payoutPhp,
                                     }}
-                                    tone="white"
+                                    tone="indigo"
                                   />
                                   <DeleteServiceButton
                                     slug={slug}
                                     serviceId={s.id}
                                     serviceName={s.name}
-                                    tone="white"
+                                    tone="indigo"
                                   />
                                 </div>
                               </td>
@@ -579,7 +543,7 @@ export default async function GymProductsPage({
             <>
               <PackagePlanForm
                 slug={slug}
-                tone="white"
+                tone="indigo"
                 services={services.map((s) => ({
                   id: s.id,
                   name: s.name,
@@ -593,7 +557,7 @@ export default async function GymProductsPage({
                 <div
                   className={`flex items-center justify-between border-b px-6 py-4 ${LIST_HEAD.package}`}
                 >
-                  <h2 className="font-heading text-base tracking-tight">
+                  <h2 className="text-base font-semibold tracking-tight">
                     {t("package.listHeading")}
                   </h2>
                   <span className="text-xs">
@@ -720,13 +684,13 @@ export default async function GymProductsPage({
                                       payoutPhp: s.payoutPhp,
                                       capacity: s.capacity,
                                     }))}
-                                    tone="white"
+                                    tone="indigo"
                                   />
                                   <DeletePackageButton
                                     slug={slug}
                                     planId={p.id}
                                     planName={p.name}
-                                    tone="white"
+                                    tone="indigo"
                                   />
                                 </div>
                               </td>
@@ -746,7 +710,7 @@ export default async function GymProductsPage({
             <>
               <ComboPlanForm
                 slug={slug}
-                tone="white"
+                tone="indigo"
                 membershipPlans={membershipPlans.map((m) => ({
                   id: m.id,
                   name: m.name,
@@ -769,7 +733,7 @@ export default async function GymProductsPage({
                 <div
                   className={`flex items-center justify-between border-b px-6 py-4 ${LIST_HEAD.combo}`}
                 >
-                  <h2 className="font-heading text-base tracking-tight">
+                  <h2 className="text-base font-semibold tracking-tight">
                     {t("combo.listHeading")}
                   </h2>
                   <span className="text-xs">
@@ -853,7 +817,7 @@ export default async function GymProductsPage({
                                   {itemChips.map((chip, i) => (
                                     <span
                                       key={i}
-                                      className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-violet-100 text-violet-700"
+                                      className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-indigo-100 text-indigo-700"
                                     >
                                       {chip}
                                     </span>
@@ -932,13 +896,13 @@ export default async function GymProductsPage({
                                       serviceName: p.service.name,
                                       active: p.active,
                                     }))}
-                                    tone="white"
+                                    tone="indigo"
                                   />
                                   <DeleteComboButton
                                     slug={slug}
                                     planId={c.id}
                                     planName={c.name}
-                                    tone="white"
+                                    tone="indigo"
                                   />
                                 </div>
                               </td>
@@ -958,7 +922,7 @@ export default async function GymProductsPage({
             <>
               <PromotionForm
                 slug={slug}
-                tone="white"
+                tone="indigo"
                 membershipPlans={membershipPlans.map((m) => ({
                   id: m.id,
                   name: m.name,
@@ -977,7 +941,7 @@ export default async function GymProductsPage({
                 <div
                   className={`flex items-center justify-between border-b px-6 py-4 ${LIST_HEAD.promotion}`}
                 >
-                  <h2 className="font-heading text-base tracking-tight">
+                  <h2 className="text-base font-semibold tracking-tight">
                     {t("promotion.listHeading")}
                   </h2>
                   <span className="text-xs">
@@ -1077,13 +1041,13 @@ export default async function GymProductsPage({
                                       name: pp.name,
                                       pricePhp: pp.pricePhp,
                                     }))}
-                                    tone="white"
+                                    tone="indigo"
                                   />
                                   <DeletePromotionButton
                                     slug={slug}
                                     promotionId={p.id}
                                     promotionName={p.name}
-                                    tone="white"
+                                    tone="indigo"
                                   />
                                 </div>
                               </td>
@@ -1098,7 +1062,6 @@ export default async function GymProductsPage({
             </>
           )}
         </div>
-      </main>
-    </div>
+    </OwnerShell>
   );
 }

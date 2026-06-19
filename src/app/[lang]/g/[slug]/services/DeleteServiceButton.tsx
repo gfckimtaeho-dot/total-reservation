@@ -4,12 +4,13 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { ServiceDeleteDialog } from "./ServiceDeleteDialog";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 const BUTTON_TONE = {
   normal: "text-rose-600 hover:bg-rose-50",
   black: "text-rose-400 hover:bg-rose-500/10",
   white: "text-rose-600 hover:bg-rose-50",
+  indigo: "text-rose-600 hover:bg-rose-50",
 } as const;
 
 export function DeleteServiceButton({

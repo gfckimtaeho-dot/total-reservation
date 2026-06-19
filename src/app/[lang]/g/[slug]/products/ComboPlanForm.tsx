@@ -8,7 +8,7 @@ import {
   type MembershipPlanState,
 } from "./actions";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 export type ComboMembershipOption = {
   id: string;
@@ -85,6 +85,22 @@ const TONE = {
     marginNeg: "text-rose-600",
     itemCard: "bg-white border-lime-200/60",
     itemCardActive: "bg-violet-50 border-violet-500 ring-1 ring-violet-400",
+  },
+  indigo: {
+    card: "bg-white border-zinc-200",
+    label: "text-zinc-500",
+    input:
+      "bg-white border-zinc-300 text-zinc-900 focus:border-indigo-500 focus:outline-none",
+    button: "bg-indigo-600 text-white hover:bg-indigo-700",
+    hint: "text-zinc-500",
+    error: "text-rose-600",
+    notice: "bg-amber-50 border-amber-200 text-amber-800",
+    calcCard: "bg-white border-zinc-200",
+    calcRow: "border-zinc-200",
+    marginPos: "text-emerald-600",
+    marginNeg: "text-rose-600",
+    itemCard: "bg-white border-zinc-200",
+    itemCardActive: "bg-indigo-50 border-indigo-500 ring-1 ring-indigo-400",
   },
 } as const;
 
@@ -199,7 +215,7 @@ export function ComboPlanForm({
   return (
     <section className={wrapperClass}>
       {!hideCard && (
-        <h2 className="font-heading text-lg tracking-tight">{t("heading")}</h2>
+        <h2 className="font-semibold text-lg tracking-tight">{t("heading")}</h2>
       )}
 
       <form
@@ -294,7 +310,7 @@ export function ComboPlanForm({
                             type="checkbox"
                             checked={isOn}
                             onChange={() => togglePackage(p.id)}
-                            className="h-4 w-4 accent-violet-600"
+                            className="h-4 w-4 accent-indigo-600"
                           />
                           <span className="font-medium">{p.name}</span>
                         </span>
@@ -378,7 +394,7 @@ export function ComboPlanForm({
                 name="active"
                 checked={active}
                 onChange={(e) => setActive(e.target.checked)}
-                className="h-4 w-4 accent-violet-600"
+                className="h-4 w-4 accent-indigo-600"
               />
               <span className={tk.label}>{t("active")}</span>
             </label>

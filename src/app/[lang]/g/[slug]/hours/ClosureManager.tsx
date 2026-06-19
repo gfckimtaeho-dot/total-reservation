@@ -82,6 +82,28 @@ const TONE = {
     kindOn: "bg-violet-600 text-white",
     kindOff: "bg-zinc-100 text-zinc-600",
   },
+  indigo: {
+    section: "rounded-2xl border border-zinc-200 bg-white p-6",
+    title: "text-zinc-900",
+    subtle: "text-zinc-500",
+    label: "text-zinc-900",
+    cell: "border-zinc-200 bg-white hover:bg-zinc-50",
+    cellMuted: "border-zinc-100 text-zinc-300",
+    cellToday: "ring-2 ring-indigo-500",
+    cellWithClosure: "bg-rose-100 border-rose-300 text-rose-800",
+    cellWithShortened: "bg-amber-100 border-amber-300 text-amber-900",
+    badge: "bg-rose-100 text-rose-700 ring-1 ring-rose-200",
+    badgeShort: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+    modal: "bg-white text-zinc-900",
+    modalOverlay: "bg-black/40",
+    input:
+      "h-10 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20",
+    submit: "bg-indigo-600 text-white hover:bg-indigo-700",
+    danger: "bg-rose-600 text-white hover:bg-rose-700",
+    cancel: "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+    kindOn: "bg-indigo-600 text-white",
+    kindOff: "bg-zinc-100 text-zinc-600",
+  },
 } as const;
 
 const KINDS: ClosureKind[] = ["CLOSED", "SHORTENED"];
@@ -187,7 +209,7 @@ export function ClosureManager({
   return (
     <section className={tk.section}>
       <header className="flex items-baseline justify-between gap-3">
-        <h2 className={`font-heading text-lg tracking-tight ${tk.title}`}>
+        <h2 className={`text-lg font-semibold tracking-tight ${tk.title}`}>
           {t("closuresTitle")}
         </h2>
         <span className={`text-xs ${tk.subtle}`}>{t("closuresHint")}</span>
@@ -201,7 +223,7 @@ export function ClosureManager({
         >
           ‹
         </button>
-        <div className={`font-heading text-base ${tk.title}`}>{monthLabel}</div>
+        <div className={`text-base font-semibold ${tk.title}`}>{monthLabel}</div>
         <button
           type="button"
           onClick={() => setCursor(addMonths(cursor, 1))}
@@ -291,7 +313,9 @@ export function ClosureManager({
                     ? "border-white/5 bg-zinc-950/40"
                     : tone === "white"
                       ? "border-sky-200/60 bg-white"
-                      : "border-zinc-100"
+                      : tone === "indigo"
+                        ? "border-zinc-200 bg-white"
+                        : "border-zinc-100"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -379,7 +403,7 @@ function ClosureModal({
         className={`w-full max-w-md rounded-2xl p-6 shadow-2xl ${tk.modal}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className={`font-heading text-lg ${tk.title}`}>
+        <h3 className={`text-lg font-semibold ${tk.title}`}>
           {ex ? t("editClosure") : t("addClosure")} · {editing.date}
         </h3>
 

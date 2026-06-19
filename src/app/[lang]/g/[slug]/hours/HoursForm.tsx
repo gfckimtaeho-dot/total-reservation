@@ -58,6 +58,19 @@ const TONE = {
     success: "border-emerald-200 bg-emerald-50 text-emerald-800",
     error: "border-red-200 bg-red-50 text-red-700",
   },
+  indigo: {
+    section: "rounded-2xl border border-zinc-200 bg-white p-6",
+    title: "text-zinc-900",
+    subtle: "text-zinc-500",
+    label: "text-zinc-900",
+    on: "bg-emerald-600 text-white",
+    off: "bg-zinc-200 text-zinc-500",
+    input:
+      "h-10 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400",
+    submit: "bg-indigo-600 text-white hover:bg-indigo-700",
+    success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    error: "border-red-200 bg-red-50 text-red-700",
+  },
 } as const;
 
 const initialState: SaveHoursState = {};
@@ -137,7 +150,7 @@ export function HoursForm({
 
       <section className={tk.section}>
         <header className="flex items-baseline justify-between gap-3">
-          <h2 className={`font-heading text-lg tracking-tight ${tk.title}`}>
+          <h2 className={`text-lg font-semibold tracking-tight ${tk.title}`}>
             {t("weeklyTitle")}
           </h2>
           <span className={`text-xs ${tk.subtle}`}>{t("weeklyHint")}</span>
@@ -157,7 +170,9 @@ export function HoursForm({
                     ? "border-white/5 bg-zinc-950/40"
                     : tone === "white"
                       ? "border-amber-200/60 bg-white"
-                      : "border-zinc-100"
+                      : tone === "indigo"
+                        ? "border-zinc-200 bg-white"
+                        : "border-zinc-100"
                 }`}
               >
                 <div

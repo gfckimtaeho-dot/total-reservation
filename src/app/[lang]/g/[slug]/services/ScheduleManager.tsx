@@ -11,7 +11,7 @@ import {
 } from "./schedule-actions";
 import { ScheduleDeleteDialog } from "./ScheduleDeleteDialog";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 type ScheduleKind = "RECURRING" | "ONE_OFF";
 
@@ -116,6 +116,30 @@ const TONE = {
     deleteBtn: "text-rose-600 hover:bg-rose-50",
     error: "text-rose-600",
     sectionHeadingRecur: "text-violet-700",
+    sectionHeadingOneOff: "text-amber-700",
+  },
+  indigo: {
+    trigger: "text-indigo-700 hover:bg-indigo-50",
+    dialogCard: "bg-white border-zinc-200 text-zinc-900",
+    dialogBorder: "border-zinc-200",
+    sectionBorder: "border-zinc-200",
+    staffBar: "bg-white border-zinc-200",
+    close: "text-zinc-500 hover:bg-zinc-100",
+    input:
+      "bg-white border-zinc-300 text-zinc-900 focus:border-indigo-500 focus:outline-none",
+    label: "text-zinc-500",
+    hint: "text-zinc-500",
+    button: "bg-indigo-600 text-white hover:bg-indigo-700",
+    chipActive: "bg-indigo-600 text-white border-indigo-600",
+    chipInactive:
+      "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-400",
+    rowCard: "bg-white border-zinc-200",
+    rowMeta: "text-zinc-500",
+    rowBadgeRecur: "bg-sky-100 text-sky-800",
+    rowBadgeOneOff: "bg-amber-100 text-amber-800",
+    deleteBtn: "text-rose-600 hover:bg-rose-50",
+    error: "text-rose-600",
+    sectionHeadingRecur: "text-zinc-900",
     sectionHeadingOneOff: "text-amber-700",
   },
 } as const;
@@ -234,7 +258,7 @@ export function ScheduleManager({
               className={`flex items-center justify-between border-b px-6 py-4 ${tk.dialogBorder}`}
             >
               <div>
-                <h2 className="font-heading text-base tracking-tight">
+                <h2 className="font-semibold text-base tracking-tight">
                   {t("heading", { name: service.name })}
                 </h2>
                 <p className={`mt-0.5 text-xs ${tk.hint}`}>
@@ -307,7 +331,7 @@ export function ScheduleManager({
                 className={`mt-6 rounded-xl border p-5 ${tk.sectionBorder}`}
               >
                 <h3
-                  className={`font-heading text-sm tracking-tight ${tk.sectionHeadingRecur}`}
+                  className={`font-semibold text-sm tracking-tight ${tk.sectionHeadingRecur}`}
                 >
                   {t("section.recurring")}
                 </h3>
@@ -330,7 +354,7 @@ export function ScheduleManager({
                 className={`mt-6 rounded-xl border p-5 ${tk.sectionBorder}`}
               >
                 <h3
-                  className={`font-heading text-sm tracking-tight ${tk.sectionHeadingOneOff}`}
+                  className={`font-semibold text-sm tracking-tight ${tk.sectionHeadingOneOff}`}
                 >
                   {t("section.oneOff")}
                 </h3>

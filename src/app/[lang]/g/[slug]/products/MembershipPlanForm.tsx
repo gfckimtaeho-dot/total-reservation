@@ -8,7 +8,7 @@ import {
   type MembershipPlanState,
 } from "./actions";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 export type MembershipPlanInitial = {
   id: string;
@@ -52,6 +52,18 @@ const TONE = {
     button: "bg-violet-600 text-white hover:bg-violet-700",
     preset: "bg-white text-zinc-700 border-lime-200 hover:bg-lime-100",
     presetActive: "bg-lime-600 text-white border-lime-600",
+    hint: "text-zinc-500",
+    error: "text-rose-600",
+    notice: "bg-amber-50 border-amber-200 text-amber-800",
+  },
+  indigo: {
+    card: "bg-white border-zinc-200",
+    label: "text-zinc-500",
+    input:
+      "bg-white border-zinc-300 text-zinc-900 focus:border-indigo-500 focus:outline-none",
+    button: "bg-indigo-600 text-white hover:bg-indigo-700",
+    preset: "bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-50",
+    presetActive: "bg-indigo-600 text-white border-indigo-600",
     hint: "text-zinc-500",
     error: "text-rose-600",
     notice: "bg-amber-50 border-amber-200 text-amber-800",
@@ -136,7 +148,7 @@ export function MembershipPlanForm({
   return (
     <section className={wrapperClass}>
       {!hideCard && (
-        <h2 className="font-heading text-lg tracking-tight">{t("heading")}</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t("heading")}</h2>
       )}
 
       <form
@@ -237,7 +249,7 @@ export function MembershipPlanForm({
                 name="active"
                 checked={active}
                 onChange={(e) => setActive(e.target.checked)}
-                className="h-4 w-4 accent-violet-600"
+                className="h-4 w-4 accent-indigo-600"
               />
               <span className={tk.label}>{t("active")}</span>
             </label>

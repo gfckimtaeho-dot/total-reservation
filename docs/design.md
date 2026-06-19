@@ -42,9 +42,11 @@ design/references/design.md(Bold Outline/뉴 브루탈리즘)는 영감 referenc
 
 ## 롤아웃 상태
 
-- 완료: 대시보드(사장 홈), 회원관리(리스트 + 회원 상세 + OwnerIssuePanel/MemberRow/MembersSearch/MemberAddDialog), 트레이너 관리(리스트 + 트레이너 상세 + 신규/수정 + TrainerRow/TrainersSearch/AttendanceMatrix/TrainerForm/PhotoUploader/LeaveManager/RegenerateQrButton), DobPicker.
+- 완료: 대시보드(사장 홈), 회원관리(리스트 + 회원 상세 + OwnerIssuePanel/MemberRow/MembersSearch/MemberAddDialog), 트레이너 관리(리스트 + 트레이너 상세 + 신규/수정 + TrainerRow/TrainersSearch/AttendanceMatrix/TrainerForm/PhotoUploader/LeaveManager/RegenerateQrButton), 영업일(HoursForm/ClosureManager), 상품(products 5탭 + 모든 폼/Edit·Delete 버튼), DobPicker.
+- 공유 컴포넌트 indigo 톤 추가됨(ServiceForm/EditServiceButton/DeleteServiceButton/ScheduleManager) — /services 페이지 셸 자체는 아직 미전환(legacy, white 톤 유지).
+- 상품 탭별 멀티 파스텔(sky/amber/violet/lime) 폐기 → 흰 카드 + zinc 테두리로 평탄화, 탭 활성 = indigo.
 - 공용: `OwnerShell`, `SidebarNav`(top 모드 indigo), `RefreshButton`(indigo), 로딩 셸(top-nav 스켈레톤).
-- 남음(다음): 영업일 → 상품 → 매출현황 → 방문 통계 → 환불 요청 → 출입 스캔 → 채팅 → 설정 + 각 상세 페이지. 같은 `OwnerShell` + 토큰 패턴으로 화면 단위 진행.
+- 남음(다음): 매출현황 → 방문 통계 → 환불 요청 → 출입 스캔 → 채팅 → 설정 + 각 상세 페이지. 같은 `OwnerShell` + 토큰 패턴으로 화면 단위 진행.
 
 ### 화면 전환 규칙
 - 리스트만 바꾸지 말 것 — 그 화면에서 진입하는 연관 페이지(상세 `[id]`, 신규 `new`, 수정 `[id]/edit`)도 같은 라운드에 전환.

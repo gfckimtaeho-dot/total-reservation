@@ -4,24 +4,27 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ServiceForm, type ServiceInitial } from "./ServiceForm";
 
-type Tone = "normal" | "black" | "white";
+type Tone = "normal" | "black" | "white" | "indigo";
 
 const BUTTON_TONE = {
   normal: "text-ink/70 hover:bg-ink/5",
   black: "text-lime-300 hover:bg-white/5",
   white: "text-violet-700 hover:bg-violet-50",
+  indigo: "text-indigo-700 hover:bg-indigo-50",
 } as const;
 
 const DIALOG_CARD = {
   normal: "bg-amber-50 border-amber-200/60 text-ink",
   black: "bg-zinc-900 border-white/5 text-zinc-200",
   white: "bg-white border-violet-100 text-ink",
+  indigo: "bg-white border-zinc-200 text-zinc-900",
 } as const;
 
 const CLOSE_TONE = {
   normal: "text-ink/60 hover:bg-ink/5",
   black: "text-zinc-400 hover:bg-white/5",
   white: "text-zinc-600 hover:bg-zinc-50",
+  indigo: "text-zinc-500 hover:bg-zinc-100",
 } as const;
 
 export function EditServiceButton({
@@ -79,10 +82,12 @@ export function EditServiceButton({
                   ? "border-b border-white/5"
                   : tone === "white"
                     ? "border-b border-zinc-100"
-                    : "border-b border-amber-200/60"
+                    : tone === "indigo"
+                      ? "border-b border-zinc-200"
+                      : "border-b border-amber-200/60"
               }`}
             >
-              <h2 className="font-heading text-base tracking-tight">
+              <h2 className="font-semibold text-base tracking-tight">
                 {tf("editHeading", { name: service.name })}
               </h2>
               <button
