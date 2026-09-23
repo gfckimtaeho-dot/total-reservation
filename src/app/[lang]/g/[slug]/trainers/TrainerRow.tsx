@@ -8,6 +8,8 @@ import {
   copyTrainerActivationUrl,
   setTrainerActive,
   sendTrainerActivationEmail,
+  sendTrainerLoginUrlEmail,
+  copyTrainerPasswordResetUrl,
 } from "./actions";
 import { copyText } from "@/lib/clipboard";
 
@@ -181,6 +183,41 @@ export function TrainerRow({
     });
   }
 
+  // 활성 트레이너: 아이디는 유지하고 비밀번호만 재설정. 이메일 있으면 자동 발송,
+  // 없으면 재설정 URL 을 클립보드로 복사해 카톡/SMS 전달.
+  function onSendReset() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.append("slug", slug);
+      fd.append("staffId", trainer.staffId);
+      const res = await copyTrainerPasswordResetUrl(fd);
+      if (!res.ok) {
+        showFeedback("err", res.message);
+        return;
+      }
+      if (res.emailedTo) {
+        showFeedback("ok", t("rowResetMailOk", { email: res.emailedTo }));
+      } else {
+        await copyText(res.url);
+        showFeedback("ok", t("rowResetCopyOk"));
+      }
+    });
+  }
+
+  // 활성 트레이너: 로그인 화면 링크 + 아이디 안내 메일. 새 아이디 생성 함정 없음.
+  function onSendLoginUrl() {
+    if (!trainer.email) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.append("slug", slug);
+      fd.append("staffId", trainer.staffId);
+      const res = await sendTrainerLoginUrlEmail(fd);
+      if (res.ok)
+        showFeedback("ok", t("rowLoginUrlOk", { email: trainer.email ?? "" }));
+      else showFeedback("err", res.message);
+    });
+  }
+
   function onToggleActive() {
     startTransition(async () => {
       try {
@@ -298,22 +335,56 @@ export function TrainerRow({
       </td>
       <td className="px-4 py-3 text-left" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onSendEmail}
-            disabled={pending || !trainer.email}
-            className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${tk.btnPrimary}`}
-          >
-            {pending && trainer.email ? t("rowSending") : t("rowSendEmail")}
-          </button>
-          <button
-            type="button"
-            onClick={onCopyUrl}
-            disabled={pending}
-            className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btn}`}
-          >
-            {copied ? t("rowCopied") : t("rowCopyUrl")}
-          </button>
+          {isActive ? (
+            // 활성 트레이너: 비밀번호 재설정(아이디 유지) + 로그인 URL 메일.
+            // 활성화 메일은 안 보냄 — 활성 직원에게 보내면 새 아이디를 다시 고르게
+            // 되는 함정이라.
+            <>
+              <button
+                type="button"
+                onClick={onSendReset}
+                disabled={pending}
+                title={t("rowResetTooltip")}
+                className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${tk.btnPrimary}`}
+              >
+                {pending ? t("rowSending") : t("rowResetEmail")}
+              </button>
+              <button
+                type="button"
+                onClick={onSendLoginUrl}
+                disabled={pending || !trainer.email}
+                title={
+                  trainer.email
+                    ? t("rowLoginUrlTooltip")
+                    : t("rowSendTooltipNoEmail")
+                }
+                className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btn}`}
+              >
+                {t("rowLoginUrlEmail")}
+              </button>
+            </>
+          ) : (
+            // 미활성(PENDING) 트레이너: 활성화 메일 + 활성화 URL 복사.
+            <>
+              <button
+                type="button"
+                onClick={onSendEmail}
+                disabled={pending || !trainer.email}
+                title={trainer.email ? undefined : t("rowSendTooltipNoEmail")}
+                className={`h-8 rounded-md px-3 text-xs font-medium transition disabled:opacity-50 ${tk.btnPrimary}`}
+              >
+                {pending && trainer.email ? t("rowSending") : t("rowSendEmail")}
+              </button>
+              <button
+                type="button"
+                onClick={onCopyUrl}
+                disabled={pending}
+                className={`h-8 rounded-md px-3 text-xs transition disabled:opacity-50 ${tk.btn}`}
+              >
+                {copied ? t("rowCopied") : t("rowCopyUrl")}
+              </button>
+            </>
+          )}
           <Link
             href={`/${lang}/g/${slug}/trainers/${trainer.staffId}/edit`}
             className={`inline-flex h-8 items-center rounded-md px-3 text-xs transition ${tk.btn}`}

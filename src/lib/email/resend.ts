@@ -270,6 +270,54 @@ export async function sendMemberLoginUrlEmail(opts: {
   }
 }
 
+// 활성 트레이너/매니저에게 로그인 화면 링크 + 본인 아이디 안내. 사장이 트레이너
+// 행에서 "로그인 URL 메일" 클릭 시 호출. 활성화 메일과 달리 토큰 없이 그냥 로그인
+// 페이지 링크 — 이미 아이디·비번이 있는 직원이 빠르게 접속하거나 아이디를 잊었을 때.
+export async function sendStaffLoginUrlEmail(opts: {
+  to: string;
+  recipientName: string;
+  storeName: string;
+  loginId: string;
+  loginUrl: string;
+}): Promise<SendResult> {
+  const subject = `${opts.storeName} — 로그인 링크`;
+  const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px">
+    <p style="font-size:16px">${opts.recipientName} 님, 안녕하세요.</p>
+    <p style="font-size:16px"><strong>${opts.storeName}</strong> 운영 화면 로그인 링크입니다. 아래 버튼을 눌러 로그인 화면으로 바로 들어가실 수 있습니다.</p>
+    <p style="font-size:15px;color:#444">로그인 아이디: <strong>${opts.loginId}</strong></p>
+    <p style="margin:24px 0">
+      <a href="${opts.loginUrl}" style="display:inline-block;background:#1A1A1A;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">로그인 화면 열기</a>
+    </p>
+    <p style="font-size:12px;color:#666">버튼이 작동하지 않으면 이 URL을 복사해 주세요:<br/><a href="${opts.loginUrl}">${opts.loginUrl}</a></p>
+    <p style="font-size:12px;color:#666;margin-top:24px">📌 태블릿/폰 브라우저에서 열고 메뉴의 "홈 화면에 추가"를 누르면 앱처럼 사용할 수 있습니다. 비밀번호를 잊으셨다면 매장에 비밀번호 재설정을 요청해 주세요.</p>
+  </div>`;
+  const text = `${opts.recipientName} 님,\n\n${opts.storeName} 운영 화면 로그인 링크입니다.\n로그인 아이디: ${opts.loginId}\n로그인: ${opts.loginUrl}`;
+
+  const transport = makeTransport();
+  if (!transport) {
+    console.log(
+      `[email/fallback] staff login url email skipped (GMAIL creds missing) to ${opts.to}`,
+    );
+    console.log(`[email/fallback] login: ${opts.loginUrl}`);
+    return { ok: false, fallback: true };
+  }
+
+  try {
+    const info = await transport.sendMail({
+      from: `${FROM_NAME} <${user}>`,
+      to: opts.to,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, id: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[email] SMTP error (staff login url):", message);
+    return { ok: false, fallback: false, error: message };
+  }
+}
+
 export async function sendInviteEmail(opts: {
   to: string;
   inviteUrl: string;

@@ -10,6 +10,7 @@ import { requireGymStaff } from "@/lib/auth/dal";
 import {
   sendStaffActivationEmail,
   sendPasswordResetEmail,
+  sendStaffLoginUrlEmail,
 } from "@/lib/email/resend";
 import { uploadStaffImage, deleteStaffImageUrl } from "@/lib/storage/blob";
 import { generateAccessToken } from "@/lib/auth/accessToken";
@@ -528,6 +529,72 @@ export async function copyTrainerPasswordResetUrl(
   }
 
   return { ok: true, url, emailedTo };
+}
+
+// 활성 트레이너/매니저에게 로그인 화면 링크 메일 — 토큰 없이 그냥 로그인 페이지
+// URL + 본인 아이디 안내. 트레이너 행의 "로그인 URL 메일" 버튼이 호출. ACTIVE +
+// loginId + 이메일 보유 직원만. 활성화 메일(새 아이디 생성)과 분리된 흐름.
+export async function sendTrainerLoginUrlEmail(
+  formData: FormData,
+): Promise<SendActivationResult> {
+  const slug = String(formData.get("slug") ?? "");
+  const staffId = String(formData.get("staffId") ?? "");
+  const auth = await requireGymStaff(slug);
+  const gymId = auth.business!.id;
+
+  const staff = await prisma.staff.findFirst({
+    where: { id: staffId, gymId },
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+          locale: true,
+          loginId: true,
+          status: true,
+        },
+      },
+      business: { select: { name: true } },
+    },
+  });
+  if (!staff) return { ok: false, message: "트레이너를 찾을 수 없습니다" };
+  if (staff.user.status !== "ACTIVE" || !staff.user.loginId) {
+    return {
+      ok: false,
+      message: "활성화된 트레이너에게만 로그인 링크를 보낼 수 있습니다",
+    };
+  }
+  if (!staff.user.email) {
+    return { ok: false, message: "이메일이 없는 트레이너입니다." };
+  }
+
+  const lang = staff.user.locale === "ko" ? "ko" : "en";
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const url = `${proto}://${host}/${lang}/g/${slug}/login`;
+
+  const result = await sendStaffLoginUrlEmail({
+    to: staff.user.email,
+    recipientName: staff.user.name,
+    storeName: staff.business?.name ?? "",
+    loginId: staff.user.loginId,
+    loginUrl: url,
+  });
+  if ("fallback" in result && result.fallback) {
+    return {
+      ok: false,
+      message:
+        "Gmail 자격증명 미설정 — Vercel env에 GMAIL_USER/GMAIL_APP_PASSWORD 추가하세요",
+    };
+  }
+  if (!result.ok) {
+    return {
+      ok: false,
+      message: `발송 실패: ${"error" in result ? result.error : "unknown"}`,
+    };
+  }
+  return { ok: true, url, emailedTo: staff.user.email };
 }
 
 // 하드 삭제 폐기 — 예약/실적 이력 보존 위해 활성/비활성 토글로 대체.
