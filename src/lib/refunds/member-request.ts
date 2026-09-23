@@ -1,45 +1,47 @@
 import { prisma } from "@/lib/db/client";
 import { gymTodayUtcMidnight, gymTodayRange } from "@/lib/calendar/gymTime";
 import { OPEN_STATUSES } from "@/lib/packages/availability";
+import { completeRefundInTx } from "./complete";
 
-// 회원 변심 환불(T17) 산식 + 신청 생성 — 카운터(사장/매니저)가 회원 대면 후 등록.
-// 2026-09-23: 고객 셀프 신청(/me/holdings/refund) 폐기. 환불은 오프라인 대면으로만
-// 접수하고, 기록은 사장 회원 상세에서 이 모듈로 남긴다. docs/customer.md 참고.
+// 회원 변심 환불(T17) 산식 + 처리 — 카운터(사장/매니저)가 회원 대면 후 회원 상세에서.
+// 2026-09-23: 고객 셀프 신청(/me/holdings/refund) 폐기.
+// 2026-09-24: /refunds 화면 폐기 — 등록과 동시에 COMPLETED 마감(영수증 채팅 포함).
+//   권별 "환불" 과 "전체 환불"(회원의 환불 가능한 권 전부) 둘 다 이 모듈.
 //
 // 산식: 환불 = 올림( 환불대상 × 단위가 × 0.5 )
 //   수업권: 단위=회. 환불대상 = 잔여 − 당일예약(완료 취급). 단위가 = 정가/총회.
 //   회원권: 단위=일. 환불대상 = 잔여일. 단위가 = 정가/총일.
-// 당일 예약은 신청 시 취소하지 않는다 — 그날 트레이너가 완료 처리하므로 "사용"으로
-// 친다. 미래(내일 이후) 예약만 신청 시 취소된다. 신청 시 권은 refundedAt 으로 동결.
+// 당일 예약은 취소하지 않는다 — 그날 트레이너가 완료 처리하므로 "사용"으로 친다.
+// 미래(내일 이후) 예약만 취소. 권은 refundedAt 으로 동결.
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
 export type RefundKindArg = "PACKAGE" | "MEMBERSHIP";
 
+export type RefundItem = {
+  kind: RefundKindArg;
+  passId: string;
+  memberName: string;
+  serviceName: string;
+  trainerName: string | null;
+  paidPhp: number;
+  // 수업권은 회 단위, 회원권은 일 단위.
+  totalUnits: number;
+  completedUnits: number;
+  todayUnits: number;
+  refundUnits: number;
+  refundPhp: number;
+};
+
 export type RefundPreview =
-  | {
-      ok: true;
-      kind: RefundKindArg;
-      memberName: string;
-      serviceName: string;
-      trainerName: string | null;
-      paidPhp: number;
-      // 수업권은 회 단위, 회원권은 일 단위.
-      totalUnits: number;
-      completedUnits: number;
-      todayUnits: number;
-      refundUnits: number;
-      refundPhp: number;
-    }
+  | ({ ok: true } & RefundItem)
   | { ok: false; reason: "invalid" | "alreadyRefunded" };
 
-type Computed = Extract<RefundPreview, { ok: true }> & {
-  paidPerUnit: number;
-};
+type Computed = RefundItem & { paidPerUnit: number };
 
 type GymCtx = { gymId: string; timeZone: string };
 
-// 환불 내역 계산 — 미리보기와 제출이 같은 로직을 쓰도록 단일 함수.
+// 환불 내역 계산 — 미리보기와 처리가 같은 로직을 쓰도록 단일 함수.
 // 권이 이 매장 소속인지만 검사한다(호출자는 이미 매장 스태프 인증 통과).
 export async function computeMemberRefund(
   gym: GymCtx,
@@ -93,8 +95,8 @@ export async function computeMemberRefund(
       ok: true,
       userId: pkg.userId,
       data: {
-        ok: true,
         kind: "PACKAGE",
+        passId: pkg.id,
         memberName: pkg.user.name,
         serviceName: pkg.plan?.name ?? pkg.service.name,
         trainerName: pkg.assignedStaff?.user.name ?? null,
@@ -147,8 +149,8 @@ export async function computeMemberRefund(
     ok: true,
     userId: m.userId,
     data: {
-      ok: true,
       kind: "MEMBERSHIP",
+      passId: m.id,
       memberName: m.user.name,
       serviceName: m.plan?.name ?? "회원권",
       trainerName: null,
@@ -163,6 +165,53 @@ export async function computeMemberRefund(
   };
 }
 
+function stripInternal(c: Computed): RefundItem {
+  const { paidPerUnit: _omit, ...item } = c;
+  void _omit;
+  return item;
+}
+
+export async function previewMemberRefund(
+  gym: GymCtx,
+  kind: RefundKindArg,
+  id: string,
+): Promise<RefundPreview> {
+  const r = await computeMemberRefund(gym, kind, id);
+  if (!r.ok) return r;
+  return { ok: true, ...stripInternal(r.data) };
+}
+
+// "전체 환불" — 회원의 동결 안 된 권 전부 계산. 환불 대상이 0 인 권(소진)은 제외.
+export async function listMemberRefundables(
+  gym: GymCtx,
+  userId: string,
+): Promise<RefundItem[]> {
+  const [memberships, packages] = await Promise.all([
+    prisma.membership.findMany({
+      where: { gymId: gym.gymId, userId, refundedAt: null },
+      select: { id: true },
+      orderBy: { endDate: "desc" },
+    }),
+    prisma.package.findMany({
+      where: { gymId: gym.gymId, userId, refundedAt: null },
+      select: { id: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const targets: { kind: RefundKindArg; id: string }[] = [
+    ...memberships.map((m) => ({ kind: "MEMBERSHIP" as const, id: m.id })),
+    ...packages.map((p) => ({ kind: "PACKAGE" as const, id: p.id })),
+  ];
+  const items: RefundItem[] = [];
+  for (const tgt of targets) {
+    const r = await computeMemberRefund(gym, tgt.kind, tgt.id);
+    if (r.ok && r.userId === userId && r.data.refundUnits > 0) {
+      items.push(stripInternal(r.data));
+    }
+  }
+  return items;
+}
+
 export type RefundPayout = {
   method: "BANK_TRANSFER" | "IN_PERSON";
   bankName?: string;
@@ -170,27 +219,22 @@ export type RefundPayout = {
   accountHolder?: string;
 };
 
-export type SubmitRefundResult =
-  | { ok: true; refundId: string }
+export type ProcessRefundResult =
+  | { ok: true; count: number; totalPhp: number }
   | {
       ok: false;
       reason: "invalid" | "alreadyRefunded" | "nothingToRefund" | "missingBank";
     };
 
-// 환불 신청 생성 — RefundRequest(PENDING) + 권 동결 + 미래 예약 취소.
-// actorUserId = 등록한 스태프. 지급 완료는 /refunds 의 completeRefund 가 마감.
-export async function createMemberRefundRequest(
+// 환불 처리 — 대상 권 각각에 대해 RefundRequest 생성 + 권 동결 + 미래 예약 취소 +
+// 즉시 COMPLETED 마감(영수증 채팅). 전부 한 트랜잭션. actorUserId = 처리한 스태프.
+export async function processMemberRefunds(
   gym: GymCtx,
-  kind: RefundKindArg,
-  id: string,
+  targets: { kind: RefundKindArg; id: string }[],
   payout: RefundPayout,
   actorUserId: string,
-): Promise<SubmitRefundResult> {
-  const r = await computeMemberRefund(gym, kind, id);
-  if (!r.ok) return { ok: false, reason: r.reason };
-  const { data, userId } = r;
+): Promise<ProcessRefundResult> {
   const { gymId, timeZone } = gym;
-  if (data.refundUnits <= 0) return { ok: false, reason: "nothingToRefund" };
 
   const bankName = payout.bankName?.trim() || null;
   const bankAccount = payout.bankAccount?.trim() || null;
@@ -202,53 +246,80 @@ export async function createMemberRefundRequest(
     return { ok: false, reason: "missingBank" };
   }
 
-  // 미래(내일 이후) 예약 — 신청 시 취소. 당일 예약은 그대로(완료 취급).
+  const computed: { data: Computed; userId: string }[] = [];
+  for (const tgt of targets) {
+    const r = await computeMemberRefund(gym, tgt.kind, tgt.id);
+    if (!r.ok) return { ok: false, reason: r.reason };
+    if (r.data.refundUnits > 0) computed.push({ data: r.data, userId: r.userId });
+  }
+  if (computed.length === 0) return { ok: false, reason: "nothingToRefund" };
+
+  // 미래(내일 이후) 예약 — 처리 시 취소. 당일 예약은 그대로(완료 취급).
   const { end: todayEnd } = gymTodayRange(timeZone);
-  const futureResvIds =
-    kind === "PACKAGE"
-      ? (
-          await prisma.reservation.findMany({
-            where: {
-              gymId,
-              packageId: id,
-              startAt: { gte: todayEnd },
-              status: { in: [...OPEN_STATUSES] },
-            },
-            select: { id: true },
-          })
-        ).map((x) => x.id)
+  const packageIds = computed
+    .filter((c) => c.data.kind === "PACKAGE")
+    .map((c) => c.data.passId);
+  const futureResv =
+    packageIds.length > 0
+      ? await prisma.reservation.findMany({
+          where: {
+            gymId,
+            packageId: { in: packageIds },
+            startAt: { gte: todayEnd },
+            status: { in: [...OPEN_STATUSES] },
+          },
+          select: { id: true },
+        })
       : [];
+  const futureResvIds = futureResv.map((x) => x.id);
 
   const now = new Date();
-  const refundId = await prisma.$transaction(async (tx) => {
-    const created = await tx.refundRequest.create({
-      data: {
+  await prisma.$transaction(async (tx) => {
+    for (const { data, userId } of computed) {
+      const created = await tx.refundRequest.create({
+        data: {
+          gymId,
+          userId,
+          kind: data.kind,
+          packageId: data.kind === "PACKAGE" ? data.passId : null,
+          membershipId: data.kind === "MEMBERSHIP" ? data.passId : null,
+          serviceName: data.serviceName,
+          trainerName: data.trainerName,
+          paidPhp: data.paidPhp,
+          refundPhp: data.refundPhp,
+          totalUnits: data.totalUnits,
+          completedUnits: data.completedUnits,
+          todayUnits: data.todayUnits,
+          refundUnits: data.refundUnits,
+          payoutMethod: payout.method,
+          bankName,
+          bankAccount,
+          accountHolder,
+          reason: "CUSTOMER_REQUEST",
+        },
+        select: { id: true },
+      });
+      // 권 동결.
+      if (data.kind === "PACKAGE") {
+        await tx.package.update({
+          where: { id: data.passId },
+          data: { refundedAt: now },
+        });
+      } else {
+        await tx.membership.update({
+          where: { id: data.passId },
+          data: { refundedAt: now },
+        });
+      }
+      // 카운터에서 지급까지 끝난 상태로 등록 — 즉시 완료 + 영수증.
+      await completeRefundInTx(tx, {
+        refundId: created.id,
         gymId,
         userId,
-        kind,
-        packageId: kind === "PACKAGE" ? id : null,
-        membershipId: kind === "MEMBERSHIP" ? id : null,
         serviceName: data.serviceName,
-        trainerName: data.trainerName,
-        paidPhp: data.paidPhp,
         refundPhp: data.refundPhp,
-        totalUnits: data.totalUnits,
-        completedUnits: data.completedUnits,
-        todayUnits: data.todayUnits,
-        refundUnits: data.refundUnits,
-        payoutMethod: payout.method,
-        bankName,
-        bankAccount,
-        accountHolder,
-        reason: "CUSTOMER_REQUEST",
-      },
-      select: { id: true },
-    });
-    // 권 동결.
-    if (kind === "PACKAGE") {
-      await tx.package.update({ where: { id }, data: { refundedAt: now } });
-    } else {
-      await tx.membership.update({ where: { id }, data: { refundedAt: now } });
+        actorId: actorUserId,
+      });
     }
     // 미래 예약 취소 + 로그(스태프가 대신 취소).
     if (futureResvIds.length > 0) {
@@ -265,8 +336,11 @@ export async function createMemberRefundRequest(
         })),
       });
     }
-    return created.id;
   });
 
-  return { ok: true, refundId };
+  return {
+    ok: true,
+    count: computed.length,
+    totalPhp: computed.reduce((s, c) => s + c.data.refundPhp, 0),
+  };
 }

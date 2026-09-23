@@ -4,26 +4,25 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { submitMemberRefund } from "../../actions";
-import type { RefundPreview } from "@/lib/refunds/member-request";
+import type { RefundItem } from "@/lib/refunds/member-request";
 
-type PreviewData = Extract<RefundPreview, { ok: true }>;
 type Method = "BANK_TRANSFER" | "IN_PERSON";
 
-// 카운터 환불 등록 폼 (hybrid-c indigo). 내역 + 산식 + 정가 기준 안내 + 수령 방법
-// (기본 직접 수령) + 대면 확인 체크 후 등록. 등록되면 /refunds 로 이동해 바로
-// "완료" 마감할 수 있게 한다.
+// 카운터 환불 폼 (hybrid-c indigo). 권별(items 1개)·전체(items N개) 공용.
+// 권별 내역 + 산식 + 합계 + 정가 기준 안내 + 지급 방법(기본 직접 지급) + 대면 확인
+// 체크 후 "환불 완료" — 등록과 동시에 COMPLETED 마감되고 회원 채팅에 영수증이 간다.
 export function MemberRefundForm({
   slug,
   lang,
-  kind,
-  passId,
-  preview,
+  memberId,
+  memberName,
+  items,
 }: {
   slug: string;
   lang: string;
-  kind: "PACKAGE" | "MEMBERSHIP";
-  passId: string;
-  preview: PreviewData;
+  memberId: string;
+  memberName: string;
+  items: RefundItem[];
 }) {
   const t = useTranslations("memberDetail");
   const router = useRouter();
@@ -35,13 +34,11 @@ export function MemberRefundForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const unit = t(kind === "PACKAGE" ? "refundUnitSession" : "refundUnitDay");
   const money = (n: number) => `₱${n.toLocaleString()}`;
-  const rawHalf =
-    (preview.paidPhp * preview.refundUnits) / preview.totalUnits / 2;
-  const wasRounded = preview.refundPhp !== rawHalf;
+  const refundable = items.filter((i) => i.refundUnits > 0);
+  const total = refundable.reduce((s, i) => s + i.refundPhp, 0);
+  const nothing = refundable.length === 0;
 
-  const nothing = preview.refundUnits <= 0;
   const bankOk =
     method === "IN_PERSON" ||
     (bankName.trim() !== "" &&
@@ -53,14 +50,13 @@ export function MemberRefundForm({
     if (!canSubmit) return;
     setError(null);
     startTransition(async () => {
-      const r = await submitMemberRefund(slug, kind, passId, {
-        method,
-        bankName,
-        bankAccount,
-        accountHolder,
-      });
+      const r = await submitMemberRefund(
+        slug,
+        refundable.map((i) => ({ kind: i.kind, id: i.passId })),
+        { method, bankName, bankAccount, accountHolder },
+      );
       if (r.ok) {
-        router.push(`/${lang}/g/${slug}/refunds`);
+        router.push(`/${lang}/g/${slug}/members/${memberId}`);
         router.refresh();
       } else {
         setError(t("refundError"));
@@ -70,66 +66,30 @@ export function MemberRefundForm({
 
   return (
     <div className="space-y-4">
-      {/* 환불 내역 + 산정 방식 */}
+      {/* 환불 대상 목록 — 권별 내역 + 산식 */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-6">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
           {t("refundBreakdownTitle")}
         </div>
-        <div className="mt-2 text-lg font-semibold tracking-tight text-zinc-900">
-          {preview.serviceName}
-          {preview.trainerName && (
-            <span className="ml-2 text-sm font-normal text-zinc-500">
-              {t("refundTrainerLabel")}: {preview.trainerName}
+        {nothing ? (
+          <p className="mt-3 text-base text-amber-800">{t("refundNothing")}</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-zinc-200">
+            {refundable.map((it) => (
+              <ItemBlock key={`${it.kind}:${it.passId}`} item={it} t={t} />
+            ))}
+          </ul>
+        )}
+        {!nothing && (
+          <div className="mt-4 flex items-baseline justify-between border-t-2 border-zinc-300 pt-4">
+            <span className="text-base font-semibold text-zinc-900">
+              {t("refundTotalLabel", { n: refundable.length })}
             </span>
-          )}
-        </div>
-
-        <dl className="mt-4 space-y-2 text-base">
-          <Row label={t("refundPaidLabel")} value={money(preview.paidPhp)} />
-          <Row
-            label={t("refundLineTotal")}
-            value={`${preview.totalUnits}${unit}`}
-          />
-          <Row
-            label={t("refundLineCompleted")}
-            value={`${preview.completedUnits}${unit}`}
-          />
-          {preview.todayUnits > 0 && (
-            <Row
-              label={t("refundLineToday")}
-              value={`${preview.todayUnits}${unit}`}
-            />
-          )}
-          <Row
-            label={t("refundLineRefundable")}
-            value={`${preview.refundUnits}${unit}`}
-            strong
-          />
-        </dl>
-
-        <div className="mt-4 border-t border-zinc-200 pt-4">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-            {t("refundCalcLabel")}
-          </div>
-          <div className="mt-2 text-sm text-zinc-700">
-            ({money(preview.paidPhp)} ÷ {preview.totalUnits}) ×{" "}
-            {preview.refundUnits} × 50%
-          </div>
-          <div className="mt-2 flex items-baseline gap-3">
-            <span className="text-sm text-zinc-500">=</span>
-            <span className="text-3xl font-bold tracking-tight text-emerald-700">
-              {money(preview.refundPhp)}
+            <span className="text-3xl font-bold tracking-tight text-emerald-700 tabular-nums">
+              {money(total)}
             </span>
-            {wasRounded && (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
-                {t("refundRounded")}
-              </span>
-            )}
           </div>
-          <p className="mt-3 text-sm leading-relaxed text-zinc-500">
-            {t("refundCalcNote")}
-          </p>
-        </div>
+        )}
       </section>
 
       {/* 정가 기준 50% 안내 — 회원에게 그대로 설명할 문구. 분쟁 방지용 rose 강조. */}
@@ -142,11 +102,7 @@ export function MemberRefundForm({
         </p>
       </section>
 
-      {nothing ? (
-        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-6 text-base text-amber-800">
-          {t("refundNothing")}
-        </section>
-      ) : (
+      {!nothing && (
         <>
           <section className="rounded-2xl border border-zinc-200 bg-white p-6">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
@@ -195,8 +151,8 @@ export function MemberRefundForm({
               />
               <span className="text-base leading-relaxed text-zinc-800">
                 {t("refundConfirmLabel", {
-                  name: preview.memberName,
-                  amount: money(preview.refundPhp),
+                  name: memberName,
+                  amount: money(total),
                 })}
               </span>
             </label>
@@ -208,13 +164,75 @@ export function MemberRefundForm({
             type="button"
             onClick={submit}
             disabled={!canSubmit || pending}
-            className="w-full rounded-xl bg-indigo-600 py-3.5 text-base font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
+            className="w-full rounded-xl bg-emerald-600 py-3.5 text-base font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-40"
           >
-            {pending ? t("refundSubmitting") : t("refundSubmit")}
+            {pending ? t("refundSubmitting") : t("refundCompleteBtn")}
           </button>
         </>
       )}
     </div>
+  );
+}
+
+function ItemBlock({
+  item,
+  t,
+}: {
+  item: RefundItem;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
+  const unit = t(
+    item.kind === "PACKAGE" ? "refundUnitSession" : "refundUnitDay",
+  );
+  const money = (n: number) => `₱${n.toLocaleString()}`;
+  const rawHalf = (item.paidPhp * item.refundUnits) / item.totalUnits / 2;
+  const wasRounded = item.refundPhp !== rawHalf;
+  return (
+    <li className="py-4 first:pt-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-lg font-semibold tracking-tight text-zinc-900">
+          {item.serviceName}
+          {item.trainerName && (
+            <span className="ml-2 text-sm font-normal text-zinc-500">
+              {t("refundTrainerLabel")}: {item.trainerName}
+            </span>
+          )}
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold tracking-tight text-emerald-700 tabular-nums">
+            {money(item.refundPhp)}
+          </span>
+          {wasRounded && (
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+              {t("refundRounded")}
+            </span>
+          )}
+        </div>
+      </div>
+      <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+        <Row label={t("refundPaidLabel")} value={money(item.paidPhp)} />
+        <Row label={t("refundLineTotal")} value={`${item.totalUnits}${unit}`} />
+        <Row
+          label={t("refundLineCompleted")}
+          value={`${item.completedUnits}${unit}`}
+        />
+        {item.todayUnits > 0 && (
+          <Row
+            label={t("refundLineToday")}
+            value={`${item.todayUnits}${unit}`}
+          />
+        )}
+        <Row
+          label={t("refundLineRefundable")}
+          value={`${item.refundUnits}${unit}`}
+          strong
+        />
+      </dl>
+      <div className="mt-2 text-xs text-zinc-500">
+        {t("refundCalcLabel")}: ({money(item.paidPhp)} ÷ {item.totalUnits}) ×{" "}
+        {item.refundUnits} × 50%
+      </div>
+    </li>
   );
 }
 
@@ -228,7 +246,7 @@ function Row({
   strong?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex items-baseline justify-between gap-2 sm:block">
       <dt className="text-zinc-500">{label}</dt>
       <dd
         className={

@@ -8,13 +8,19 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import {
-  computeMemberRefund,
-  createMemberRefundRequest,
+  previewMemberRefund,
+  listMemberRefundables,
+  processMemberRefunds,
   type RefundKindArg,
+  type RefundItem,
   type RefundPayout,
   type RefundPreview,
-  type SubmitRefundResult,
+  type ProcessRefundResult,
 } from "@/lib/refunds/member-request";
+import {
+  completePendingRefund,
+  type CompletePendingResult,
+} from "@/lib/refunds/complete";
 import {
   sendCustomerActivationEmail,
   sendPasswordResetEmail,
@@ -516,10 +522,25 @@ export async function setMemberActive(formData: FormData) {
   revalidatePath(`/en/g/${slug}/members/${memberId}`);
 }
 
-// ── 카운터 환불 등록 (회원 변심 50%) ────────────────────────────────────
-// 고객 셀프 신청 폐기(2026-09-23) 후 유일한 회원 변심 환불 진입점. 회원 상세
-// /members/[id]/refund 페이지가 호출. 산식·생성은 src/lib/refunds/member-request.ts.
+// ── 카운터 환불 (회원 변심 50%) ─────────────────────────────────────────
+// 고객 셀프 신청(2026-09-23)과 /refunds 화면(2026-09-24) 폐기 후 유일한 환불 진입점.
+// 회원 상세 /members/[id] 보유 상품의 "환불"/"전체 환불" -> /members/[id]/refund.
+// 산식·처리는 src/lib/refunds/member-request.ts. 등록 즉시 COMPLETED(영수증 채팅).
 // OWNER/MANAGER 만 — 트레이너는 돈 흐름을 만들지 않는다.
+
+function isManager(role: string): boolean {
+  return role === "OWNER" || role === "MANAGER";
+}
+
+function revalidateRefundViews(slug: string) {
+  for (const lang of ["ko", "en"]) {
+    revalidatePath(`/${lang}/g/${slug}/members`);
+    revalidatePath(`/${lang}/g/${slug}/dashboard`);
+    revalidatePath(`/${lang}/g/${slug}/me`);
+    revalidatePath(`/${lang}/g/${slug}/me/holdings`);
+    revalidatePath(`/${lang}/g/${slug}/me/chat`);
+  }
+}
 
 export async function loadMemberRefundPreview(
   slug: string,
@@ -528,45 +549,57 @@ export async function loadMemberRefundPreview(
 ): Promise<RefundPreview> {
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
-  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
-    return { ok: false, reason: "invalid" };
-  }
-  const r = await computeMemberRefund(
+  if (!isManager(auth.role)) return { ok: false, reason: "invalid" };
+  return previewMemberRefund(
     { gymId: business.id, timeZone: business.timeZone },
     kind,
     id,
   );
-  if (!r.ok) return { ok: false, reason: r.reason };
-  const { paidPerUnit: _omit, ...preview } = r.data;
-  void _omit;
-  return preview;
 }
 
-export async function submitMemberRefund(
+export async function loadMemberRefundAll(
   slug: string,
-  kind: RefundKindArg,
-  id: string,
-  payout: RefundPayout,
-): Promise<SubmitRefundResult> {
+  memberId: string,
+): Promise<RefundItem[]> {
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
-  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
-    return { ok: false, reason: "invalid" };
-  }
-  const result = await createMemberRefundRequest(
+  if (!isManager(auth.role)) return [];
+  return listMemberRefundables(
     { gymId: business.id, timeZone: business.timeZone },
-    kind,
-    id,
+    memberId,
+  );
+}
+
+// 권별/전체 공용 — targets 1개면 권별 환불, N개면 전체 환불.
+export async function submitMemberRefund(
+  slug: string,
+  targets: { kind: RefundKindArg; id: string }[],
+  payout: RefundPayout,
+): Promise<ProcessRefundResult> {
+  const auth = await requireGymStaff(slug);
+  const business = auth.business!;
+  if (!isManager(auth.role)) return { ok: false, reason: "invalid" };
+  const result = await processMemberRefunds(
+    { gymId: business.id, timeZone: business.timeZone },
+    targets,
     payout,
     auth.id,
   );
-  if (!result.ok) return result;
+  if (result.ok) revalidateRefundViews(slug);
+  return result;
+}
 
-  for (const lang of ["ko", "en"]) {
-    revalidatePath(`/${lang}/g/${slug}/members`);
-    revalidatePath(`/${lang}/g/${slug}/refunds`);
-    revalidatePath(`/${lang}/g/${slug}/me`);
-    revalidatePath(`/${lang}/g/${slug}/me/holdings`);
+// 수업 폐지 자동 환불(매장 귀책 100%, PENDING) 지급 후 완료 마감.
+export async function completeMemberPendingRefund(
+  slug: string,
+  refundId: string,
+): Promise<CompletePendingResult> {
+  const auth = await requireGymStaff(slug);
+  const business = auth.business!;
+  if (!isManager(auth.role)) {
+    return { ok: false, error: "환불을 완료 처리할 권한이 없습니다" };
   }
+  const result = await completePendingRefund(business.id, refundId, auth.id);
+  if (result.ok) revalidateRefundViews(slug);
   return result;
 }

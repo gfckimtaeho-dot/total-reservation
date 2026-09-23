@@ -11,7 +11,7 @@ import {
 import { SidebarNav } from "./SidebarNav";
 import { RefreshButton } from "./RefreshButton";
 import { getKpiExtras } from "./kpi-data";
-import { getPendingRefundCount } from "../refunds/actions";
+import { countPendingRefunds } from "@/lib/refunds/complete";
 import { unreadForViewer, type ChatViewer } from "@/lib/chat/queries";
 import { CalendarMonth } from "./CalendarMonth";
 import {
@@ -41,7 +41,7 @@ export async function DashboardWhite({
   const tn = await getTranslations("nav");
   const [kpi, pendingRefunds, viewerSession] = await Promise.all([
     getKpiExtras(gymId),
-    getPendingRefundCount(slug),
+    countPendingRefunds(gymId),
     verifySession(),
   ]);
   let chatUnread = 0;
@@ -207,7 +207,7 @@ export async function DashboardWhite({
             count={pendingRefunds}
             unit={t("unitCount")}
             sub={t("todoRefundsSub")}
-            href={`/${lang}/g/${slug}/refunds`}
+            href={`/${lang}/g/${slug}/members`}
           />
           <TodoCard
             tone="rose"

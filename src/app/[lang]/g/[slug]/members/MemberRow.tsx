@@ -44,6 +44,7 @@ export type MemberView = {
   status: "PENDING" | "ACTIVE" | "WITHDRAWN" | "ANONYMIZED";
   nextExpiry: string | null;
   expiringSoon: boolean;
+  pendingRefundCount: number;
   remainingPerService: {
     name: string;
     isGroup: boolean;
@@ -187,6 +188,11 @@ export function MemberRow({
           {!member.active && (
             <span className="shrink-0 whitespace-nowrap rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
               {t("inactivePill")}
+            </span>
+          )}
+          {member.pendingRefundCount > 0 && (
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.12em] text-amber-800">
+              {t("pendingRefundPill")}
             </span>
           )}
         </div>

@@ -519,8 +519,6 @@ export async function applyScheduleDeletion(input: {
 
   revalidatePath(`/ko/g/${input.slug}/services`);
   revalidatePath(`/en/g/${input.slug}/services`);
-  revalidatePath(`/ko/g/${input.slug}/refunds`);
-  revalidatePath(`/en/g/${input.slug}/refunds`);
   revalidatePath(`/ko/g/${input.slug}/me/chat`);
   revalidatePath(`/en/g/${input.slug}/me/chat`);
   return {

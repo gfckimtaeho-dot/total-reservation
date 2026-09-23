@@ -83,6 +83,11 @@ export default async function GymMembersPage({
           take: 1,
           select: { endDate: true },
         },
+        // 매장 귀책 자동 환불 대기 — 대시보드 "환불 대기" 카드에서 넘어와 찾을 수 있게 행에 표시.
+        refundRequests: {
+          where: { status: "PENDING" },
+          select: { id: true },
+        },
         packages: {
           // 잔여 0 / 환불된 권은 회원관리 그리드에서 표시 제외.
           where: { remainingCount: { gt: 0 }, refundedAt: null },
@@ -173,6 +178,7 @@ export default async function GymMembersPage({
         : null,
       expiringSoon: expSoon,
       remainingPerService,
+      pendingRefundCount: r.refundRequests.length,
     };
   });
 

@@ -3,7 +3,6 @@
 import { useEffect, useState, useTransition, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { getPendingRefundCount } from "../refunds/actions";
 
 type ActiveKey =
   | "dashboard"
@@ -14,7 +13,6 @@ type ActiveKey =
   | "services"
   | "revenue"
   | "visits"
-  | "refunds"
   | "scan"
   | "chat"
   | "settings";
@@ -34,7 +32,6 @@ function items(lang: string, slug: string): Item[] {
     { key: "products", href: `/${lang}/g/${slug}/products` },
     { key: "revenue", href: `/${lang}/g/${slug}/revenue` },
     { key: "visits", href: `/${lang}/g/${slug}/visits` },
-    { key: "refunds", href: `/${lang}/g/${slug}/refunds` },
     { key: "scan", href: `/${lang}/g/${slug}/scan` },
     { key: "chat", href: `/${lang}/g/${slug}/chat` },
     { key: "settings", href: `/${lang}/g/${slug}/settings` },
@@ -70,7 +67,6 @@ function parsePathname(
   else if (section === "services") key = "services";
   else if (section === "revenue") key = "revenue";
   else if (section === "visits") key = "visits";
-  else if (section === "refunds") key = "refunds";
   else if (section === "scan") key = "scan";
   else if (section === "chat") key = "chat";
   else if (section === "settings") key = "settings";
@@ -86,7 +82,6 @@ function keyFromHref(href: string): ActiveKey | null {
   if (href.endsWith("/services")) return "services";
   if (href.endsWith("/revenue")) return "revenue";
   if (href.endsWith("/visits")) return "visits";
-  if (href.endsWith("/refunds")) return "refunds";
   if (href.endsWith("/scan")) return "scan";
   if (href.endsWith("/chat")) return "chat";
   if (href.endsWith("/settings")) return "settings";
@@ -110,10 +105,6 @@ export function SidebarNav({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [pendingKey, setPendingKey] = useState<ActiveKey | null>(null);
-  // 미지급 환불 카운트 — refunds 메뉴 우측 뱃지. pathname 바뀔 때마다
-  // refetch 해서 /refunds 에서 처리 완료 후 dashboard 등 다른 메뉴로
-  // 이동하면 즉시 갱신.
-  const [pendingRefund, setPendingRefund] = useState<number>(0);
   // 채팅 unread — 5초 폴링. visibilityState hidden 시 30초로 늘림.
   const [chatUnread, setChatUnread] = useState<number>(0);
 
@@ -122,24 +113,6 @@ export function SidebarNav({
   useEffect(() => {
     setPendingKey(null);
   }, [pathname]);
-
-  useEffect(() => {
-    if (!slug) return;
-    let cancelled = false;
-    function refetch() {
-      void getPendingRefundCount(slug).then((n) => {
-        if (!cancelled) setPendingRefund(n);
-      });
-    }
-    refetch();
-    // 환불 완료 등 도메인 이벤트 직후 즉시 갱신 — RefundsTable 등 호출처에서
-    // `pending-refund-changed` 커스텀 이벤트 dispatch.
-    window.addEventListener("pending-refund-changed", refetch);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("pending-refund-changed", refetch);
-    };
-  }, [slug, pathname]);
 
   useEffect(() => {
     if (!slug) return;
@@ -182,12 +155,6 @@ export function SidebarNav({
   function navigate(href: string) {
     const k = keyFromHref(href);
     if (k) setPendingKey(k);
-    // 메뉴 클릭 자체로 환불 카운트 refetch — /refunds 안에서 완료 처리한 직후
-    // 같은 /refunds 메뉴를 다시 누르면 pathname 안 바뀌어 useEffect 가 안 도는
-    // 회귀 fix(뱃지 stale).
-    if (slug) {
-      void getPendingRefundCount(slug).then((n) => setPendingRefund(n));
-    }
     startTransition(() => {
       router.push(href);
     });
@@ -239,7 +206,6 @@ export function SidebarNav({
             n.key === "services" ||
             n.key === "revenue" ||
             n.key === "visits" ||
-            n.key === "refunds" ||
             n.key === "scan" ||
             n.key === "chat" ||
             n.key === "settings") &&
@@ -259,7 +225,6 @@ export function SidebarNav({
         }
         const href = n.href;
         const isPendingThis = pending && pendingKey === n.key;
-        const showRefundBadge = n.key === "refunds" && pendingRefund > 0;
         const showChatBadge = n.key === "chat" && chatUnread > 0;
         return (
           <button
@@ -271,11 +236,6 @@ export function SidebarNav({
           >
             <span>{t(n.key)}</span>
             <span className="flex items-center gap-1.5">
-              {showRefundBadge && (
-                <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white tabular-nums">
-                  {pendingRefund > 99 ? "99+" : pendingRefund}
-                </span>
-              )}
               {showChatBadge && (
                 <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white tabular-nums">
                   {chatUnread > 99 ? "99+" : chatUnread}

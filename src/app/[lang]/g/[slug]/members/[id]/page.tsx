@@ -10,6 +10,8 @@ import { OwnerIssuePanel } from "./OwnerIssuePanel";
 import { HandoverDialog } from "../../handover/HandoverDialog";
 import { PasswordResetButton } from "@/components/PasswordResetButton";
 import { copyPasswordResetUrl } from "../actions";
+import { PendingRefundCompleteButton } from "./PendingRefundCompleteButton";
+import { gymTodayUtcMidnight } from "@/lib/calendar/gymTime";
 
 const TK = {
   section: "rounded-2xl border border-zinc-200 bg-white p-6",
@@ -57,6 +59,11 @@ export default async function MemberDetailPage({
               endDate: true,
               plan: { select: { name: true } },
             },
+          },
+          refundRequests: {
+            where: { status: "PENDING" },
+            orderBy: { requestedAt: "desc" },
+            select: { id: true, serviceName: true, refundPhp: true, reason: true },
           },
           packages: {
             where: { refundedAt: null },
@@ -145,11 +152,14 @@ export default async function MemberDetailPage({
     u.status === "ACTIVE" ? TK.pillActive : TK.pillPending;
 
   // 회원권 + 수업권을 한 표("보유 상품") 안에 보여줌. 구분 컬럼으로 종류 표시.
+  // 소진(잔여 0 / 기간 만료)된 권은 흐릿하게 + 환불 버튼 없음. 환불 동결된 권은 제외.
+  const todayMid = gymTodayUtcMidnight(business.timeZone);
   type Holding = {
     id: string;
     kind: "MEMBERSHIP" | "PACKAGE_PERSONAL" | "PACKAGE_GROUP";
     item: string;
     info: string;
+    exhausted: boolean;
   };
   const order: Record<Holding["kind"], number> = {
     MEMBERSHIP: 0,
@@ -164,6 +174,7 @@ export default async function MemberDetailPage({
       info: `${m.startDate.toISOString().slice(0, 10)} ~ ${m.endDate
         .toISOString()
         .slice(0, 10)}`,
+      exhausted: m.endDate.getTime() <= todayMid.getTime(),
     })),
     ...u.packages.map((p) => ({
       id: p.id,
@@ -172,8 +183,14 @@ export default async function MemberDetailPage({
         : "PACKAGE_PERSONAL") as Holding["kind"],
       item: p.service?.name ?? t("noValue"),
       info: `${p.remainingCount} / ${p.totalCount}`,
+      exhausted: p.remainingCount <= 0,
     })),
-  ].sort((a, b) => order[a.kind] - order[b.kind]);
+  ].sort(
+    (a, b) =>
+      Number(a.exhausted) - Number(b.exhausted) || order[a.kind] - order[b.kind],
+  );
+  const hasRefundable = holdings.some((h) => !h.exhausted);
+  const pendingRefunds = u.refundRequests;
   function kindLabel(k: Holding["kind"]): string {
     if (k === "MEMBERSHIP") return t("kindMembership");
     if (k === "PACKAGE_GROUP") return t("kindPackageGroup");
@@ -337,11 +354,22 @@ export default async function MemberDetailPage({
 
           {/* 보유 상품 — 회원권 + 1:1 수업권 + 단체 수업권 통합 */}
           <section className={TK.section}>
-            <h2
-              className={`text-2xl font-semibold tracking-tight ${TK.title}`}
-            >
-              {t("holdingsHeading")}
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2
+                className={`text-2xl font-semibold tracking-tight ${TK.title}`}
+              >
+                {t("holdingsHeading")}
+              </h2>
+              {/* 전체 환불 — 환불 가능한 권 전부를 한 화면에서 합계와 함께 처리. */}
+              {isManagerRole && hasRefundable && (
+                <Link
+                  href={`/${lang}/g/${slug}/members/${u.id}/refund?all=1`}
+                  className="inline-flex items-center rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                >
+                  {t("refundAllBtn")}
+                </Link>
+              )}
+            </div>
             {holdings.length === 0 ? (
               <p className={`mt-3 text-base ${TK.subtle}`}>
                 {t("holdingsNone")}
@@ -376,7 +404,7 @@ export default async function MemberDetailPage({
                   {holdings.map((h) => (
                     <tr
                       key={h.id}
-                      className={`border-b ${TK.rowBorder}`}
+                      className={`border-b ${TK.rowBorder} ${h.exhausted ? "opacity-40" : ""}`}
                     >
                       <td
                         className={`px-3 py-3 text-left text-sm ${TK.subtle}`}
@@ -390,10 +418,15 @@ export default async function MemberDetailPage({
                         className={`px-3 py-3 text-center tabular-nums ${TK.title}`}
                       >
                         {h.info}
+                        {h.exhausted && (
+                          <span className="ml-2 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600">
+                            {t("exhaustedPill")}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3 text-center">
-                        {/* 카운터 환불 등록 — 회원 변심 50%. OWNER/MANAGER 만 페이지 진입 허용. */}
-                        {isManagerRole && (
+                        {/* 카운터 환불 — 회원 변심 50%, 등록 즉시 완료. OWNER/MANAGER 만. */}
+                        {isManagerRole && !h.exhausted && (
                           <Link
                             href={`/${lang}/g/${slug}/members/${u.id}/refund?kind=${h.kind === "MEMBERSHIP" ? "MEMBERSHIP" : "PACKAGE"}&pass=${h.id}`}
                             className="inline-flex items-center rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
@@ -406,6 +439,43 @@ export default async function MemberDetailPage({
                   ))}
                 </tbody>
               </table>
+            )}
+
+            {/* 매장 귀책 자동 환불(수업 폐지 등) 대기 — 지급 후 여기서 완료 마감. */}
+            {pendingRefunds.length > 0 && (
+              <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                  {t("pendingRefundsHeading")}
+                </div>
+                <ul className="mt-2 divide-y divide-amber-200">
+                  {pendingRefunds.map((r) => (
+                    <li
+                      key={r.id}
+                      className="flex flex-wrap items-center justify-between gap-3 py-2"
+                    >
+                      <div>
+                        <div className="font-medium text-zinc-900">
+                          {r.serviceName}
+                        </div>
+                        <div className="text-xs text-amber-800">
+                          {t("pendingRefundStoreLiability")}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-xl font-bold tabular-nums text-emerald-700">
+                          ₱{r.refundPhp.toLocaleString()}
+                        </span>
+                        {isManagerRole && (
+                          <PendingRefundCompleteButton
+                            slug={slug}
+                            refundId={r.id}
+                          />
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </section>
 
