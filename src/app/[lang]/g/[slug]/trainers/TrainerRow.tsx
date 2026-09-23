@@ -114,6 +114,7 @@ export type TrainerView = {
   staffId: string;
   userId: string;
   name: string;
+  loginId: string | null;
   role: "TRAINER" | "MANAGER";
   phone: string | null;
   email: string | null;
@@ -292,6 +293,9 @@ export function TrainerRow({
             {t("inactivePill")}
           </span>
         )}
+      </td>
+      <td className={`px-4 py-3 text-left font-mono text-sm ${tk.text}`}>
+        {trainer.loginId ?? "-"}
       </td>
       <td className="px-4 py-3 text-center">
         <span

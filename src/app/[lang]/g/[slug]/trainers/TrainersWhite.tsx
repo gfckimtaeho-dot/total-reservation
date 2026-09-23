@@ -74,6 +74,7 @@ export async function TrainersWhite({
                   <tr className="border-b border-zinc-200 bg-zinc-50">
                     <Th>{t("colPhoto")}</Th>
                     <Th>{t("colName")}</Th>
+                    <Th>{t("colLoginId")}</Th>
                     <Th>{t("colRole")}</Th>
                     <Th>{t("colSpecialties")}</Th>
                     <Th>{t("colWeeklyDays")}</Th>

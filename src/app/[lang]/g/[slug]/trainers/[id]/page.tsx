@@ -50,6 +50,7 @@ export default async function TrainerDetailPage({
         select: {
           id: true,
           name: true,
+          loginId: true,
           email: true,
           phone: true,
           dob: true,
@@ -202,6 +203,7 @@ export default async function TrainerDetailPage({
                 value={age != null ? t("ageUnit", { age }) : t("noValue")}
               />
               <Row label={t("labelDob")} value={dobStr ?? t("noValue")} />
+              <Row label={t("labelLoginId")} value={u.loginId ?? t("noValue")} />
               <Row label={t("labelPhone")} value={u.phone ?? t("noValue")} />
               <Row label={t("labelEmail")} value={u.email ?? t("noValue")} />
               <Row

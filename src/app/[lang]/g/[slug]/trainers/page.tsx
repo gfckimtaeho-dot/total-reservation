@@ -94,6 +94,7 @@ export default async function GymTrainersPage({
         select: {
           id: true,
           name: true,
+          loginId: true,
           phone: true,
           email: true,
           status: true,
@@ -127,6 +128,7 @@ export default async function GymTrainersPage({
       staffId: r.id,
       userId: r.user.id,
       name: r.user.name,
+      loginId: r.user.loginId,
       role: r.role as "TRAINER" | "MANAGER",
       phone: r.user.phone,
       email: r.user.email,
