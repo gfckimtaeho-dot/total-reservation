@@ -62,6 +62,7 @@
 - 예약 취소 (1:1): 내일 이후만. Package.remainingCount totalCount cap 복구. 당일은 전화 안내.
 - 단체 수업 등록: 본인 단체 권 + 14일 안 occurrence. 정원/중복 검증. 가장 오래된 단체 권 FIFO 매칭. 완료 시 차감.
 - 출입 QR: 큰 버튼 → 모달. requestAccessQr 액션이 그 1명 실시간 판정(유효 회원권 또는 오늘 예약).
+- 환불: 고객 앱에 진입 없음 (2026-09-23 셀프 신청 폐기 — 환불 시도 자체를 줄이기 위해 카운터 대면 접수만). 사장/매니저가 /members/[id]/refund 에서 등록(산식은 src/lib/refunds/member-request.ts, 회원 변심 정가 50% 올림). 등록 시 권 동결 + 내일 이후 예약 취소, 지급 완료는 /refunds 에서 마감. 매장 귀책(수업 폐지 등) 100% 자동 환불 알림 카드는 /me 에 유지.
 
 ### 알림 설정
 - 푸시 ON / OFF

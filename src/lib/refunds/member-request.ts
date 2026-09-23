@@ -1,22 +1,16 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
-import { requireGymCustomer } from "@/lib/auth/dal";
-import {
-  gymTodayUtcMidnight,
-  gymTodayRange,
-} from "@/lib/calendar/gymTime";
+import { gymTodayUtcMidnight, gymTodayRange } from "@/lib/calendar/gymTime";
 import { OPEN_STATUSES } from "@/lib/packages/availability";
 
-// 환불 (T17) — 고객 셀프 환불 신청.
+// 회원 변심 환불(T17) 산식 + 신청 생성 — 카운터(사장/매니저)가 회원 대면 후 등록.
+// 2026-09-23: 고객 셀프 신청(/me/holdings/refund) 폐기. 환불은 오프라인 대면으로만
+// 접수하고, 기록은 사장 회원 상세에서 이 모듈로 남긴다. docs/customer.md 참고.
 //
 // 산식: 환불 = 올림( 환불대상 × 단위가 × 0.5 )
-//   수업권: 단위=회. 환불대상 = 잔여 − 당일예약(완료 취급). 단위가 = 판매가/총회.
-//   회원권: 단위=일. 환불대상 = 잔여일. 단위가 = 판매가/총일.
-// 당일 예약은 환불 신청 시 취소하지 않는다 — 그날 트레이너가 완료 처리하므로
-// "사용"으로 친다. 미래(내일 이후) 예약만 신청 시 취소된다.
-// 신청 시 권은 refundedAt 으로 동결(이후 예약/재신청 불가).
+//   수업권: 단위=회. 환불대상 = 잔여 − 당일예약(완료 취급). 단위가 = 정가/총회.
+//   회원권: 단위=일. 환불대상 = 잔여일. 단위가 = 정가/총일.
+// 당일 예약은 신청 시 취소하지 않는다 — 그날 트레이너가 완료 처리하므로 "사용"으로
+// 친다. 미래(내일 이후) 예약만 신청 시 취소된다. 신청 시 권은 refundedAt 으로 동결.
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -26,6 +20,7 @@ export type RefundPreview =
   | {
       ok: true;
       kind: RefundKindArg;
+      memberName: string;
       serviceName: string;
       trainerName: string | null;
       paidPhp: number;
@@ -39,22 +34,22 @@ export type RefundPreview =
   | { ok: false; reason: "invalid" | "alreadyRefunded" };
 
 type Computed = Extract<RefundPreview, { ok: true }> & {
-  // 제출 시 함께 쓰는 내부 값.
   paidPerUnit: number;
 };
 
-// 환불 내역 계산 — 컨펌 화면과 제출이 같은 로직을 쓰도록 단일 함수.
-async function computeRefund(
-  slug: string,
+type GymCtx = { gymId: string; timeZone: string };
+
+// 환불 내역 계산 — 미리보기와 제출이 같은 로직을 쓰도록 단일 함수.
+// 권이 이 매장 소속인지만 검사한다(호출자는 이미 매장 스태프 인증 통과).
+export async function computeMemberRefund(
+  gym: GymCtx,
   kind: RefundKindArg,
   id: string,
 ): Promise<
   | { ok: false; reason: "invalid" | "alreadyRefunded" }
-  | { ok: true; data: Computed; gymId: string; userId: string }
+  | { ok: true; data: Computed; userId: string }
 > {
-  const user = await requireGymCustomer(slug);
-  const business = user.business!;
-  const gymId = business.id;
+  const { gymId, timeZone } = gym;
 
   if (kind === "PACKAGE") {
     const pkg = await prisma.package.findUnique({
@@ -67,23 +62,18 @@ async function computeRefund(
         remainingCount: true,
         pricePhp: true,
         refundedAt: true,
+        user: { select: { name: true } },
         // 표시 이름은 상품명(PackagePlan) 우선 — plan 없으면 서비스명 폴백.
         plan: { select: { name: true } },
-        service: {
-          select: { name: true, deductCount: true },
-        },
-        assignedStaff: {
-          select: { user: { select: { name: true } } },
-        },
+        service: { select: { name: true, deductCount: true } },
+        assignedStaff: { select: { user: { select: { name: true } } } },
       },
     });
-    if (!pkg || pkg.gymId !== gymId || pkg.userId !== user.id) {
-      return { ok: false, reason: "invalid" };
-    }
+    if (!pkg || pkg.gymId !== gymId) return { ok: false, reason: "invalid" };
     if (pkg.refundedAt) return { ok: false, reason: "alreadyRefunded" };
 
     // 오늘 예약(완료 취급) — 당일 범위의 미완료 예약.
-    const { start, end } = gymTodayRange(business.timeZone);
+    const { start, end } = gymTodayRange(timeZone);
     const todayResvCount = await prisma.reservation.count({
       where: {
         gymId,
@@ -101,11 +91,11 @@ async function computeRefund(
 
     return {
       ok: true,
-      gymId,
-      userId: user.id,
+      userId: pkg.userId,
       data: {
         ok: true,
         kind: "PACKAGE",
+        memberName: pkg.user.name,
         serviceName: pkg.plan?.name ?? pkg.service.name,
         trainerName: pkg.assignedStaff?.user.name ?? null,
         paidPhp: pkg.pricePhp,
@@ -130,15 +120,14 @@ async function computeRefund(
       endDate: true,
       pricePhp: true,
       refundedAt: true,
+      user: { select: { name: true } },
       plan: { select: { name: true } },
     },
   });
-  if (!m || m.gymId !== gymId || m.userId !== user.id) {
-    return { ok: false, reason: "invalid" };
-  }
+  if (!m || m.gymId !== gymId) return { ok: false, reason: "invalid" };
   if (m.refundedAt) return { ok: false, reason: "alreadyRefunded" };
 
-  const todayMid = gymTodayUtcMidnight(business.timeZone);
+  const todayMid = gymTodayUtcMidnight(timeZone);
   const totalDays = Math.max(
     1,
     Math.round((m.endDate.getTime() - m.startDate.getTime()) / MS_DAY),
@@ -156,11 +145,11 @@ async function computeRefund(
 
   return {
     ok: true,
-    gymId,
-    userId: user.id,
+    userId: m.userId,
     data: {
       ok: true,
       kind: "MEMBERSHIP",
+      memberName: m.user.name,
       serviceName: m.plan?.name ?? "회원권",
       trainerName: null,
       paidPhp: m.pricePhp,
@@ -174,49 +163,34 @@ async function computeRefund(
   };
 }
 
-// 환불 신청 컨펌 화면용 — 내역 미리보기.
-export async function loadRefundPreview(
-  slug: string,
-  kind: RefundKindArg,
-  id: string,
-): Promise<RefundPreview> {
-  const r = await computeRefund(slug, kind, id);
-  if (!r.ok) return { ok: false, reason: r.reason };
-  // paidPerUnit 은 내부값 — 미리보기엔 빼고 반환.
-  const { paidPerUnit: _omit, ...preview } = r.data;
-  void _omit;
-  return preview;
-}
+export type RefundPayout = {
+  method: "BANK_TRANSFER" | "IN_PERSON";
+  bankName?: string;
+  bankAccount?: string;
+  accountHolder?: string;
+};
 
 export type SubmitRefundResult =
-  | { ok: true }
+  | { ok: true; refundId: string }
   | {
       ok: false;
-      reason:
-        | "invalid"
-        | "alreadyRefunded"
-        | "nothingToRefund"
-        | "missingBank";
+      reason: "invalid" | "alreadyRefunded" | "nothingToRefund" | "missingBank";
     };
 
-// 환불 신청 제출 — RefundRequest 생성 + 권 동결 + 미래 예약 취소.
-export async function submitRefundRequest(
-  slug: string,
+// 환불 신청 생성 — RefundRequest(PENDING) + 권 동결 + 미래 예약 취소.
+// actorUserId = 등록한 스태프. 지급 완료는 /refunds 의 completeRefund 가 마감.
+export async function createMemberRefundRequest(
+  gym: GymCtx,
   kind: RefundKindArg,
   id: string,
-  payout: {
-    method: "BANK_TRANSFER" | "IN_PERSON";
-    bankName?: string;
-    bankAccount?: string;
-    accountHolder?: string;
-  },
+  payout: RefundPayout,
+  actorUserId: string,
 ): Promise<SubmitRefundResult> {
-  const r = await computeRefund(slug, kind, id);
+  const r = await computeMemberRefund(gym, kind, id);
   if (!r.ok) return { ok: false, reason: r.reason };
-  const { data, gymId, userId } = r;
-  if (data.refundUnits <= 0) {
-    return { ok: false, reason: "nothingToRefund" };
-  }
+  const { data, userId } = r;
+  const { gymId, timeZone } = gym;
+  if (data.refundUnits <= 0) return { ok: false, reason: "nothingToRefund" };
 
   const bankName = payout.bankName?.trim() || null;
   const bankAccount = payout.bankAccount?.trim() || null;
@@ -229,9 +203,7 @@ export async function submitRefundRequest(
   }
 
   // 미래(내일 이후) 예약 — 신청 시 취소. 당일 예약은 그대로(완료 취급).
-  const { end: todayEnd } = gymTodayRange(
-    (await requireGymCustomer(slug)).business!.timeZone,
-  );
+  const { end: todayEnd } = gymTodayRange(timeZone);
   const futureResvIds =
     kind === "PACKAGE"
       ? (
@@ -248,8 +220,8 @@ export async function submitRefundRequest(
       : [];
 
   const now = new Date();
-  await prisma.$transaction(async (tx) => {
-    await tx.refundRequest.create({
+  const refundId = await prisma.$transaction(async (tx) => {
+    const created = await tx.refundRequest.create({
       data: {
         gymId,
         userId,
@@ -268,21 +240,17 @@ export async function submitRefundRequest(
         bankName,
         bankAccount,
         accountHolder,
+        reason: "CUSTOMER_REQUEST",
       },
+      select: { id: true },
     });
     // 권 동결.
     if (kind === "PACKAGE") {
-      await tx.package.update({
-        where: { id },
-        data: { refundedAt: now },
-      });
+      await tx.package.update({ where: { id }, data: { refundedAt: now } });
     } else {
-      await tx.membership.update({
-        where: { id },
-        data: { refundedAt: now },
-      });
+      await tx.membership.update({ where: { id }, data: { refundedAt: now } });
     }
-    // 미래 예약 취소 + 로그.
+    // 미래 예약 취소 + 로그(스태프가 대신 취소).
     if (futureResvIds.length > 0) {
       await tx.reservation.updateMany({
         where: { id: { in: futureResvIds } },
@@ -292,16 +260,13 @@ export async function submitRefundRequest(
         data: futureResvIds.map((rid) => ({
           gymId,
           reservationId: rid,
-          action: "CANCELLED_BY_CUSTOMER" as const,
-          actorUserId: userId,
+          action: "CANCELLED_BY_STAFF" as const,
+          actorUserId,
         })),
       });
     }
+    return created.id;
   });
 
-  revalidatePath(`/ko/g/${slug}/me`);
-  revalidatePath(`/en/g/${slug}/me`);
-  revalidatePath(`/ko/g/${slug}/me/holdings`);
-  revalidatePath(`/en/g/${slug}/me/holdings`);
-  return { ok: true };
+  return { ok: true, refundId };
 }

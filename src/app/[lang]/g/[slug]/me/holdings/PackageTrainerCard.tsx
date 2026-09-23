@@ -1,11 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { UserCog, CalendarClock, Undo2 } from "lucide-react";
+import { UserCog, CalendarClock } from "lucide-react";
 
 // PT 권 카드 안 — 트레이너 표시 + 액션 버튼 row.
 // 표시는 사진 + 이름 + 전공 한 줄. 소개/연락/채팅 펼침 X (사용자 요청).
-// 액션: 트레이너 변경 / (필요 시) 재예약 / 환불 신청 — 한 줄 wrap.
+// 액션: 트레이너 변경 / (필요 시) 재예약 — 한 줄 wrap. 환불은 카운터 대면 전용(2026-09-23).
 export function PackageTrainerCard({
   slug,
   lang,
@@ -27,7 +27,6 @@ export function PackageTrainerCard({
 
   const trainerHref = `/${lang}/g/${slug}/me/holdings/${packageId}/trainer`;
   const rebookHref = `/${lang}/g/${slug}/me/holdings/${packageId}/rebook`;
-  const refundHref = `/${lang}/g/${slug}/me/holdings/refund?kind=PACKAGE&id=${packageId}`;
 
   const footer = (
     <div className="mt-3 flex flex-wrap gap-2">
@@ -47,13 +46,6 @@ export function PackageTrainerCard({
           {t("holdingsRebookBadge", { n: pendingRebookCount })}
         </a>
       )}
-      <a
-        href={refundHref}
-        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50"
-      >
-        <Undo2 size={16} />
-        {t("holdingsRefundRequest")}
-      </a>
     </div>
   );
 

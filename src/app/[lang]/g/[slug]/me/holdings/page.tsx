@@ -1,7 +1,7 @@
 import type { Viewport } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { ChevronLeft, Undo2 } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
 // V18 Sunset Peach — 화이트 테마. 모바일 상태바도 흰색.
 export const viewport: Viewport = {
@@ -199,13 +199,6 @@ export default async function HoldingsPage({
                     >
                       {t("membershipExpiresOn", { date: expiresLabel })}
                     </div>
-                    <RefundLink
-                      lang={lang}
-                      slug={slug}
-                      kind="MEMBERSHIP"
-                      id={m.id}
-                      t={t}
-                    />
                   </li>
                 );
               })}
@@ -298,13 +291,6 @@ export default async function HoldingsPage({
                         booked: counts.booked,
                       })}
                     </div>
-                    <RefundLink
-                      lang={lang}
-                      slug={slug}
-                      kind="PACKAGE"
-                      id={p.id}
-                      t={t}
-                    />
                   </li>
                 );
               })}
@@ -330,34 +316,6 @@ function packageCounts(
   const booked = openCount * deductCount;
   const available = Math.max(0, remainingCount - booked);
   return { completed, booked, available };
-}
-
-// 환불 신청 링크 — PackageTrainerCard footer 의 환불 버튼과 동일 스타일.
-// 회원권/단체 권 카드 하단에 단독으로 사용 (PT 권은 PackageTrainerCard 안에서).
-function RefundLink({
-  lang,
-  slug,
-  kind,
-  id,
-  t,
-}: {
-  lang: string;
-  slug: string;
-  kind: "PACKAGE" | "MEMBERSHIP";
-  id: string;
-  t: T;
-}) {
-  return (
-    <div className="mt-3">
-      <a
-        href={`/${lang}/g/${slug}/me/holdings/refund?kind=${kind}&id=${id}`}
-        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-600 ring-1 ring-zinc-200 hover:bg-zinc-50"
-      >
-        <Undo2 size={16} />
-        {t("holdingsRefundRequest")}
-      </a>
-    </div>
-  );
 }
 
 function formatDate(d: Date, lang: string): string {

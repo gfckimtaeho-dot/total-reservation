@@ -81,7 +81,7 @@ design/references/design.md(Bold Outline/뉴 브루탈리즘)는 영감 referenc
 - 상태색 = 칩 배경(완료 `bg-emerald-50` / 그룹 `bg-amber-50` / 개인 `bg-orange-50`) + 시간·트레이너 글자색(emerald/amber/orange-700).
 
 ### 적용 범위
-- 전 `/me` 트리 통일: 홈 대시보드, 캘린더(MeFortnight), 보유상품(+환불/리북/트레이너 변경), 예약(신규/변경), 공유 로딩셸·PWA카드, 채팅 스레드.
+- 전 `/me` 트리 통일: 홈 대시보드, 캘린더(MeFortnight), 보유상품(+리북/트레이너 변경, 환불 진입은 2026-09-23 폐기), 예약(신규/변경), 공유 로딩셸·PWA카드, 채팅 스레드.
 - 카드 크기/너비/정보구조는 기존 유지(디자인 토큰만 교체). 달력 셀 색·picker 슬롯 로직·ChatWindow(`tone="light"`)는 그대로.
 
 ## 작업 주의 (Windows)

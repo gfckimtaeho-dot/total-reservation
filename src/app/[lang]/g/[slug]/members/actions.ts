@@ -8,6 +8,14 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import {
+  computeMemberRefund,
+  createMemberRefundRequest,
+  type RefundKindArg,
+  type RefundPayout,
+  type RefundPreview,
+  type SubmitRefundResult,
+} from "@/lib/refunds/member-request";
+import {
   sendCustomerActivationEmail,
   sendPasswordResetEmail,
   sendMemberLoginUrlEmail,
@@ -506,4 +514,59 @@ export async function setMemberActive(formData: FormData) {
   revalidatePath(`/en/g/${slug}/members`);
   revalidatePath(`/ko/g/${slug}/members/${memberId}`);
   revalidatePath(`/en/g/${slug}/members/${memberId}`);
+}
+
+// ── 카운터 환불 등록 (회원 변심 50%) ────────────────────────────────────
+// 고객 셀프 신청 폐기(2026-09-23) 후 유일한 회원 변심 환불 진입점. 회원 상세
+// /members/[id]/refund 페이지가 호출. 산식·생성은 src/lib/refunds/member-request.ts.
+// OWNER/MANAGER 만 — 트레이너는 돈 흐름을 만들지 않는다.
+
+export async function loadMemberRefundPreview(
+  slug: string,
+  kind: RefundKindArg,
+  id: string,
+): Promise<RefundPreview> {
+  const auth = await requireGymStaff(slug);
+  const business = auth.business!;
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { ok: false, reason: "invalid" };
+  }
+  const r = await computeMemberRefund(
+    { gymId: business.id, timeZone: business.timeZone },
+    kind,
+    id,
+  );
+  if (!r.ok) return { ok: false, reason: r.reason };
+  const { paidPerUnit: _omit, ...preview } = r.data;
+  void _omit;
+  return preview;
+}
+
+export async function submitMemberRefund(
+  slug: string,
+  kind: RefundKindArg,
+  id: string,
+  payout: RefundPayout,
+): Promise<SubmitRefundResult> {
+  const auth = await requireGymStaff(slug);
+  const business = auth.business!;
+  if (auth.role !== "OWNER" && auth.role !== "MANAGER") {
+    return { ok: false, reason: "invalid" };
+  }
+  const result = await createMemberRefundRequest(
+    { gymId: business.id, timeZone: business.timeZone },
+    kind,
+    id,
+    payout,
+    auth.id,
+  );
+  if (!result.ok) return result;
+
+  for (const lang of ["ko", "en"]) {
+    revalidatePath(`/${lang}/g/${slug}/members`);
+    revalidatePath(`/${lang}/g/${slug}/refunds`);
+    revalidatePath(`/${lang}/g/${slug}/me`);
+    revalidatePath(`/${lang}/g/${slug}/me/holdings`);
+  }
+  return result;
 }

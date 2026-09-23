@@ -28,6 +28,7 @@ export default async function MemberDetailPage({
   const { lang, slug, id } = await params;
   const auth = await requireGymStaff(slug);
   const business = auth.business!;
+  const isManagerRole = auth.role === "OWNER" || auth.role === "MANAGER";
   const t = await getTranslations("memberDetail");
   const tc = await getTranslations("trainerCal");
 
@@ -48,6 +49,7 @@ export default async function MemberDetailPage({
           locale: true,
           createdAt: true,
           memberships: {
+            where: { refundedAt: null },
             orderBy: { endDate: "desc" },
             select: {
               id: true,
@@ -363,6 +365,11 @@ export default async function MemberDetailPage({
                     >
                       {t("colInfo")}
                     </th>
+                    <th
+                      className={`px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.18em] ${TK.subtle}`}
+                    >
+                      {t("colAction")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -383,6 +390,17 @@ export default async function MemberDetailPage({
                         className={`px-3 py-3 text-center tabular-nums ${TK.title}`}
                       >
                         {h.info}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {/* 카운터 환불 등록 — 회원 변심 50%. OWNER/MANAGER 만 페이지 진입 허용. */}
+                        {isManagerRole && (
+                          <Link
+                            href={`/${lang}/g/${slug}/members/${u.id}/refund?kind=${h.kind === "MEMBERSHIP" ? "MEMBERSHIP" : "PACKAGE"}&pass=${h.id}`}
+                            className="inline-flex items-center rounded-lg border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                          >
+                            {t("refundBtn")}
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))}
