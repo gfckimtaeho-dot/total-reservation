@@ -17,12 +17,15 @@ export function MemberRefundForm({
   memberId,
   memberName,
   items,
+  ratePercent,
 }: {
   slug: string;
   lang: string;
   memberId: string;
   memberName: string;
   items: RefundItem[];
+  // 매장 설정의 회원 변심 환불 비율(%) — 안내 문구용.
+  ratePercent: number;
 }) {
   const t = useTranslations("memberDetail");
   const router = useRouter();
@@ -98,7 +101,10 @@ export function MemberRefundForm({
           {t("refundPriceBaseTitle")}
         </div>
         <p className="mt-2 text-sm leading-relaxed text-rose-900">
-          {t("refundPriceBaseBody")}
+          {t("refundPriceBaseBody", { rate: ratePercent })}
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-rose-800">
+          {t("refundCalcNote", { rate: ratePercent })}
         </p>
       </section>
 
@@ -230,7 +236,7 @@ function ItemBlock({
       </dl>
       <div className="mt-2 text-xs text-zinc-500">
         {t("refundCalcLabel")}: ({money(item.paidPhp)} ÷ {item.totalUnits}) ×{" "}
-        {item.refundUnits} × 50%
+        {item.refundUnits} × {item.ratePercent}%
       </div>
     </li>
   );

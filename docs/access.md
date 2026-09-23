@@ -83,6 +83,7 @@
 
 호텔 게스트는 일반 회원권으로 받지 않고 별도 1일 단가로 과금. 매출현황에서 분리 표시.
 
+- 설정(환불 비율): `Business.memberRefundRatePercent Int @default(50)` — `/g/{slug}/settings` "회원 환불 비율" 카드에서 OWNER/MANAGER 가 0~100 설정. 변경 시 `PriceChangeLog`(entityType=`MEMBER_REFUND_RATE`, 값=퍼센트) 기록. 회원 변심 환불 산식이 이 값을 읽음(src/lib/refunds/member-request.ts).
 - 설정: `Business.hotelGuestDailyPricePhp Int?` (₱, nullable=미설정). `/g/{slug}/settings` 의 "호텔 게스트 1일 가격" 카드에서 OWNER/MANAGER 가 설정. 변경 시 `PriceChangeLog`(entityType=`HOTEL_GUEST_DAILY_PRICE`, entityId=businessId) 기록 — [[feedback_money_audit_log]].
 - 매출: `/g/{slug}/revenue` 의 "호텔 게스트 매출" 별도 섹션. **Sale row 아님** — 집계 시에만 산출하고 상단 KPI/차트(Sale 기반)엔 미합산.
 - 산식: 게스트 1명(=stayId 단위) 매출 = **실제 방문일수 x 1일 단가**. 방문일수 = 선택 기간 내 `result=ALLOWED` GuestAccessLog 의 매장 달력일 distinct (하루 여러 스캔은 1일). 손님명은 로그 스냅샷(가장 최근 non-null).

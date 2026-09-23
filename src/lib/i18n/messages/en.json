@@ -103,6 +103,17 @@
       "errCurrentPw": "Current password does not match",
       "errNewPwConfirm": "Password confirmation does not match"
     },
+    "refundRate": {
+      "heading": "Member refund rate",
+      "body": "Percentage of the remaining list price refunded when a member changes their mind. Applied immediately to the refund screen and its notice text in member detail. Store-side refunds (a class discontinued, etc.) are always 100%.",
+      "unit": "of remaining list price",
+      "example": "e.g. 10 sessions left x ₱500 list price x {rate}% = ₱{amount} (rounded up)",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Saved",
+      "err_invalid": "Enter an integer between 0 and 100",
+      "err_forbidden": "Not allowed"
+    },
     "hotelGuestPrice": {
       "heading": "Hotel guest daily price",
       "body": "Per-day access rate for affiliated hotel guests. Applied separately from regular memberships and used to compute hotel guest revenue on the revenue page. Save empty to clear.",
@@ -1670,9 +1681,9 @@
     "refundLineRefundable": "Refundable",
     "refundCalcLabel": "How the refund is calculated",
     "refundRounded": "rounded up",
-    "refundCalcNote": "The refund is 50% of the list price (before any discount), rounded up. Today's reservations are completed by the trainer, so they are excluded.",
+    "refundCalcNote": "The refund is {rate}% of the list price (before any discount), rounded up. Today's reservations are completed by the trainer, so they are excluded. Change the rate under Settings > Member refund rate.",
     "refundPriceBaseTitle": "Basis to explain to the member",
-    "refundPriceBaseBody": "The refund is based on 50% of the list price (before any discount), not the amount paid. Promotions or discounts do not apply again at refund time. Only refunds caused by the store side (a class is discontinued, a trainer is unavailable, and so on) return 100% of the list price.",
+    "refundPriceBaseBody": "The refund is based on {rate}% of the list price (before any discount), not the amount paid. Promotions or discounts do not apply again at refund time. Only refunds caused by the store side (a class is discontinued, a trainer is unavailable, and so on) return 100% of the list price.",
     "refundNothing": "Nothing to refund.",
     "refundPayoutTitle": "Payout method",
     "refundMethodInPerson": "Pay at the counter",

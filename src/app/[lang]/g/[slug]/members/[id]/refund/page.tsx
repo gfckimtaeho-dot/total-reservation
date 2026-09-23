@@ -87,6 +87,7 @@ export default async function MemberRefundPage({
           memberId={memberId}
           memberName={member.name}
           items={items}
+          ratePercent={business.memberRefundRatePercent}
         />
       </div>
     </OwnerShell>

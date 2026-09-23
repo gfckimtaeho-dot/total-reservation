@@ -8,7 +8,7 @@ import { completeRefundInTx } from "./complete";
 // 2026-09-24: /refunds 화면 폐기 — 등록과 동시에 COMPLETED 마감(영수증 채팅 포함).
 //   권별 "환불" 과 "전체 환불"(회원의 환불 가능한 권 전부) 둘 다 이 모듈.
 //
-// 산식: 환불 = 올림( 환불대상 × 단위가 × 0.5 )
+// 산식: 환불 = 올림( 환불대상 × 단위가 × 비율 ) — 비율 = Business.memberRefundRatePercent/100 (기본 50%)
 //   수업권: 단위=회. 환불대상 = 잔여 − 당일예약(완료 취급). 단위가 = 정가/총회.
 //   회원권: 단위=일. 환불대상 = 잔여일. 단위가 = 정가/총일.
 // 당일 예약은 취소하지 않는다 — 그날 트레이너가 완료 처리하므로 "사용"으로 친다.
@@ -31,6 +31,8 @@ export type RefundItem = {
   todayUnits: number;
   refundUnits: number;
   refundPhp: number;
+  // 적용된 회원 변심 환불 비율(%) — 화면 산식 표시용.
+  ratePercent: number;
 };
 
 export type RefundPreview =
@@ -39,7 +41,7 @@ export type RefundPreview =
 
 type Computed = RefundItem & { paidPerUnit: number };
 
-type GymCtx = { gymId: string; timeZone: string };
+type GymCtx = { gymId: string; timeZone: string; ratePercent: number };
 
 // 환불 내역 계산 — 미리보기와 처리가 같은 로직을 쓰도록 단일 함수.
 // 권이 이 매장 소속인지만 검사한다(호출자는 이미 매장 스태프 인증 통과).
@@ -51,7 +53,8 @@ export async function computeMemberRefund(
   | { ok: false; reason: "invalid" | "alreadyRefunded" }
   | { ok: true; data: Computed; userId: string }
 > {
-  const { gymId, timeZone } = gym;
+  const { gymId, timeZone, ratePercent } = gym;
+  const rate = Math.min(100, Math.max(0, ratePercent)) / 100;
 
   if (kind === "PACKAGE") {
     const pkg = await prisma.package.findUnique({
@@ -89,7 +92,7 @@ export async function computeMemberRefund(
     const todayUnits = todayResvCount * deduct;
     const refundUnits = Math.max(0, pkg.remainingCount - todayUnits);
     const paidPerUnit = pkg.pricePhp / pkg.totalCount;
-    const refundPhp = Math.ceil(refundUnits * paidPerUnit * 0.5);
+    const refundPhp = Math.ceil(refundUnits * paidPerUnit * rate);
 
     return {
       ok: true,
@@ -106,6 +109,7 @@ export async function computeMemberRefund(
         todayUnits,
         refundUnits,
         refundPhp,
+        ratePercent,
         paidPerUnit,
       },
     };
@@ -143,7 +147,7 @@ export async function computeMemberRefund(
   );
   const elapsedDays = totalDays - remainingDays;
   const paidPerUnit = m.pricePhp / totalDays;
-  const refundPhp = Math.ceil(remainingDays * paidPerUnit * 0.5);
+  const refundPhp = Math.ceil(remainingDays * paidPerUnit * rate);
 
   return {
     ok: true,
@@ -160,6 +164,7 @@ export async function computeMemberRefund(
       todayUnits: 0,
       refundUnits: remainingDays,
       refundPhp,
+      ratePercent,
       paidPerUnit,
     },
   };

@@ -551,7 +551,11 @@ export async function loadMemberRefundPreview(
   const business = auth.business!;
   if (!isManager(auth.role)) return { ok: false, reason: "invalid" };
   return previewMemberRefund(
-    { gymId: business.id, timeZone: business.timeZone },
+    {
+      gymId: business.id,
+      timeZone: business.timeZone,
+      ratePercent: business.memberRefundRatePercent,
+    },
     kind,
     id,
   );
@@ -565,7 +569,11 @@ export async function loadMemberRefundAll(
   const business = auth.business!;
   if (!isManager(auth.role)) return [];
   return listMemberRefundables(
-    { gymId: business.id, timeZone: business.timeZone },
+    {
+      gymId: business.id,
+      timeZone: business.timeZone,
+      ratePercent: business.memberRefundRatePercent,
+    },
     memberId,
   );
 }
@@ -580,7 +588,11 @@ export async function submitMemberRefund(
   const business = auth.business!;
   if (!isManager(auth.role)) return { ok: false, reason: "invalid" };
   const result = await processMemberRefunds(
-    { gymId: business.id, timeZone: business.timeZone },
+    {
+      gymId: business.id,
+      timeZone: business.timeZone,
+      ratePercent: business.memberRefundRatePercent,
+    },
     targets,
     payout,
     auth.id,

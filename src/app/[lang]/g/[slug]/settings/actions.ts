@@ -73,6 +73,56 @@ export async function updateHotelGuestDailyPrice(
   return { status: "saved" };
 }
 
+// 회원 변심 환불 비율(%) 저장. 0~100 정수. 환불 산식(src/lib/refunds/member-request.ts)이
+// Business.memberRefundRatePercent 를 읽는다. 금액 영향 변경이라 PriceChangeLog
+// (MEMBER_REFUND_RATE, 값은 퍼센트) 기록. OWNER/MANAGER 만.
+export async function updateMemberRefundRate(
+  slug: string,
+  _prev: SavePriceState,
+  formData: FormData,
+): Promise<SavePriceState> {
+  const auth = await requireGymStaff(slug);
+  if (!["OWNER", "MANAGER"].includes(auth.role)) {
+    return { status: "error", message: "forbidden" };
+  }
+  const gymId = auth.business!.id;
+
+  const raw = String(formData.get("rate") ?? "").trim();
+  const n = Number(raw);
+  if (raw === "" || !Number.isInteger(n) || n < 0 || n > 100) {
+    return { status: "error", message: "invalid" };
+  }
+
+  const current = await prisma.business.findUnique({
+    where: { id: gymId },
+    select: { memberRefundRatePercent: true },
+  });
+  const oldValue = current?.memberRefundRatePercent ?? 50;
+  if (oldValue === n) return { status: "saved" };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.business.update({
+      where: { id: gymId },
+      data: { memberRefundRatePercent: n },
+    });
+    await tx.priceChangeLog.create({
+      data: {
+        gymId,
+        entityType: "MEMBER_REFUND_RATE",
+        entityId: gymId,
+        oldValuePhp: oldValue,
+        newValuePhp: n,
+        changedById: auth.id,
+        note: "percent",
+      },
+    });
+  });
+
+  revalidatePath(`/ko/g/${slug}/settings`);
+  revalidatePath(`/en/g/${slug}/settings`);
+  return { status: "saved" };
+}
+
 // ─── 무인 출입 스캐너 영구 링크 ─────────────────────────────
 
 export type ScannerKeyState =

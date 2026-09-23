@@ -6,6 +6,7 @@ import { requireGymStaff } from "@/lib/auth/dal";
 import { OwnerShell } from "../OwnerShell";
 import { LangToggle } from "@/components/LangToggle";
 import { HotelGuestPriceForm } from "./HotelGuestPriceForm";
+import { MemberRefundRateForm } from "./MemberRefundRateForm";
 import { ScannerLinkCard } from "./ScannerLinkCard";
 
 export default async function GymSettingsPage({
@@ -29,6 +30,7 @@ export default async function GymSettingsPage({
         where: { id: business.id },
         select: {
           hotelGuestDailyPricePhp: true,
+          memberRefundRatePercent: true,
           scannerKey: true,
           contactEmail: true,
         },
@@ -68,6 +70,18 @@ export default async function GymSettingsPage({
             href={`/${lang}/g/${slug}/settings/account`}
             cta={t("account.cta")}
           />
+
+          {canManagePrice && (
+            <SettingCard
+              heading={t("refundRate.heading")}
+              body={t("refundRate.body")}
+            >
+              <MemberRefundRateForm
+                slug={slug}
+                current={settingsRow?.memberRefundRatePercent ?? 50}
+              />
+            </SettingCard>
+          )}
 
           {canManagePrice && (
             <SettingCard
