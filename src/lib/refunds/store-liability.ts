@@ -1,8 +1,9 @@
 // 매장 귀책 환불 산식 — 단체수업/서비스 폐지, 강사 부재 등 매장 사유의 환불.
-// 회원 변심(50%) 환불과 달리 100% 환불. 올림(Math.ceil)로 회원에게 유리.
+// 회원 변심(매장 설정 비율) 환불과 달리 100% 환불. 올림(Math.ceil)로 회원에게 유리.
+// 기준 금액은 실제 결제액(paidPhp, src/lib/refunds/paid-basis.ts) — 2026-09-24 정가 기준 폐기.
 //
 // 회원 변심 산식과의 차이:
-//   - 회원 변심: refund = ceil( (remaining - today) × unitPrice × 0.5 )
+//   - 회원 변심: refund = ceil( (remaining - today) × unitPrice × rate )
 //   - 매장 귀책: refund = ceil( remaining × unitPrice × 1.0 )
 //
 // 매장 귀책은 "당일 예약" 차감 안 함 — 매장이 폐지한 시점에 회원이 자기 의지로
@@ -11,7 +12,8 @@
 const MS_DAY = 24 * 60 * 60 * 1000;
 
 export function packageStoreLiabilityRefund(input: {
-  pricePhp: number;
+  // 실제 결제액(콤보면 배분액).
+  paidPhp: number;
   totalCount: number;
   remainingCount: number;
 }): {
@@ -20,7 +22,7 @@ export function packageStoreLiabilityRefund(input: {
   refundPhp: number;
   completedUnits: number;
 } {
-  const paidPerUnit = input.pricePhp / input.totalCount;
+  const paidPerUnit = input.paidPhp / input.totalCount;
   const refundUnits = Math.max(0, input.remainingCount);
   const refundPhp = Math.ceil(refundUnits * paidPerUnit);
   const completedUnits = input.totalCount - input.remainingCount;
@@ -28,7 +30,7 @@ export function packageStoreLiabilityRefund(input: {
 }
 
 export function membershipStoreLiabilityRefund(input: {
-  pricePhp: number;
+  paidPhp: number;
   startDate: Date;
   endDate: Date;
   todayUtcMidnight: Date;
@@ -53,7 +55,7 @@ export function membershipStoreLiabilityRefund(input: {
     ),
   );
   const elapsedDays = totalDays - remainingDays;
-  const paidPerDay = input.pricePhp / totalDays;
+  const paidPerDay = input.paidPhp / totalDays;
   const refundPhp = Math.ceil(remainingDays * paidPerDay);
   return { totalDays, remainingDays, elapsedDays, paidPerDay, refundPhp };
 }

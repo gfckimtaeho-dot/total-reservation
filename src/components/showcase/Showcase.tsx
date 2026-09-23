@@ -89,9 +89,12 @@ export function Showcase({
   data,
   concept,
   exitHref,
+  refundRatePercent = 50,
 }: {
   data: ShowcaseData;
   concept: ShowcaseConcept;
+  // 매장 설정 회원 변심 환불 비율(%) — 환불 안내 패널 문구.
+  refundRatePercent?: number;
   // 트레이너가 발표를 끝내고 메인으로 돌아가는 경로. 없으면 버튼 미표시(프리뷰).
   exitHref?: string;
 }) {
@@ -214,7 +217,7 @@ export function Showcase({
                     t={t}
                   />
                 )}
-                {cat === "refund" && <RefundPanel tk={tk} t={t} />}
+                {cat === "refund" && <RefundPanel tk={tk} t={t} rate={refundRatePercent} />}
               </div>
             </div>
 
@@ -491,7 +494,15 @@ function ComboPanel({
 
 // 환불 안내 패널 — 트레이너가 발표 마지막에 고객에게 환불 정책을 짚어줄 수
 // 있도록 6개 항목 카드 grid. 색은 rose 통일(환불 정체성 강조 = 튀게).
-function RefundPanel({ tk, t }: { tk: PanelStyle; t: T }) {
+function RefundPanel({
+  tk,
+  t,
+  rate,
+}: {
+  tk: PanelStyle;
+  t: T;
+  rate: number;
+}) {
   const concept: ShowcaseConcept = tk === TK.dark ? "dark" : "light";
   const items: { key: string; title: string; body: string }[] = [
     "memberRequest",
@@ -503,7 +514,7 @@ function RefundPanel({ tk, t }: { tk: PanelStyle; t: T }) {
   ].map((k) => ({
     key: k,
     title: t(`refundDetails.${k}`),
-    body: t(`refundDetails.${k}Body`),
+    body: t(`refundDetails.${k}Body`, { rate }),
   }));
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

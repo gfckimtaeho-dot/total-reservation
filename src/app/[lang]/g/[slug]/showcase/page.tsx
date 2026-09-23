@@ -23,6 +23,7 @@ export default async function GymShowcasePage({
       data={data}
       concept={CONCEPT}
       exitHref={`/${lang}/g/${slug}/dashboard`}
+      refundRatePercent={business.memberRefundRatePercent}
     />
   );
 }

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/client";
 import { requireGymStaff } from "@/lib/auth/dal";
 import type { Weekday } from "@/generated/prisma/enums";
 import { packageStoreLiabilityRefund } from "@/lib/refunds/store-liability";
+import { paidBasisPhp } from "@/lib/refunds/paid-basis";
 import {
   checkStaffAvailability,
   weekdayOfUtcDate,
@@ -369,6 +370,7 @@ export async function previewScheduleDeletionImpact(
           pricePhp: true,
           totalCount: true,
           remainingCount: true,
+          sale: { select: { listPricePhp: true, totalPaidPhp: true } },
           user: { select: { name: true } },
         },
         orderBy: { createdAt: "asc" },
@@ -376,8 +378,11 @@ export async function previewScheduleDeletionImpact(
     ]);
 
   const affectedMembers: AffectedMember[] = packages.map((p) => {
+    // 환불 기준 = 실제 결제액(프로모션 반영). 정가 기준이면 할인 판매분에서 낸 돈보다
+    // 더 돌려주게 되어 2026-09-24 결제액 기준으로 전환.
+    const paidPhp = paidBasisPhp(p.pricePhp, p.sale);
     const calc = packageStoreLiabilityRefund({
-      pricePhp: p.pricePhp,
+      paidPhp,
       totalCount: p.totalCount,
       remainingCount: p.remainingCount,
     });
@@ -386,7 +391,7 @@ export async function previewScheduleDeletionImpact(
       customerUserId: p.userId,
       customerName: p.user.name,
       remainingCount: p.remainingCount,
-      paidPhp: p.pricePhp,
+      paidPhp,
       totalCount: p.totalCount,
       refundPhp: calc.refundPhp,
       refundUnits: calc.refundUnits,

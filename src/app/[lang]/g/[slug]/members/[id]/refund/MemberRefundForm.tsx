@@ -217,6 +217,9 @@ function ItemBlock({
       </div>
       <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
         <Row label={t("refundPaidLabel")} value={money(item.paidPhp)} />
+        {item.listPricePhp !== item.paidPhp && (
+          <Row label={t("refundListLabel")} value={money(item.listPricePhp)} />
+        )}
         <Row label={t("refundLineTotal")} value={`${item.totalUnits}${unit}`} />
         <Row
           label={t("refundLineCompleted")}

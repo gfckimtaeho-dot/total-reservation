@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/client";
 import { gymTodayUtcMidnight, gymTodayRange } from "@/lib/calendar/gymTime";
 import { OPEN_STATUSES } from "@/lib/packages/availability";
 import { completeRefundInTx } from "./complete";
+import { paidBasisPhp } from "./paid-basis";
 
 // 회원 변심 환불(T17) 산식 + 처리 — 카운터(사장/매니저)가 회원 대면 후 회원 상세에서.
 // 2026-09-23: 고객 셀프 신청(/me/holdings/refund) 폐기.
@@ -9,8 +10,9 @@ import { completeRefundInTx } from "./complete";
 //   권별 "환불" 과 "전체 환불"(회원의 환불 가능한 권 전부) 둘 다 이 모듈.
 //
 // 산식: 환불 = 올림( 환불대상 × 단위가 × 비율 ) — 비율 = Business.memberRefundRatePercent/100 (기본 50%)
-//   수업권: 단위=회. 환불대상 = 잔여 − 당일예약(완료 취급). 단위가 = 정가/총회.
-//   회원권: 단위=일. 환불대상 = 잔여일. 단위가 = 정가/총일.
+//   수업권: 단위=회. 환불대상 = 잔여 − 당일예약(완료 취급). 단위가 = 결제액/총회.
+//   회원권: 단위=일. 환불대상 = 잔여일. 단위가 = 결제액/총일.
+//   결제액 = Sale 기준 실결제(프로모션 할인 반영), src/lib/refunds/paid-basis.ts.
 // 당일 예약은 취소하지 않는다 — 그날 트레이너가 완료 처리하므로 "사용"으로 친다.
 // 미래(내일 이후) 예약만 취소. 권은 refundedAt 으로 동결.
 
@@ -24,7 +26,9 @@ export type RefundItem = {
   memberName: string;
   serviceName: string;
   trainerName: string | null;
+  // 실제 결제액(환불 기준) / 정가(표시용, 할인 없으면 같음).
   paidPhp: number;
+  listPricePhp: number;
   // 수업권은 회 단위, 회원권은 일 단위.
   totalUnits: number;
   completedUnits: number;
@@ -67,6 +71,7 @@ export async function computeMemberRefund(
         remainingCount: true,
         pricePhp: true,
         refundedAt: true,
+        sale: { select: { listPricePhp: true, totalPaidPhp: true } },
         user: { select: { name: true } },
         // 표시 이름은 상품명(PackagePlan) 우선 — plan 없으면 서비스명 폴백.
         plan: { select: { name: true } },
@@ -91,7 +96,8 @@ export async function computeMemberRefund(
     const completedUnits = pkg.totalCount - pkg.remainingCount;
     const todayUnits = todayResvCount * deduct;
     const refundUnits = Math.max(0, pkg.remainingCount - todayUnits);
-    const paidPerUnit = pkg.pricePhp / pkg.totalCount;
+    const paidPhp = paidBasisPhp(pkg.pricePhp, pkg.sale);
+    const paidPerUnit = paidPhp / pkg.totalCount;
     const refundPhp = Math.ceil(refundUnits * paidPerUnit * rate);
 
     return {
@@ -103,7 +109,8 @@ export async function computeMemberRefund(
         memberName: pkg.user.name,
         serviceName: pkg.plan?.name ?? pkg.service.name,
         trainerName: pkg.assignedStaff?.user.name ?? null,
-        paidPhp: pkg.pricePhp,
+        paidPhp,
+        listPricePhp: pkg.pricePhp,
         totalUnits: pkg.totalCount,
         completedUnits,
         todayUnits,
@@ -126,6 +133,7 @@ export async function computeMemberRefund(
       endDate: true,
       pricePhp: true,
       refundedAt: true,
+      sale: { select: { listPricePhp: true, totalPaidPhp: true } },
       user: { select: { name: true } },
       plan: { select: { name: true } },
     },
@@ -146,7 +154,8 @@ export async function computeMemberRefund(
     ),
   );
   const elapsedDays = totalDays - remainingDays;
-  const paidPerUnit = m.pricePhp / totalDays;
+  const mPaidPhp = paidBasisPhp(m.pricePhp, m.sale);
+  const paidPerUnit = mPaidPhp / totalDays;
   const refundPhp = Math.ceil(remainingDays * paidPerUnit * rate);
 
   return {
@@ -158,7 +167,8 @@ export async function computeMemberRefund(
       memberName: m.user.name,
       serviceName: m.plan?.name ?? "회원권",
       trainerName: null,
-      paidPhp: m.pricePhp,
+      paidPhp: mPaidPhp,
+      listPricePhp: m.pricePhp,
       totalUnits: totalDays,
       completedUnits: elapsedDays,
       todayUnits: 0,
